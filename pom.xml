@@ -53,6 +53,11 @@
             <version>5.9.2</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.22.2</version>
+        </dependency>
 
 
     </dependencies>
@@ -78,6 +83,27 @@
                         <goals>
                             <goal>single</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>3.11.1</version>
+                <executions>
+                    <execution>
+                        <id>generate-protobuf-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <includeStdTypes>true</includeStdTypes>
+                            <protocVersion>3.16.0</protocVersion>
+                            <cleanOutputFolder>true</cleanOutputFolder>
+                            <outputDirectory>${basedir}/target/generated-sources/protoc-jar</outputDirectory>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
