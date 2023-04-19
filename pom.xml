@@ -99,6 +99,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
+                            <optimizeCodegen>true</optimizeCodegen>
                             <includeStdTypes>true</includeStdTypes>
                             <protocVersion>3.16.0</protocVersion>
                             <cleanOutputFolder>true</cleanOutputFolder>
