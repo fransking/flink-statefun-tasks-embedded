@@ -16,6 +16,8 @@
 package com.sbbsystems.flink.tasks.embedded;
 
 import java.util.Map;
+
+import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +26,14 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunctionModule.class);
 
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
-        // Embedded functions, ingresses, routers, and egresses
-        // can be bound to the Binder
+        LOG.info("Embedded pipeline function module loaded");
 
-        LOG.info("Flink Statefun Tasks embedded pipeline Function module loaded");
+        //todo make this configurable from the module.yaml
+        var function_type = new FunctionType("example", "embedded_pipeline");
+        var provider = new PipelineFunctionProvider();
+        binder.bindFunctionProvider(function_type, provider);
+
+        LOG.info("Embedded pipeline function module registered");
     }
 }
 
