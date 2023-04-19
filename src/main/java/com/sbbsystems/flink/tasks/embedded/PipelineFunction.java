@@ -1,6 +1,5 @@
 package com.sbbsystems.flink.tasks.embedded;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.flink.tasks.embedded.proto.TaskRequest;
 import com.sbbsystems.flink.tasks.embedded.types.InvalidMessageTypeException;
 import com.sbbsystems.flink.tasks.embedded.types.MessageTypes;

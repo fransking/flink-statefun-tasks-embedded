@@ -1,15 +1,13 @@
 package com.sbbsystems.flink.tasks.embedded.types;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.flink.tasks.embedded.proto.TaskException;
 import com.sbbsystems.flink.tasks.embedded.proto.TaskRequest;
 import com.sbbsystems.flink.tasks.embedded.proto.TaskResult;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.Test;
 
 
 public class MessageTypesTests {
