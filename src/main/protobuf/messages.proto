@@ -53,7 +53,7 @@ message TaskEntry {
     string worker_name = 7;
     bool is_fruitful = 8;
     TaskRetryPolicy retry_policy = 9;
-    optional string display_name = 10;
+    string display_name = 10;
     bool is_wait = 11;
     string uid = 12;
     bool is_exceptionally = 13;
@@ -82,9 +82,9 @@ message Pipeline {
     bool inline = 2;
 
     // parameters to pass to the initial tasks in this pipeline
-    optional google.protobuf.Any initial_args = 3;
-    optional MapOfStringToAny initial_kwargs = 4;
-    optional google.protobuf.Any initial_state = 5;
+    google.protobuf.Any initial_args = 3;
+    MapOfStringToAny initial_kwargs = 4;
+    google.protobuf.Any initial_state = 5;
 }
 
 message TaskRetryPolicy {
@@ -110,8 +110,8 @@ message TaskRequest {
     google.protobuf.Any state = 6;
     TaskRetryPolicy retry_policy = 7;
     map<string, string> meta = 8;
-    optional bool is_fruitful = 9;
-    optional string invocation_id = 10;
+    bool is_fruitful = 9;
+    string invocation_id = 10;
     string uid = 11;
 }
 
@@ -120,7 +120,7 @@ message TaskResult {
     string type = 2;
     google.protobuf.Any result = 3;
     google.protobuf.Any state = 4;
-    optional string invocation_id = 5;
+    string invocation_id = 5;
     string uid = 6;
     bool is_wait = 11;
 }
@@ -134,7 +134,7 @@ message TaskException {
     google.protobuf.Any state = 6;
     bool maybe_retry = 7;
     TaskRetryPolicy retry_policy = 8;
-    optional string invocation_id = 9;
+    string invocation_id = 9;
     string uid = 10;
     bool is_wait = 11;
 }
@@ -154,14 +154,14 @@ message TaskSpecificState {
 
 message TaskState {
     map<string, TaskSpecificState> by_uid = 1;
-    optional google.protobuf.Any internal_state = 2;
+    google.protobuf.Any internal_state = 2;
 }
 
 message TaskDeferral {
     repeated DeferredTask tasks = 1;
-    optional string parent_task_address = 2;
-    optional string parent_task_id = 3;
-    optional TaskResultOrException task_result_or_exception = 4;
+    string parent_task_address = 2;
+    string parent_task_id = 3;
+    TaskResultOrException task_result_or_exception = 4;
 }
 
 message DeferredTask {

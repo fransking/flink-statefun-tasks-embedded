@@ -56,7 +56,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.22.2</version>
+            <version>3.7.1</version>
         </dependency>
 
 
@@ -101,7 +101,7 @@
                         <configuration>
                             <optimizeCodegen>true</optimizeCodegen>
                             <includeStdTypes>true</includeStdTypes>
-                            <protocVersion>3.16.0</protocVersion>
+                            <protocVersion>3.7.1</protocVersion>
                             <cleanOutputFolder>true</cleanOutputFolder>
                             <outputDirectory>${basedir}/target/generated-sources/protoc-jar</outputDirectory>
                         </configuration>
