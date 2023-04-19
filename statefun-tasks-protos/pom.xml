@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>statefun-sdk-protos</artifactId>
+    <artifactId>statefun-tasks-protos</artifactId>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
