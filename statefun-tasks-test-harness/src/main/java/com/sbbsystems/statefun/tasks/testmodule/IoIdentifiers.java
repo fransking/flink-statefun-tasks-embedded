@@ -7,10 +7,11 @@ import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 import org.apache.flink.statefun.sdk.io.IngressIdentifier;
 
 public final class IoIdentifiers {
-    public static final EgressIdentifier<Any> RESULT_EGRESS = new EgressIdentifier<>("test-harness", "out", Any.class);
 
-    public static final IngressIdentifier<TaskRequest> REQUEST_INGRESS = new IngressIdentifier<>(TaskRequest.class, "test-harness", "in");
+    public static final String NAMESPACE = "test-harness";
+    public static final IngressIdentifier<TaskRequest> REQUEST_INGRESS = new IngressIdentifier<>(TaskRequest.class, NAMESPACE, "in");
+    public static final EgressIdentifier<Any> RESULT_EGRESS = new EgressIdentifier<>(NAMESPACE, "out", Any.class);
 
-    public static final FunctionType REMOTE_FUNCTION_TYPE = new FunctionType("test-harness", "remote_function");
-    public static final FunctionType EMBEDDED_FUNCTION_TYPE = new FunctionType("test-harness", "embedded_function");
+    public static final FunctionType REMOTE_FUNCTION_TYPE = new FunctionType(NAMESPACE, "remote_function");
+    public static final FunctionType EMBEDDED_FUNCTION_TYPE = new FunctionType(NAMESPACE, "embedded_function");
 }

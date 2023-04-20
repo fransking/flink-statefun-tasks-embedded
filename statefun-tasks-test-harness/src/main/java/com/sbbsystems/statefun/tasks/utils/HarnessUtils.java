@@ -1,8 +1,12 @@
 package com.sbbsystems.statefun.tasks.utils;
 
 import org.apache.flink.statefun.flink.harness.Harness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HarnessUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(HarnessUtils.class);
+
     public static AutoCloseable startHarnessInTheBackground(Harness harness) {
         Thread t =
                 new Thread(
@@ -10,7 +14,7 @@ public class HarnessUtils {
                             try {
                                 harness.start();
                             } catch (InterruptedException ignored) {
-                                System.out.println("Harness Interrupted");
+                                LOG.info("Harness Interrupted");
                             } catch (Exception exception) {
                                 throw new RuntimeException(exception);
                             }
