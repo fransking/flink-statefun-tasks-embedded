@@ -29,6 +29,7 @@
             <artifactId>statefun-tasks-protos</artifactId>
             <version>${project.version}</version>
         </dependency>
+
     </dependencies>
 
 </project>
