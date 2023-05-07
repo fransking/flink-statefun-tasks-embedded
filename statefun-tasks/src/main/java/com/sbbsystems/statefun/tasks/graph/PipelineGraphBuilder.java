@@ -25,6 +25,15 @@ public final class PipelineGraphBuilder {
     private Chain entries;
     private Pipeline pipelineProto = Pipeline.getDefaultInstance();
 
+    private PipelineGraphBuilder() {
+    }
+
+    public static PipelineGraphBuilder newInstance() {
+        return new PipelineGraphBuilder();
+    }
+
+
+
     public PipelineGraphBuilder withTaskLookup(PersistedTable<String, Task> tasksByUid) {
         this.taskLookup = tasksByUid;
         return this;

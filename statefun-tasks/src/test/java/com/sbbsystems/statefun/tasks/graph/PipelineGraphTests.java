@@ -28,6 +28,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class PipelineGraphTests {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineGraphTests.class);
 
+    private PipelineGraph createGraphFromTemplate(List<?> template) {
+        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
+        return builder.build();
+    }
+
     @Test
     public void graph_yields_all_tasks() {
         var longList = new LinkedList<String>();
@@ -57,9 +63,7 @@ public final class PipelineGraphTests {
 
         Graph graph;
         try (var ignored = new TimedBlock(LOG, "Building the graph")) {
-            var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
-            var builder = new PipelineGraphBuilder().fromProto(pipeline);
-            graph = builder.build();
+            graph = this.createGraphFromTemplate(template);
         }
 
         int count = 0;
@@ -71,5 +75,16 @@ public final class PipelineGraphTests {
         }
 
         assertThat(count).isEqualTo(1000009);
+    }
+
+    @Test
+    public void get_next_step_in_chain_of_tasks() {
+        var template = List.of("1", "2", "3");
+        var graph = this.createGraphFromTemplate(template);
+
+        var firstStep = new TaskId("1");
+        var nextStep = graph.getNextStep(firstStep);
+
+        //assertThat(nextStep.getId()).isEqualTo("2");
     }
 }

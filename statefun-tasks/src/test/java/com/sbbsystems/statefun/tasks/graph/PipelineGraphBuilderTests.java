@@ -80,7 +80,7 @@ public final class PipelineGraphBuilderTests {
     @Test
     public void graph_contains_all_task_entries_given_a_pipeline() {
         var pipeline = PipelineGraphBuilderTests.buildSingleChainPipeline(10);
-        var builder = new PipelineGraphBuilder().fromProto(pipeline);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         PipelineGraph graph = builder.build();
 
         assertThat(graph.getEntries()).hasSize(10);
@@ -100,7 +100,7 @@ public final class PipelineGraphBuilderTests {
         var template = List.of("1", group, "2");
 
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
-        var builder = new PipelineGraphBuilder().fromProto(pipeline);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         Graph graph = builder.build();
 
         assertThat(graph.getEntries()).hasSize(3);

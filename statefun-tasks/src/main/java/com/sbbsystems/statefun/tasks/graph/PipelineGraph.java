@@ -15,8 +15,12 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import com.sbbsystems.statefun.tasks.types.Task;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
+
+import java.util.Iterator;
 
 public final class PipelineGraph implements Graph {
     private final PersistedTable<String, Task> taskLookup;
@@ -42,5 +46,26 @@ public final class PipelineGraph implements Graph {
 
     public Iterable<TaskId> getTasks() {
         return entries.getTasks();
+    }
+
+    public Entry getNextStep(Entry currentStep) {
+        var iterator = Iterators.peekingIterator(getEntries().iterator());
+
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            if (entry instanceof Grouping) {
+
+            }
+            else if (entry instanceof TaskId) {
+                if (entry.equals(currentStep)) {
+
+                }
+            }
+            else {
+                // throw
+            }
+        }
+
+        return null;
     }
 }
