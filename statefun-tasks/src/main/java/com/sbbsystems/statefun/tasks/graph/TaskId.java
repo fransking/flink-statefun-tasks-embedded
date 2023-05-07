@@ -45,6 +45,16 @@ public class TaskId implements Entry {
         return id;
     }
 
+    @Override
+    public boolean equals(Object other) {
+        return (other instanceof TaskId && ((TaskId) other).getId().equals(getId()));
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
+
     @NotNull
     @Override
     public Iterator<TaskId> iterator() {
