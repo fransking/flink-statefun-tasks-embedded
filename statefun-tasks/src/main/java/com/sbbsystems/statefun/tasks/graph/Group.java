@@ -15,47 +15,38 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.StreamSupport;
 
-public class Grouping implements Entry {
-    private String id;
-    private List<Chain> entries = new LinkedList<>();
+@TypeInfo(GroupTypeInfoFactory.class)
+public final class Group extends EntryBase implements Entry {
+    private List<Entry> items;
 
-    public Grouping() {
-        this(null);
+    public static Group of(@NotNull String id) {
+        var group = new Group();
+        group.setId(id);
+        return group;
     }
 
-    public Grouping(String id) {
-        this.id = id;
+    @SuppressWarnings("unused")  // POJO serialisation
+    public Group() {
+        items = new LinkedList<>();
     }
 
-    @Override
-    public String getId() {
-        return id;
+    @SuppressWarnings("unused")  // POJO serialisation
+    public List<Entry> getItems() {
+        return items;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    @SuppressWarnings("unused")  // POJO serialisation
+    public void setItems(@NotNull List<Entry> items) {
+        this.items = items;
     }
 
-    public List<Chain> getEntries() {
-        return entries;
-    }
-
-    public void setEntries(List<Chain> entries) {
-        this.entries = entries;
-    }
-
-    @NotNull
-    @Override
-    public Iterator<TaskId> iterator() {
-        return entries.stream()
-                .flatMap(chain -> StreamSupport.stream(chain.getTasks().spliterator(), false))
-                .iterator();
+    public void addEntry(@NotNull Entry entry) {
+        items.add(entry);
     }
 }

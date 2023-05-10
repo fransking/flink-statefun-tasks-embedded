@@ -15,34 +15,12 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import com.google.common.collect.Iterables;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-
-public final class Chain implements Iterable<Entry> {
-    private List<Entry> items = new LinkedList<>();
-
-    public List<Entry> getItems() {
-        return items;
-    }
-
-    public void setItems(List<Entry> items) {
-        this.items = items;
-    }
-
-    public void add(Entry item) {
-        items.add(item);
-    }
-
-    public Iterable<TaskId> getTasks() {
-        return Iterables.concat(items);
-    }
-
-    @Override
-    public @NotNull Iterator<Entry> iterator() {
-        return items.iterator();
+public final class Task extends EntryBase implements Entry {
+    public static Task of(@NotNull String id) {
+        var task = new Task();
+        task.setId(id);
+        return task;
     }
 }

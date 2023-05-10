@@ -24,16 +24,18 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class PipelineGraphBuilderTests {
 
     @NotNull
-    private static Pipeline buildSingleChainPipeline(int length) {
+    public static Pipeline buildSingleChainPipeline(int length) {
         var pipeline = Pipeline.newBuilder();
 
-        for (int i = 0; i < length; i++) {
+        for (int i = 1; i <= length; i++) {
             var taskEntry = TaskEntry.newBuilder()
                     .setTaskId(String.valueOf(i))
                     .setUid(String.valueOf(i));
@@ -86,7 +88,7 @@ public final class PipelineGraphBuilderTests {
         assertThat(graph.getEntries()).hasSize(10);
 
         for (Entry entry : graph.getEntries()) {
-            assertThat(graph.getTask(entry.getId())).isNotNull();
+            assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
         }
     }
 
@@ -97,15 +99,26 @@ public final class PipelineGraphBuilderTests {
                 List.of("d", "e", "f")
         );
 
-        var template = List.of("1", group, "2");
+        var group2 = List.of(
+                List.of("x", group, "y")
+        );
+
+        var template = List.of("1", group2, "2");
 
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
-        Graph graph = builder.build();
+        PipelineGraph graph = builder.build();
 
-        assertThat(graph.getEntries()).hasSize(3);
+        assertThat(graph.getEntries()).hasSize(10);
 
-        var taskIds = List.of("1", "2", "a", "b", "c", "d", "e", "f");
-        taskIds.forEach(taskId -> assertThat(graph.getTask(taskId)).isNotNull());
+        var taskIds = List.of("1", "x", "a", "b", "c", "d", "e", "f", "y", "2");
+        var entryTaskIds = StreamSupport.stream(graph.getEntries().spliterator(), false).map(Entry::getId);
+        assertThat(entryTaskIds.collect(Collectors.toList())).isEqualTo(taskIds);
+
+        taskIds.forEach(taskId -> assertThat(graph.getTaskEntry(taskId)).isNotNull());
+
+        for (Entry entry : graph.getEntries()) {
+            assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
+        }
     }
 }

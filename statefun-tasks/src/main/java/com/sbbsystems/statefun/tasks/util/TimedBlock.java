@@ -15,18 +15,19 @@
  */
 package com.sbbsystems.statefun.tasks.util;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import java.text.MessageFormat;
+import java.util.Objects;
 
 public final class TimedBlock implements AutoCloseable {
-
     private final long start = System.currentTimeMillis();
     private final Logger log;
     private final String message;
 
-    public TimedBlock(Logger log, String message) {
-        this.log = log;
+    public TimedBlock(@NotNull Logger log, String message) {
+        this.log = Objects.requireNonNull(log);
         this.message = message;
 
         log.info(message);
