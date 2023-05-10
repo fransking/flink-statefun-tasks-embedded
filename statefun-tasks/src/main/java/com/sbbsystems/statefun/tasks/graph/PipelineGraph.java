@@ -21,29 +21,45 @@ import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public final class PipelineGraph {
 
-    private final PersistedTable<String, TaskEntry> taskLookup;
+    private final Map<String, Task> tasks;
+    private final PersistedTable<String, TaskEntry> taskEntries;
     private final Entry head;
-
-    public static PipelineGraph from(@NotNull PersistedTable<String, TaskEntry> taskLookup, @Nullable Entry head) {
-        return new PipelineGraph(taskLookup, head);
-    }
 
     @SuppressWarnings("unused")
     private PipelineGraph() {
-        this(PersistedTable.of(Id.generate(), String.class, TaskEntry.class), null);
+        this.tasks = new HashMap<>();
+        this.taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
+        this.head = null;
     }
 
-    public PipelineGraph(@NotNull PersistedTable<String, TaskEntry> taskLookup, @Nullable Entry head) {
-        this.taskLookup = Objects.requireNonNull(taskLookup);
+    public PipelineGraph(
+            @NotNull Map<String, Task> tasks,
+            @NotNull PersistedTable<String, TaskEntry> taskEntries,
+            @Nullable Entry head) {
+        this.tasks = Objects.requireNonNull(tasks);
+        this.taskEntries = Objects.requireNonNull(taskEntries);
         this.head = head;
     }
 
+    public static PipelineGraph from(
+            @NotNull Map<String, Task> tasks,
+            @NotNull PersistedTable<String, TaskEntry> taskEntries,
+            @Nullable Entry head) {
+        return new PipelineGraph(tasks, taskEntries, head);
+    }
+
     public TaskEntry getTaskEntry(String id) {
-        return taskLookup.get(id);
+        return taskEntries.get(id);
+    }
+
+    public Task getTask(String id) {
+        return tasks.get(id);
     }
 
     public Iterable<Entry> getEntries() {

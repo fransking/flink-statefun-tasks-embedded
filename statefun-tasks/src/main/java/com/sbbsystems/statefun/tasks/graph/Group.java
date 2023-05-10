@@ -18,6 +18,7 @@ package com.sbbsystems.statefun.tasks.graph;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.jetbrains.annotations.NotNull;
 
+import java.text.MessageFormat;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -48,5 +49,10 @@ public final class Group extends EntryBase implements Entry {
 
     public void addEntry(@NotNull Entry entry) {
         items.add(entry);
+    }
+
+    @Override
+    public String toString() {
+        return MessageFormat.format("Group {0}", getId());
     }
 }

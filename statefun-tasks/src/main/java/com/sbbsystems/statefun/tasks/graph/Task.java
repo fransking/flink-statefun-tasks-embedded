@@ -17,10 +17,17 @@ package com.sbbsystems.statefun.tasks.graph;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.text.MessageFormat;
+
 public final class Task extends EntryBase implements Entry {
     public static Task of(@NotNull String id) {
         var task = new Task();
         task.setId(id);
         return task;
+    }
+
+    @Override
+    public String toString() {
+        return MessageFormat.format("Task {0}", getId());
     }
 }

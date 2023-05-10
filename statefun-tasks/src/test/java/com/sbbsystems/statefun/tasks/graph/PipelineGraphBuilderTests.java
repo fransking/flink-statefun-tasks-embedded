@@ -94,16 +94,16 @@ public final class PipelineGraphBuilderTests {
 
     @Test
     public void graph_contains_all_task_entries_given_a_pipeline_with_groups() {
-        var group = List.of(
+        var nestedGroup = List.of(
                 List.of("a", "b", "c"),
                 List.of("d", "e", "f")
         );
 
-        var group2 = List.of(
-                List.of("x", group, "y")
+        var group = List.of(
+                List.of("x", nestedGroup, "y")
         );
 
-        var template = List.of("1", group2, "2");
+        var template = List.of("1", group, "2");
 
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
