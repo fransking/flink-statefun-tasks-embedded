@@ -19,9 +19,12 @@ import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
+import com.sbbsystems.statefun.tasks.util.Id;
+import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -120,5 +123,41 @@ public final class PipelineGraphBuilderTests {
         for (Entry entry : graph.getEntries()) {
             assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
         }
+    }
+
+    @Test
+    public void graph_can_be_recreated_from_state() {
+        var pipeline = PipelineGraphBuilderTests.buildSingleChainPipeline(10);
+
+        // empty initial state
+        var tasks = new HashMap<String, Task>();
+        var taskEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.TaskEntry.class);
+        Entry head = null;
+
+        // initial graph from protobuf
+        var builder = PipelineGraphBuilder.newInstance()
+                .withHead(head)
+                .withTasks(tasks)
+                .withTaskEntries(taskEntries)
+                .fromProto(pipeline);
+
+        PipelineGraph graph = builder.build();
+
+        assertThat(graph.getEntries()).hasSize(10);
+
+        // updated state
+        head = graph.getHead();
+        assertThat(tasks).hasSize(10);
+        assertThat(taskEntries.entries()).hasSize(10);
+
+        // new graph from previous state
+        var newBuilder = PipelineGraphBuilder.newInstance()
+                .withHead(head)
+                .withTasks(tasks)
+                .withTaskEntries(taskEntries);
+
+        PipelineGraph newGraph = newBuilder.build();
+
+        assertThat(newGraph.getEntries()).hasSize(10);
     }
 }

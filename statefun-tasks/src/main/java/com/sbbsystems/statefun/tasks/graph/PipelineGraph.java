@@ -65,4 +65,8 @@ public final class PipelineGraph {
     public Iterable<Entry> getEntries() {
         return () -> EntryIterator.from(head);
     }
+
+    public Entry getHead() {
+        return head;
+    }
 }

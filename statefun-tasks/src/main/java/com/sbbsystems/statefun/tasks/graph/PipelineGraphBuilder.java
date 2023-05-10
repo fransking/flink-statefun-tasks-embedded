@@ -20,46 +20,66 @@ import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
 import com.sbbsystems.statefun.tasks.util.Id;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.nio.channels.Pipe;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 public final class PipelineGraphBuilder {
+    private Map<String, Task> tasks ;
     private PersistedTable<String, TaskEntry> taskEntries;
     private Pipeline pipelineProto;
+    private Entry head;
 
     private PipelineGraphBuilder() {
+        tasks = new HashMap<>();
         taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
-        pipelineProto = Pipeline.getDefaultInstance();
     }
 
     public static PipelineGraphBuilder newInstance() {
         return new PipelineGraphBuilder();
     }
 
-    public PipelineGraphBuilder withTaskEntries(PersistedTable<String, TaskEntry> taskEntries) {
-        this.taskEntries = taskEntries;
+    public PipelineGraphBuilder withTasks(@NotNull Map<String, Task> tasks) {
+        this.tasks = Objects.requireNonNull(tasks);
         return this;
     }
 
-    public PipelineGraphBuilder fromProto(Pipeline pipelineProto) {
-        this.pipelineProto = pipelineProto;
+    public PipelineGraphBuilder withTaskEntries(@NotNull PersistedTable<String, TaskEntry> taskEntries) {
+        this.taskEntries = Objects.requireNonNull(taskEntries);
+        return this;
+    }
+
+    public PipelineGraphBuilder withHead(@Nullable Entry head) {
+        this.head = head;
+        return this;
+    }
+
+    public PipelineGraphBuilder fromProto(@NotNull Pipeline pipelineProto) {
+        this.pipelineProto = Objects.requireNonNull(pipelineProto);
         return this;
     }
 
     public PipelineGraph build() {
-        var tasks = new HashMap<String, Task>();
-        var head = Objects.isNull(pipelineProto) ? null : buildGraph(pipelineProto, tasks);
+        if (!Objects.isNull(pipelineProto)) {
+            //build graph from protobuf
+            head = buildGraph(pipelineProto);
+        }
+        //else we use existing state as passed to the builder
+
         return PipelineGraph.from(tasks, taskEntries, head);
     }
 
-    private Entry buildGraph(Pipeline pipelineProto, Map<String, Task> tasks) {
-        return buildGraph(pipelineProto, tasks, null);
+    private Entry buildGraph(Pipeline pipelineProto) {
+        return buildGraph(pipelineProto, null);
     }
 
-    private Entry buildGraph(Pipeline pipelineProto, Map<String, Task> tasks, Group parentGroup) {
+    private Entry buildGraph(Pipeline pipelineProto, Group parentGroup) {
         Entry head = null;
         Entry current = null;
 
@@ -79,7 +99,7 @@ public final class PipelineGraphBuilder {
 
                 var group = (Group) next;
                 for (Pipeline pipelineInGroupProto : groupEntry.getGroupList()) {
-                    group.addEntry(this.buildGraph(pipelineInGroupProto, tasks, group));
+                    group.addEntry(this.buildGraph(pipelineInGroupProto, group));
                 }
             }
 
