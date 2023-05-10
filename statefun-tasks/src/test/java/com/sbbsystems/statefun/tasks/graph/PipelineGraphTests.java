@@ -15,76 +15,75 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class PipelineGraphTests {
-    private static final Logger LOG = LoggerFactory.getLogger(PipelineGraphTests.class);
 
-    private PipelineGraph createGraphFromTemplate(List<?> template) {
+    private PipelineGraph fromTemplate(List<?> template) {
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         return builder.build();
     }
 
-//    @Test
-//    public void graph_yields_all_tasks() {
-//        var longList = new LinkedList<String>();
-//        var template = new LinkedList<>();
-//
-//        try (var ignored = new TimedBlock(LOG, "Creating task template")) {
-//            for (var i = 0; i < 1000000; i++) {
-//                longList.add("cc" + i);
-//            }
-//
-//
-//            var group2 = List.of(
-//                    List.of("aa"),
-//                    List.of("bb"),
-//                    longList
-//            );
-//
-//            var group = List.of(
-//                    List.of("a", "b", "c"),
-//                    List.of("d", group2, "f")
-//            );
-//
-//            template.add("1");
-//            template.add(group);
-//            template.add("2");
-//        }
-//
-//        Graph graph;
-//        try (var ignored = new TimedBlock(LOG, "Building the graph")) {
-//            graph = this.createGraphFromTemplate(template);
-//        }
-//
-//        int count = 0;
-//        try (var ignored = new TimedBlock(LOG, "Enumerating the graph")) {
-//            for (TaskId task : graph.getTasks()) {
-//                graph.getTask(task.getId());
-//                count++;
-//            }
-//        }
-//
-//        assertThat(count).isEqualTo(1000009);
-//    }
-//
-//    @Test
-//    public void get_next_step_in_chain_of_tasks() {
-//        var template = List.of("1", "2", "3");
-//        var graph = this.createGraphFromTemplate(template);
-//
-//        var firstStep = TaskId.of("1");
-//        var nextStep = graph.getNextStep(firstStep);
-//
-//        //assertThat(nextStep.getId()).isEqualTo("2");
-//    }
+    @Test
+    public void can_fetch_task_given_id() {
+        var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
+
+        var a = graph.getTask("a");
+        var b = graph.getTask("b");
+        var c = graph.getTask("c");
+
+        assertThat(a).isNotNull();
+        assertThat(b).isEqualTo(a.getNext());
+        assertThat(c).isEqualTo(b.getNext());
+    }
+
+    @Test
+    public void basic_graph_structure_is_correct() {
+        var nestedGroup = List.of(
+                List.of("x", "y", "z")
+        );
+
+        var group = List.of(
+                List.of("a", nestedGroup, "b")
+        );
+
+        var template = List.of("one", group, "two");
+        var graph = fromTemplate(template);
+
+        var one = graph.getTask("one");
+        var a = graph.getTask("a");
+        var b = graph.getTask("b");
+        var x = graph.getTask("x");
+        var y = graph.getTask("y");
+        var z = graph.getTask("z");
+        var two = graph.getTask("two");
+
+        //parent group hierarchy
+        assertThat(one.getParentGroup()).isNull();
+        assertThat(two.getParentGroup()).isNull();
+        assertThat(a.getParentGroup()).isNotNull();
+        assertThat(b.getParentGroup()).isEqualTo(a.getParentGroup());
+        assertThat(b.getParentGroup()).isNotNull();
+        assertThat(b.getParentGroup().getParentGroup()).isNull();
+        assertThat(x.getParentGroup()).isNotNull();
+        assertThat(y.getParentGroup()).isEqualTo(x.getParentGroup());
+        assertThat(z.getParentGroup()).isEqualTo(x.getParentGroup());
+        assertThat(x.getParentGroup().getParentGroup()).isEqualTo(a.getParentGroup());
+
+        //task chain
+        assertThat(one.getNext()).isEqualTo(a.getParentGroup());
+        assertThat(a.getNext()).isEqualTo(x.getParentGroup());
+        assertThat(a.getParentGroup().getNext()).isEqualTo(two);
+        assertThat(x.getParentGroup().getNext()).isEqualTo(b);
+        assertThat(x.getNext()).isEqualTo(y);
+        assertThat(b.getNext()).isNull();
+        assertThat(z.getNext()).isNull();
+        assertThat(two.getNext()).isNull();
+    }
 }
