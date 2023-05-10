@@ -15,57 +15,38 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.PeekingIterator;
-import com.sbbsystems.statefun.tasks.types.Task;
+import com.sbbsystems.statefun.tasks.types.TaskEntry;
+import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
+import java.util.Objects;
 
-public final class PipelineGraph implements Graph {
-    private final PersistedTable<String, Task> taskLookup;
+public final class PipelineGraph {
 
-    private final Chain entries;
+    private final PersistedTable<String, TaskEntry> taskLookup;
+    private final Entry head;
 
-    public PipelineGraph(PersistedTable<String, Task> taskLookup, Chain entries) {
-        this.taskLookup = taskLookup;
-        this.entries = entries;
+    public static PipelineGraph from(@NotNull PersistedTable<String, TaskEntry> taskLookup, @Nullable Entry head) {
+        return new PipelineGraph(taskLookup, head);
     }
 
-    public Task getTask(String id) {
+    @SuppressWarnings("unused")
+    private PipelineGraph() {
+        this(PersistedTable.of(Id.generate(), String.class, TaskEntry.class), null);
+    }
+
+    public PipelineGraph(@NotNull PersistedTable<String, TaskEntry> taskLookup, @Nullable Entry head) {
+        this.taskLookup = Objects.requireNonNull(taskLookup);
+        this.head = head;
+    }
+
+    public TaskEntry getTaskEntry(String id) {
         return taskLookup.get(id);
     }
 
-    public Task getTask(Entry entry) {
-        return taskLookup.get(entry.getId());
-    }
-
-    public Chain getEntries() {
-        return entries;
-    }
-
-    public Iterable<TaskId> getTasks() {
-        return entries.getTasks();
-    }
-
-    public Entry getNextStep(Entry currentStep) {
-        var iterator = Iterators.peekingIterator(getEntries().iterator());
-
-        while (iterator.hasNext()) {
-            var entry = iterator.next();
-            if (entry instanceof Grouping) {
-
-            }
-            else if (entry instanceof TaskId) {
-                if (entry.equals(currentStep)) {
-
-                }
-            }
-            else {
-                // throw
-            }
-        }
-
-        return null;
+    public Iterable<Entry> getEntries() {
+        return () -> EntryIterator.from(head);
     }
 }

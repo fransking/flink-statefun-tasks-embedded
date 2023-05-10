@@ -16,31 +16,29 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
-import com.sbbsystems.statefun.tasks.types.Task;
-import com.sbbsystems.statefun.tasks.types.TaskBuilder;
+import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
+import com.sbbsystems.statefun.tasks.types.TaskEntry;
+import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
+import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 
+import java.util.Objects;
+
 public final class PipelineGraphBuilder {
-    private PersistedTable<String, Task> taskLookup = PersistedTable.of("taskLookup", String.class, Task.class);
-    private Chain entries;
-    private Pipeline pipelineProto = Pipeline.getDefaultInstance();
+    private PersistedTable<String, TaskEntry> taskLookup;
+    private Pipeline pipelineProto;
 
     private PipelineGraphBuilder() {
+        taskLookup = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
+        pipelineProto = Pipeline.getDefaultInstance();
     }
 
     public static PipelineGraphBuilder newInstance() {
         return new PipelineGraphBuilder();
     }
 
-
-
-    public PipelineGraphBuilder withTaskLookup(PersistedTable<String, Task> tasksByUid) {
+    public PipelineGraphBuilder withTaskLookup(PersistedTable<String, TaskEntry> tasksByUid) {
         this.taskLookup = tasksByUid;
-        return this;
-    }
-
-    public PipelineGraphBuilder withEntries(Chain entries) {
-        this.entries = entries;
         return this;
     }
 
@@ -50,35 +48,49 @@ public final class PipelineGraphBuilder {
     }
 
     public PipelineGraph build() {
-        if (entries == null) {
-            entries = new Chain();
-            addTasks(entries, pipelineProto);
-        }
-
-        return new PipelineGraph(taskLookup, entries);
+        var head = Objects.isNull(pipelineProto) ? null : buildGraph(pipelineProto);
+        return PipelineGraph.from(taskLookup, head);
     }
 
-    private void addTasks(Chain entries, Pipeline pipelineProto) {
-        pipelineProto.getEntriesList().forEach(entry -> {
+    private Entry buildGraph(Pipeline pipelineProto) {
+        return buildGraph(pipelineProto,null);
+    }
+
+    private Entry buildGraph(Pipeline pipelineProto, Group parentGroup) {
+        Entry head = null;
+        Entry current = null;
+
+        for (PipelineEntry entry: pipelineProto.getEntriesList()) {
+            Entry next = null;
+
             if (entry.hasTaskEntry()) {
                 var taskEntry = entry.getTaskEntry();
-
-                var taskId = new TaskId(taskEntry.getUid());
-                entries.add(taskId);
-                taskLookup.set(taskId.getId(), TaskBuilder.fromProto(taskEntry));
+                next = Task.of(taskEntry.getUid());
+                taskLookup.set(next.getId(), TaskEntryBuilder.fromProto(taskEntry));
 
             } else if (entry.hasGroupEntry()) {
                 var groupEntry = entry.getGroupEntry();
-                var grouping = new Grouping(groupEntry.getGroupId());
-                entries.add(grouping);
+                next = Group.of(groupEntry.getGroupId());
 
+                var group = (Group) next;
                 for (Pipeline pipelineInGroupProto : groupEntry.getGroupList()) {
-                    var chainInGroup = new Chain();
-                    grouping.getEntries().add(chainInGroup);
-
-                    this.addTasks(chainInGroup, pipelineInGroupProto);
+                    group.addEntry(this.buildGraph(pipelineInGroupProto, group));
                 }
             }
-        });
+
+            if (!Objects.isNull(next)) {
+                next.setParentGroup(parentGroup);
+
+                if (head == null) {
+                    head = next;
+                } else {
+                    current.setNext(next);
+                }
+
+                current = next;
+            }
+        }
+
+        return head;
     }
 }

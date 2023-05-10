@@ -15,11 +15,9 @@
  */
 package com.sbbsystems.statefun.tasks.types;
 
-import com.sbbsystems.statefun.tasks.generated.TaskEntry;
-
-public final class TaskBuilder {
-    public static Task fromProto(TaskEntry taskEntry) {
-        var task = new Task();
+public final class TaskEntryBuilder {
+    public static TaskEntry fromProto(com.sbbsystems.statefun.tasks.generated.TaskEntry taskEntry) {
+        var task = new TaskEntry();
 
         task.taskId = taskEntry.getTaskId();
         task.taskType = taskEntry.getTaskType();

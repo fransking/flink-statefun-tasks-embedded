@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.types;
+package com.sbbsystems.statefun.tasks.graph;
 
-public final class Task {
-    public String taskId;
-    public String taskType;
-    public byte[] request;
-    public boolean complete;
-    public boolean isFinally;
-    public String namespace;
-    public String workerName;
-    public boolean isFruitful;
-    public RetryPolicy retryPolicy;
-    public String displayName;
-    public boolean isWait;
-    public String uid;
-    public boolean isExceptionally;
+import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+
+import java.lang.reflect.Type;
+import java.util.Map;
+
+public class GroupTypeInfoFactory extends TypeInfoFactory<Group> {
+    @Override
+    public TypeInformation<Group> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
+        return Types.POJO(Group.class,
+                Map.of("items", Types.LIST(Types.POJO(Entry.class))));
+    }
 }

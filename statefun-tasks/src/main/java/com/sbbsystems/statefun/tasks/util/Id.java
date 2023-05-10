@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.util;
 
-import com.sbbsystems.statefun.tasks.types.Task;
+import java.util.UUID;
 
-public interface Graph {
-    Task getTask(String taskUid);
-
-    Chain getEntries();
-
-    Iterable<TaskId> getTasks();
+public class Id {
+    public static String generate() {
+        return String.valueOf(UUID.randomUUID());
+    }
 }
