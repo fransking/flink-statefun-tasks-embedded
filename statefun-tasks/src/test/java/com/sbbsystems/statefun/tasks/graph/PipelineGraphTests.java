@@ -26,11 +26,16 @@ public final class PipelineGraphTests {
     private PipelineGraph fromTemplate(List<?> template) {
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
-        return builder.build();
+
+        try {
+            return builder.build();
+        } catch (InvalidGraphException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
-    public void can_fetch_task_given_id() {
+    public void can_fetch_tasks_given_id() {
         var template = List.of("a", "b", "c");
         var graph = fromTemplate(template);
 
@@ -41,6 +46,22 @@ public final class PipelineGraphTests {
         assertThat(a).isNotNull();
         assertThat(b).isEqualTo(a.getNext());
         assertThat(c).isEqualTo(b.getNext());
+    }
+
+    @Test
+    public void can_fetch_group_given_id() {
+        var grp = List.of(
+                List.of("a", "b", "c")
+        );
+
+        var template = List.of("one", grp, "two");
+        var graph = fromTemplate(template);
+
+        var group = graph.getTask("a").getParentGroup();
+        assertThat(group).isNotNull();
+
+        var groupEntry = graph.getGroupEntry(group.getId());
+        assertThat(groupEntry).isNotNull();
     }
 
     @Test
