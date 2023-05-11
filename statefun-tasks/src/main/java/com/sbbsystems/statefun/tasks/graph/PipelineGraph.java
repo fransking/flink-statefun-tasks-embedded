@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
@@ -29,44 +30,57 @@ public final class PipelineGraph {
 
     private final Map<String, Task> tasks;
     private final PersistedTable<String, TaskEntry> taskEntries;
+    private final PersistedTable<String, GroupEntry> groupEntries;
     private final Entry head;
 
     @SuppressWarnings("unused")
     private PipelineGraph() {
         this.tasks = new HashMap<>();
         this.taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
+        this.groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
         this.head = null;
     }
 
     public PipelineGraph(
             @NotNull Map<String, Task> tasks,
             @NotNull PersistedTable<String, TaskEntry> taskEntries,
+            @NotNull PersistedTable<String, GroupEntry> groupEntries,
             @Nullable Entry head) {
         this.tasks = Objects.requireNonNull(tasks);
         this.taskEntries = Objects.requireNonNull(taskEntries);
+        this.groupEntries = Objects.requireNonNull(groupEntries);
         this.head = head;
     }
 
     public static PipelineGraph from(
             @NotNull Map<String, Task> tasks,
             @NotNull PersistedTable<String, TaskEntry> taskEntries,
+            @NotNull PersistedTable<String, GroupEntry> groupEntries,
             @Nullable Entry head) {
-        return new PipelineGraph(tasks, taskEntries, head);
+        return new PipelineGraph(tasks, taskEntries, groupEntries, head);
     }
 
     public TaskEntry getTaskEntry(String id) {
         return taskEntries.get(id);
     }
 
+    public GroupEntry getGroupEntry(String id) {
+        return groupEntries.get(id);
+    }
+
     public Task getTask(String id) {
         return tasks.get(id);
     }
 
-    public Iterable<Entry> getEntries() {
-        return () -> EntryIterator.from(head);
+    public Iterable<Task> getTasks() {
+        return () -> TasksIterator.from(head);
     }
 
     public Entry getHead() {
         return head;
+    }
+
+    public void getNextStep(Task from) {
+
     }
 }

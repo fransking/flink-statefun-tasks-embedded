@@ -20,15 +20,15 @@ import com.google.common.collect.Iterators;
 import java.util.Iterator;
 import java.util.Objects;
 
-public final class EntryIterator implements Iterator<Entry> {
-    Iterator<Entry> groupIterator = null;
+public final class TasksIterator implements Iterator<Task> {
+    Iterator<Task> groupIterator = null;
     private Entry current;
 
-    public static EntryIterator from(Entry entry) {
-        return new EntryIterator(entry);
+    public static TasksIterator from(Entry entry) {
+        return new TasksIterator(entry);
     }
 
-    private EntryIterator(Entry entry) {
+    private TasksIterator(Entry entry) {
         this.current = entry;
     }
 
@@ -42,7 +42,7 @@ public final class EntryIterator implements Iterator<Entry> {
     }
 
     @Override
-    public Entry next() {
+    public Task next() {
         var value = current;
 
         if (value instanceof Group) {
@@ -50,9 +50,9 @@ public final class EntryIterator implements Iterator<Entry> {
 
             for (var head : group.getItems()) {
                 if (Objects.isNull(groupIterator)) {
-                    groupIterator = EntryIterator.from(head);
+                    groupIterator = TasksIterator.from(head);
                 } else {
-                    groupIterator = Iterators.concat(groupIterator, EntryIterator.from(head));
+                    groupIterator = Iterators.concat(groupIterator, TasksIterator.from(head));
                 }
             }
 
@@ -67,6 +67,7 @@ public final class EntryIterator implements Iterator<Entry> {
             current = value.getNext();
         }
 
-        return value;
+        assert value instanceof Task;
+        return (Task) value;
     }
 }

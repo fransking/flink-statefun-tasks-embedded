@@ -88,9 +88,9 @@ public final class PipelineGraphBuilderTests {
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         PipelineGraph graph = builder.build();
 
-        assertThat(graph.getEntries()).hasSize(10);
+        assertThat(graph.getTasks()).hasSize(10);
 
-        for (Entry entry : graph.getEntries()) {
+        for (Entry entry : graph.getTasks()) {
             assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
         }
     }
@@ -112,26 +112,33 @@ public final class PipelineGraphBuilderTests {
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         PipelineGraph graph = builder.build();
 
-        assertThat(graph.getEntries()).hasSize(10);
+        assertThat(graph.getTasks()).hasSize(10);
 
         var taskIds = List.of("1", "x", "a", "b", "c", "d", "e", "f", "y", "2");
-        var entryTaskIds = StreamSupport.stream(graph.getEntries().spliterator(), false).map(Entry::getId);
+        var entryTaskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
         assertThat(entryTaskIds.collect(Collectors.toList())).isEqualTo(taskIds);
 
         taskIds.forEach(taskId -> assertThat(graph.getTaskEntry(taskId)).isNotNull());
 
-        for (Entry entry : graph.getEntries()) {
+        for (Entry entry : graph.getTasks()) {
             assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
         }
     }
 
     @Test
     public void graph_can_be_recreated_from_state() {
-        var pipeline = PipelineGraphBuilderTests.buildSingleChainPipeline(10);
+        var group = List.of(
+                List.of("x", "y", "z"),
+                List.of("a", "b", "c")
+        );
+
+        var template = List.of("1", group, "2");
+        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
 
         // empty initial state
         var tasks = new HashMap<String, Task>();
         var taskEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.TaskEntry.class);
+        var groupEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.GroupEntry.class);
         Entry head = null;
 
         // initial graph from protobuf
@@ -139,25 +146,35 @@ public final class PipelineGraphBuilderTests {
                 .withHead(head)
                 .withTasks(tasks)
                 .withTaskEntries(taskEntries)
+                .withGroupEntries(groupEntries)
                 .fromProto(pipeline);
 
         PipelineGraph graph = builder.build();
 
-        assertThat(graph.getEntries()).hasSize(10);
+        assertThat(graph.getTasks()).hasSize(8);
 
         // updated state
         head = graph.getHead();
-        assertThat(tasks).hasSize(10);
-        assertThat(taskEntries.entries()).hasSize(10);
+        assertThat(tasks).hasSize(8);
+        assertThat(taskEntries.entries()).hasSize(8);
+        assertThat(groupEntries.entries()).hasSize(1);
+
+        var task = graph.getTask("a");
+        assertThat(task.getParentGroup()).isNotNull();
+
+        var groupEntry = groupEntries.get(task.getParentGroup().getId());
+        assertThat(groupEntry.size).isEqualTo(2);
+        assertThat(groupEntry.remaining).isEqualTo(2);
 
         // new graph from previous state
         var newBuilder = PipelineGraphBuilder.newInstance()
                 .withHead(head)
                 .withTasks(tasks)
-                .withTaskEntries(taskEntries);
+                .withTaskEntries(taskEntries)
+                .withGroupEntries(groupEntries);
 
         PipelineGraph newGraph = newBuilder.build();
 
-        assertThat(newGraph.getEntries()).hasSize(10);
+        assertThat(newGraph.getTasks()).hasSize(8);
     }
 }
