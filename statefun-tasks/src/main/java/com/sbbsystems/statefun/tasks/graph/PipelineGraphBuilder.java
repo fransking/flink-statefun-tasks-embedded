@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
@@ -26,12 +27,12 @@ import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.text.MessageFormat;
+import java.util.*;
 
 public final class PipelineGraphBuilder {
-    private Map<String, Task> tasks ;
+    private Map<String, Task> tasks;
+    private final Set<String> groups;
     private PersistedTable<String, TaskEntry> taskEntries;
     private PersistedTable<String, GroupEntry> groupEntries;
     private Pipeline pipelineProto;
@@ -39,6 +40,7 @@ public final class PipelineGraphBuilder {
 
     private PipelineGraphBuilder() {
         tasks = new HashMap<>();
+        groups = new HashSet<>();
         taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
         groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
     }
@@ -72,7 +74,8 @@ public final class PipelineGraphBuilder {
         return this;
     }
 
-    public PipelineGraph build() {
+    public PipelineGraph build()
+            throws InvalidGraphException {
         if (!Objects.isNull(pipelineProto)) {
             //build graph from protobuf
             head = buildGraph(pipelineProto);
@@ -82,11 +85,14 @@ public final class PipelineGraphBuilder {
         return PipelineGraph.from(tasks, taskEntries, groupEntries, head);
     }
 
-    private Entry buildGraph(Pipeline pipelineProto) {
+    private Entry buildGraph(Pipeline pipelineProto)
+            throws InvalidGraphException {
         return buildGraph(pipelineProto, null);
     }
 
-    private Entry buildGraph(Pipeline pipelineProto, Group parentGroup) {
+    private Entry buildGraph(Pipeline pipelineProto, Group parentGroup)
+            throws InvalidGraphException {
+
         Entry head = null;
         Entry current = null;
 
@@ -97,6 +103,10 @@ public final class PipelineGraphBuilder {
                 var taskEntry = entry.getTaskEntry();
                 next = Task.of(taskEntry.getUid());
 
+                if (tasks.containsKey(next.getId())) {
+                    throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
+                }
+
                 tasks.put(next.getId(), (Task) next);
                 taskEntries.set(next.getId(), TaskEntryBuilder.fromProto(taskEntry));
 
@@ -104,6 +114,11 @@ public final class PipelineGraphBuilder {
                 var groupEntry = entry.getGroupEntry();
                 next = Group.of(groupEntry.getGroupId());
 
+                if (groups.contains(next.getId())) {
+                    throw new InvalidGraphException(MessageFormat.format("Duplicate group id {0}", next.getId()));
+                }
+
+                groups.add(next.getId());
                 groupEntries.set(next.getId(), GroupEntryBuilder.fromProto(groupEntry));
 
                 var group = (Group) next;

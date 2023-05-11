@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public final class PipelineGraphBuilderTests {
 
@@ -83,7 +84,8 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
-    public void graph_contains_all_task_entries_given_a_pipeline() {
+    public void graph_contains_all_task_entries_given_a_pipeline()
+            throws InvalidGraphException {
         var pipeline = PipelineGraphBuilderTests.buildSingleChainPipeline(10);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         PipelineGraph graph = builder.build();
@@ -96,7 +98,8 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
-    public void graph_contains_all_task_entries_given_a_pipeline_with_groups() {
+    public void graph_contains_all_task_entries_given_a_pipeline_with_groups()
+            throws InvalidGraphException {
         var nestedGroup = List.of(
                 List.of("a", "b", "c"),
                 List.of("d", "e", "f")
@@ -126,7 +129,8 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
-    public void graph_can_be_recreated_from_state() {
+    public void graph_can_be_recreated_from_state()
+            throws InvalidGraphException {
         var group = List.of(
                 List.of("x", "y", "z"),
                 List.of("a", "b", "c")
@@ -176,5 +180,24 @@ public final class PipelineGraphBuilderTests {
         PipelineGraph newGraph = newBuilder.build();
 
         assertThat(newGraph.getTasks()).hasSize(8);
+    }
+
+    @Test
+    public void builder_throws_exceptions_when_it_has_duplicate_tasks() {
+        var template = List.of("1", "2", "2");
+        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
+
+        assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
+    public void builder_throws_exceptions_when_it_has_duplicate_groups() {
+        var entryOne = PipelineEntry.newBuilder().setGroupEntry(GroupEntry.newBuilder().setGroupId("1"));
+        var entryTwp = PipelineEntry.newBuilder().setGroupEntry(GroupEntry.newBuilder().setGroupId("1"));
+        var pipeline = Pipeline.newBuilder().addEntries(entryOne).addEntries(entryTwp);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
+
+        assertThrows(InvalidGraphException.class, builder::build);
     }
 }
