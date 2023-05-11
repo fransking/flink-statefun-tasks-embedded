@@ -17,15 +17,15 @@ package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
+import com.sbbsystems.statefun.tasks.types.GroupEntry;
+import com.sbbsystems.statefun.tasks.types.GroupEntryBuilder;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
 import com.sbbsystems.statefun.tasks.util.Id;
-import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.channels.Pipe;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -33,12 +33,14 @@ import java.util.Objects;
 public final class PipelineGraphBuilder {
     private Map<String, Task> tasks ;
     private PersistedTable<String, TaskEntry> taskEntries;
+    private PersistedTable<String, GroupEntry> groupEntries;
     private Pipeline pipelineProto;
     private Entry head;
 
     private PipelineGraphBuilder() {
         tasks = new HashMap<>();
         taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
+        groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
     }
 
     public static PipelineGraphBuilder newInstance() {
@@ -52,6 +54,11 @@ public final class PipelineGraphBuilder {
 
     public PipelineGraphBuilder withTaskEntries(@NotNull PersistedTable<String, TaskEntry> taskEntries) {
         this.taskEntries = Objects.requireNonNull(taskEntries);
+        return this;
+    }
+
+    public PipelineGraphBuilder withGroupEntries(@NotNull PersistedTable<String, GroupEntry> groupEntries) {
+        this.groupEntries = Objects.requireNonNull(groupEntries);
         return this;
     }
 
@@ -72,7 +79,7 @@ public final class PipelineGraphBuilder {
         }
         //else we use existing state as passed to the builder
 
-        return PipelineGraph.from(tasks, taskEntries, head);
+        return PipelineGraph.from(tasks, taskEntries, groupEntries, head);
     }
 
     private Entry buildGraph(Pipeline pipelineProto) {
@@ -96,6 +103,8 @@ public final class PipelineGraphBuilder {
             } else if (entry.hasGroupEntry()) {
                 var groupEntry = entry.getGroupEntry();
                 next = Group.of(groupEntry.getGroupId());
+
+                groupEntries.set(next.getId(), GroupEntryBuilder.fromProto(groupEntry));
 
                 var group = (Group) next;
                 for (Pipeline pipelineInGroupProto : groupEntry.getGroupList()) {
