@@ -15,9 +15,11 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +34,12 @@ public final class PipelineGraphTests {
         } catch (InvalidGraphException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private GroupEntry getGroupContainingTask(String taskId, PipelineGraph graph) {
+        var taskA = graph.getTask(taskId);
+        var groupId = Objects.requireNonNull(taskA.getParentGroup()).getId();
+        return graph.getGroupEntry(groupId);
     }
 
     @Test
@@ -106,5 +114,116 @@ public final class PipelineGraphTests {
         assertThat(b.getNext()).isNull();
         assertThat(z.getNext()).isNull();
         assertThat(two.getNext()).isNull();
+    }
+
+    @Test
+    public void returns_initial_task_from_a_chain()
+            throws InvalidGraphException {
+
+        var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
+        var initialTasks = graph.getInitialTasks();
+
+        assertThat(initialTasks).hasSize(1);
+        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.getMaxParallelism()).isEqualTo(0);  // unset
+        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+    }
+
+    @Test
+    public void returns_initial_tasks_from_a_group()
+            throws InvalidGraphException {
+
+        var group = List.of(
+                List.of("a", "b", "c"),
+                List.of("d", "e", "f")
+        );
+
+        var template = List.of(group);
+        var graph = fromTemplate(template);
+        getGroupContainingTask("a", graph).maxParallelism = 1;  // set max parallelism on group
+
+        var initialTasks = graph.getInitialTasks();
+
+        assertThat(initialTasks).hasSize(2);
+        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
+        assertThat(initialTasks.getMaxParallelism()).isEqualTo(1);
+        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+    }
+
+    @Test
+    public void returns_initial_tasks_from_a_group_of_groups()
+            throws InvalidGraphException {
+
+        var groupOne = List.of(
+                List.of("a", "b", "c")
+        );
+
+        var groupTwo = List.of(
+                List.of("d", "e", "f")
+        );
+
+        var group = List.of(
+                List.of(groupOne),
+                List.of(groupTwo)
+        );
+
+        var template = List.of(group);
+        var graph = fromTemplate(template);
+        getGroupContainingTask("a", graph).maxParallelism = 2;  // set max parallelism on group
+        getGroupContainingTask("d", graph).maxParallelism = 3;  // set max parallelism on group
+
+        var initialTasks = graph.getInitialTasks();
+
+        assertThat(initialTasks).hasSize(2);
+        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
+        assertThat(initialTasks.getMaxParallelism()).isEqualTo(2);
+        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+    }
+
+    @Test
+    public void returns_initial_tasks_from_a_nested_group()
+            throws InvalidGraphException {
+
+        var nested = List.of(
+                List.of("a", "b", "c"),
+                List.of("d", "e", "f")
+        );
+
+        var group = List.of(
+                List.of(nested, "g")
+        );
+
+        var template = List.of(group);
+
+        var graph = fromTemplate(template);
+        var initialTasks = graph.getInitialTasks();
+
+        assertThat(initialTasks).hasSize(2);
+        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
+    }
+
+    @Test
+    public void returns_initial_tasks_after_an_empty_group()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+        var template = List.of(emptyGroup, emptyGroup, "a", "b", "c");
+
+        var graph = fromTemplate(template);
+        var initialTasks = graph.getInitialTasks();
+
+        assertThat(initialTasks).hasSize(1);
+        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(true);
+    }
+
+    @Test
+    public void steps_through_chain_of_tasks_correctly() {
+        var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
     }
 }

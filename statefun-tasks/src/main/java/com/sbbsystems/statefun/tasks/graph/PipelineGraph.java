@@ -76,8 +76,20 @@ public final class PipelineGraph {
         return () -> TasksIterator.from(head);
     }
 
-    public Entry getHead() {
+    public @Nullable Entry getHead() {
         return head;
+    }
+
+    public InitialTasks getInitialTasks()
+            throws InvalidGraphException {
+
+        return InitialTasksCollector.of(this).collectFrom(getHead());
+    }
+
+    public InitialTasks getInitialTasks(Group group)
+            throws InvalidGraphException {
+
+        return InitialTasksCollector.of(this).collectFrom(group);
     }
 
     public void getNextStep(Task from) {
