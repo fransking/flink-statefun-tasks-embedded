@@ -73,7 +73,11 @@ public final class PipelineGraph {
     }
 
     public Iterable<Task> getTasks() {
-        return () -> TasksIterator.from(head);
+        return getTasks(head);
+    }
+
+    public Iterable<Task> getTasks(Entry from) {
+        return () -> TasksIterator.from(from);
     }
 
     public @Nullable Entry getHead() {
@@ -86,13 +90,29 @@ public final class PipelineGraph {
         return InitialTasksCollector.of(this).collectFrom(getHead());
     }
 
-    public InitialTasks getInitialTasks(Group group)
+    public InitialTasks getInitialTasks(Entry entry)
             throws InvalidGraphException {
 
-        return InitialTasksCollector.of(this).collectFrom(group);
+        return InitialTasksCollector.of(this).collectFrom(entry);
     }
 
-    public void getNextStep(Task from) {
+    public Entry getNextStep(Entry from) {
+        Entry next = null;
 
+        if (from instanceof Group) {
+            var groupEntry = getGroupEntry(from.getId());
+            if (groupEntry.remaining <= 0) {
+                next = from.getNext();
+            }
+        } else {
+            next = from.getNext();
+        }
+
+        if (Objects.isNull(next) && !Objects.isNull(from.getParentGroup())) {
+            // we reached the end of this chain - check if parent group is complete and continue from there
+            return this.getNextStep(from.getParentGroup());
+        }
+
+        return next;
     }
 }

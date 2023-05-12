@@ -20,8 +20,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.in;
 
 public final class PipelineGraphTests {
 
@@ -222,8 +225,152 @@ public final class PipelineGraphTests {
     }
 
     @Test
+    public void can_return_all_tasks() {
+        var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
+
+        var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("a", "b", "c"));
+    }
+
+    @Test
+    public void can_return_tasks_from_a_given_point_in_a_chain() {
+        var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
+
+        var b = graph.getTask("b");
+        var taskIds = StreamSupport.stream(graph.getTasks(b).spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("b", "c"));
+    }
+
+    @Test
+    public void can_return_tasks_from_a_given_point_in_a_sub_chain() {
+        var nested = List.of(
+                List.of("1", "2", "3")
+        );
+
+        var group = List.of(
+                List.of("a", "b", "c", nested),
+                List.of("d", "e", "f")
+        );
+
+        var template = List.of(group);
+        var graph = fromTemplate(template);
+
+        var b = graph.getTask("b");
+        var taskIds = StreamSupport.stream(graph.getTasks(b).spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("b", "c", "1", "2", "3"));
+    }
+
+    @Test
     public void steps_through_chain_of_tasks_correctly() {
         var template = List.of("a", "b", "c");
         var graph = fromTemplate(template);
+
+        var head = graph.getTask("a");
+
+        var b = graph.getNextStep(head);
+        assertThat(b).isEqualTo(graph.getTask("b"));
+
+        var c = graph.getNextStep(b);
+        assertThat(c).isEqualTo(graph.getTask("c"));
+
+        assertThat(graph.getNextStep(c)).isNull();
+    }
+
+    @Test
+    public void steps_through_chain_of_tasks_including_groups_correctly()
+        throws InvalidGraphException {
+
+        var grp = List.of(
+                List.of("x", "y", "z")
+        );
+
+        var template = List.of("a", grp, "c");
+
+        var graph = fromTemplate(template);
+
+        // start at a
+        var head = graph.getTask("a");
+        var group = Objects.requireNonNull(graph.getTask("x").getParentGroup());
+        var groupEntry = graph.getGroupEntry(group.getId());
+
+        // group is next
+        var g = graph.getNextStep(head);
+        assertThat(g).isEqualTo(group);
+
+        // get initial tasks of group
+        var initial = graph.getInitialTasks(g);
+
+        // next is x
+        assertThat(initial.getTasks().get(0)).isEqualTo(graph.getTask("x"));
+
+        // next is y
+        var y = graph.getNextStep(graph.getTask("x"));
+        assertThat(y).isEqualTo(graph.getTask("y"));
+
+        // next is z
+        var z = graph.getNextStep(graph.getTask("y"));
+        assertThat(z).isEqualTo(graph.getTask("z"));
+
+        // next is c
+        groupEntry.remaining--;  // when z completes the group is done
+        var c = graph.getNextStep(z);
+        assertThat(c).isEqualTo(graph.getTask("c"));
+
+        // next is null
+        assertThat(graph.getNextStep(c)).isNull();
+    }
+
+    @Test
+    public void steps_through_chain_of_tasks_including_nested_groups_correctly()
+            throws InvalidGraphException {
+
+        var nested = List.of(
+                List.of("x", "y", "z")
+        );
+
+        var grp = List.of(
+                List.of(nested)
+        );
+
+        var template = List.of("a", grp, "c");
+
+        var graph = fromTemplate(template);
+
+        // start at a
+        var head = graph.getTask("a");
+        var nestedGroup = Objects.requireNonNull(graph.getTask("x").getParentGroup());
+        var group = Objects.requireNonNull(nestedGroup.getParentGroup());
+        var nestedGroupEntry = graph.getGroupEntry(nestedGroup.getId());
+        var groupEntry = graph.getGroupEntry(group.getId());
+
+        // group is next
+        var g = graph.getNextStep(head);
+        assertThat(g).isEqualTo(group);
+
+        // get initial tasks of group - jumps to the nested group since grp contains just nested
+        var initial = graph.getInitialTasks(g);
+        System.out.println(initial.getTasks());
+
+        // next is x
+        assertThat(initial.getTasks().get(0)).isEqualTo(graph.getTask("x"));
+
+        // next is y
+        var y = graph.getNextStep(graph.getTask("x"));
+        assertThat(y).isEqualTo(graph.getTask("y"));
+
+        // next is z
+        var z = graph.getNextStep(graph.getTask("y"));
+        assertThat(z).isEqualTo(graph.getTask("z"));
+
+        // next is c
+        nestedGroupEntry.remaining--;   // when z completes the nested group is done
+        groupEntry.remaining--;         // when the nested group is done the group is done
+        var c = graph.getNextStep(z);
+        assertThat(c).isEqualTo(graph.getTask("c"));
+
+        // next is null
+        assertThat(graph.getNextStep(c)).isNull();
     }
 }
