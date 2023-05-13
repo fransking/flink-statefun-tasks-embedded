@@ -31,6 +31,8 @@ public final class PipelineGraph {
     private final Map<String, Task> tasks;
     private final PersistedTable<String, TaskEntry> taskEntries;
     private final PersistedTable<String, GroupEntry> groupEntries;
+    private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
+    private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
     private final Entry head;
 
     @SuppressWarnings("unused")
@@ -114,5 +116,23 @@ public final class PipelineGraph {
         }
 
         return next;
+    }
+
+    public void markComplete(Entry entry) {
+        if (entry instanceof Task) {
+            var taskEntry = getTaskEntry(entry.getId());
+            taskEntry.complete = true;
+            updatedTaskEntries.put(entry.getId(), taskEntry);
+        }
+
+        if (Objects.isNull(entry.getNext()) && !Objects.isNull(entry.getParentGroup())) {
+            var groupEntry = getGroupEntry(entry.getParentGroup().getId());
+            groupEntry.remaining--;
+            updatedGroupEntries.put(entry.getParentGroup().getId(), groupEntry);
+
+            if (groupEntry.remaining == 0) {
+                markComplete(entry.getParentGroup());
+            }
+        }
     }
 }

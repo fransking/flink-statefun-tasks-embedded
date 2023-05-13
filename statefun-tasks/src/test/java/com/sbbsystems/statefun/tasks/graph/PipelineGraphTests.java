@@ -269,12 +269,15 @@ public final class PipelineGraphTests {
 
         var head = graph.getTask("a");
 
+        graph.markComplete(head);
         var b = graph.getNextStep(head);
         assertThat(b).isEqualTo(graph.getTask("b"));
 
+        graph.markComplete(b);
         var c = graph.getNextStep(b);
         assertThat(c).isEqualTo(graph.getTask("c"));
 
+        graph.markComplete(c);
         assertThat(graph.getNextStep(c)).isNull();
     }
 
@@ -296,6 +299,7 @@ public final class PipelineGraphTests {
         var groupEntry = graph.getGroupEntry(group.getId());
 
         // group is next
+        graph.markComplete(head);
         var g = graph.getNextStep(head);
         assertThat(g).isEqualTo(group);
 
@@ -303,22 +307,27 @@ public final class PipelineGraphTests {
         var initial = graph.getInitialTasks(g);
 
         // next is x
-        assertThat(initial.getTasks().get(0)).isEqualTo(graph.getTask("x"));
+        var x = initial.getTasks().get(0);
+        assertThat(x).isEqualTo(graph.getTask("x"));
 
         // next is y
+        graph.markComplete(x);
         var y = graph.getNextStep(graph.getTask("x"));
         assertThat(y).isEqualTo(graph.getTask("y"));
 
         // next is z
+        graph.markComplete(y);
         var z = graph.getNextStep(graph.getTask("y"));
         assertThat(z).isEqualTo(graph.getTask("z"));
 
         // next is c
+        graph.markComplete(z);
         groupEntry.remaining--;  // when z completes the group is done
         var c = graph.getNextStep(z);
         assertThat(c).isEqualTo(graph.getTask("c"));
 
         // next is null
+        graph.markComplete(c);
         assertThat(graph.getNextStep(c)).isNull();
     }
 
@@ -346,31 +355,34 @@ public final class PipelineGraphTests {
         var groupEntry = graph.getGroupEntry(group.getId());
 
         // group is next
+        graph.markComplete(head);
         var g = graph.getNextStep(head);
         assertThat(g).isEqualTo(group);
 
         // get initial tasks of group - jumps to the nested group since grp contains just nested
         var initial = graph.getInitialTasks(g);
-        System.out.println(initial.getTasks());
 
         // next is x
-        assertThat(initial.getTasks().get(0)).isEqualTo(graph.getTask("x"));
+        var x = initial.getTasks().get(0);
+        assertThat(x).isEqualTo(graph.getTask("x"));
 
         // next is y
+        graph.markComplete(x);
         var y = graph.getNextStep(graph.getTask("x"));
         assertThat(y).isEqualTo(graph.getTask("y"));
 
         // next is z
+        graph.markComplete(y);
         var z = graph.getNextStep(graph.getTask("y"));
         assertThat(z).isEqualTo(graph.getTask("z"));
 
         // next is c
-        nestedGroupEntry.remaining--;   // when z completes the nested group is done
-        groupEntry.remaining--;         // when the nested group is done the group is done
+        graph.markComplete(z);
         var c = graph.getNextStep(z);
         assertThat(c).isEqualTo(graph.getTask("c"));
 
         // next is null
+        graph.markComplete(c);
         assertThat(graph.getNextStep(c)).isNull();
     }
 }
