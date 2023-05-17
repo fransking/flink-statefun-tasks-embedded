@@ -20,27 +20,28 @@ import com.sbbsystems.statefun.tasks.messagehandlers.TaskRequestHandler;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.StatefulFunction;
+import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.MessageFormat;
 import java.util.List;
 
 public class PipelineFunction implements StatefulFunction {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunction.class);
 
+    @Persisted
+    PipelineFunctionState state = PipelineFunctionState.getInstance();
+
     private static final List<MessageHandler<?>> messageHandlers = List.of(
-            new TaskRequestHandler()
+            TaskRequestHandler.getInstance()
     );
 
     @Override
     public void invoke(Context context, Object input) {
-        var logMessage = MessageFormat.format("Invoking function {0}", context.self());
-
-        try (var ignored = TimedBlock.of(LOG::info, logMessage)) {
+        try (var ignored = TimedBlock.of(LOG::info, "Invoking function {0}", context.self())) {
             for (var handler : messageHandlers) {
-                if (handler.canHandle(context, input)) {
-                    handler.handleInput(context, input);
+                if (handler.canHandle(context, input, state)) {
+                    handler.handleInput(context, input, state);
                     break;
                 }
             }

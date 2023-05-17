@@ -15,27 +15,42 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
+import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
+import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
+import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
 
+    public static TaskRequestHandler getInstance() {
+        return new TaskRequestHandler();
+    }
+
+    private TaskRequestHandler() {
+    }
+
     @Override
-    public boolean canHandle(Context context, Object input) {
+    public boolean canHandle(Context context, Object input, PipelineFunctionState state) {
         return MessageTypes.isType(input, TaskRequest.class);
     }
 
@@ -45,8 +60,20 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest> {
     }
 
     @Override
-    public void handleMessage(Context context, TaskRequest taskRequest)
-            throws StatefunTasksException {
+    public void handleMessage(Context context, TaskRequest taskRequest, PipelineFunctionState state) {
+
+//        if (Iterables.isEmpty(state.getTaskEntries().entries())) {
+//            for (int i = 0; i < 1000000; i++) {
+//                var id = String.valueOf(UUID.randomUUID());
+//                state.getTaskEntries().set(id, new TaskEntry());
+//            }
+//        }
+//        else {
+//            var id = String.valueOf(UUID.randomUUID());
+//            state.getTaskEntries().set(id, new TaskEntry());
+//        }
+//
+//        LOG.info(String.valueOf(Iterables.size(state.getTaskEntries().keys())));
 
         LOG.info("GOT A TASK_REQUEST");
 
