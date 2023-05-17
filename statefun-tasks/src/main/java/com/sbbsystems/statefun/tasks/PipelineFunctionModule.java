@@ -15,12 +15,12 @@
  */
 package com.sbbsystems.statefun.tasks;
 
-import java.util.Map;
-
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 public class PipelineFunctionModule implements StatefulFunctionModule {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunctionModule.class);
@@ -30,13 +30,16 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
 
         //todo make this configurable from the module.yaml
         try {
-            var function_type = new FunctionType("example", "embedded_pipeline");
-            var provider = new PipelineFunctionProvider();
-            binder.bindFunctionProvider(function_type, provider);
+            var pipelineFunctionType = new FunctionType("example", "embedded_pipeline");
+            var callbackFunctionType = new FunctionType("example", "embedded_pipeline_callback");
+            var pipelineProvider = new PipelineFunctionProvider(callbackFunctionType);
+            var callbackProvider = new CallbackFunctionProvider(pipelineFunctionType);
+
+            binder.bindFunctionProvider(pipelineFunctionType, pipelineProvider);
+            binder.bindFunctionProvider(callbackFunctionType, callbackProvider);
 
             LOG.info("Embedded pipeline function registered");
-        }
-        catch (IllegalStateException e) {
+        } catch (IllegalStateException e) {
             LOG.warn("Error registering pipeline function", e);
         }
     }

@@ -16,23 +16,31 @@
 package com.sbbsystems.statefun.tasks.testmodule;
 
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
-import org.apache.flink.statefun.sdk.Address;
+import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
-import org.apache.flink.statefun.sdk.io.Router;
-import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
+import org.apache.flink.statefun.sdk.StatefulFunction;
 
-public class TestPipelineRouter implements Router<TypedValue> {
+public class EchoFunction implements StatefulFunction {
+
     @Override
-    public void route(TypedValue request, Downstream<TypedValue> downstream) {
-        TaskRequest taskRequest;
+    public void invoke(Context context, Object input) {
         try {
-            taskRequest = MessageTypes.asType(request, TaskRequest::parseFrom);
+            if (MessageTypes.isType(input, TaskRequest.class)) {
+                var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
+                var taskResult = TaskResult.newBuilder().setId(taskRequest.getId())
+                        .setUid(taskRequest.getUid())
+                        .setType(taskRequest.getType() + ".result")
+                        .setResult(taskRequest.getRequest())
+                        .build();
+                var wrappedResult = MessageTypes.wrap(taskResult);
+                var replyAddress = taskRequest.getReplyAddress();
+                context.send(new FunctionType(replyAddress.getNamespace(), replyAddress.getType()), replyAddress.getId(), wrappedResult);
+            }
         } catch (InvalidMessageTypeException e) {
             throw new RuntimeException(e);
         }
-        var embeddedPipelineFunctionType = new FunctionType("example", "embedded_pipeline");
-        downstream.forward(new Address(embeddedPipelineFunctionType, taskRequest.getId()), request);
     }
 }

@@ -21,16 +21,16 @@ import org.apache.flink.statefun.sdk.StatefulFunctionProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PipelineFunctionProvider implements StatefulFunctionProvider {
-    private static final Logger LOG = LoggerFactory.getLogger(PipelineFunctionProvider.class);
-    private final FunctionType callbackFunctionType;
+public class CallbackFunctionProvider implements StatefulFunctionProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(CallbackFunctionProvider.class);
+    private final FunctionType pipelineFunctionType;
 
-    public PipelineFunctionProvider(FunctionType callbackFunctionType) {
-        this.callbackFunctionType = callbackFunctionType;
+    public CallbackFunctionProvider(FunctionType pipelineFunctionType) {
+        this.pipelineFunctionType = pipelineFunctionType;
     }
 
     public StatefulFunction functionOfType(FunctionType type) {
-        LOG.info("Creating PipelineFunction instance");
-        return new PipelineFunction(this.callbackFunctionType);
+        LOG.info("Creating CallbackFunction instance");
+        return new CallbackFunction(this.pipelineFunctionType);
     }
 }
