@@ -16,26 +16,30 @@
 package com.sbbsystems.statefun.tasks.util;
 
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 import java.text.MessageFormat;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public final class TimedBlock implements AutoCloseable {
     private final long start = System.currentTimeMillis();
-    private final Logger log;
+    private final Consumer<String> log;
     private final String message;
 
-    public TimedBlock(@NotNull Logger log, String message) {
-        this.log = Objects.requireNonNull(log);
+    public static TimedBlock of(@NotNull Consumer<String> log, String message) {
+        return new TimedBlock(Objects.requireNonNull(log), message);
+    }
+
+    private TimedBlock(Consumer<String> log, String message) {
+        this.log = log;
         this.message = message;
 
-        log.info(message);
+        log.accept(message);
     }
 
     @Override
     public void close() {
         var duration = System.currentTimeMillis() - start;
-        log.info(MessageFormat.format("{0} completed in {1} milliseconds", message, duration));
+        log.accept(MessageFormat.format("{0} completed in {1} milliseconds", message, duration));
     }
 }
