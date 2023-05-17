@@ -22,7 +22,11 @@ public interface Entry {
 
     @Nullable Entry getNext();
 
+    @Nullable Entry getPrevious();
+
     void setNext(@Nullable Entry next);
+
+    void setPrevious(@Nullable Entry previous);
 
     @Nullable Group getParentGroup();
 

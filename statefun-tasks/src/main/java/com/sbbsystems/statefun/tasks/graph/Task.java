@@ -20,14 +20,27 @@ import org.jetbrains.annotations.NotNull;
 import java.text.MessageFormat;
 
 public final class Task extends EntryBase implements Entry {
-    public static Task of(@NotNull String id) {
+    private boolean isExceptionally;
+
+    public static Task of(@NotNull String id, boolean isExceptionally) {
         var task = new Task();
         task.setId(id);
+        task.setExceptionally(isExceptionally);
         return task;
     }
 
     @Override
     public String toString() {
         return MessageFormat.format("Task {0}", getId());
+    }
+
+    @SuppressWarnings("unused")  // POJO serialisation
+    public boolean isExceptionally() {
+        return isExceptionally;
+    }
+
+    @SuppressWarnings("unused")  // POJO serialisation
+    public void setExceptionally(boolean exceptionally) {
+        isExceptionally = exceptionally;
     }
 }

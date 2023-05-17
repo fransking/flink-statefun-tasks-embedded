@@ -101,7 +101,7 @@ public final class PipelineGraphBuilder {
 
             if (entry.hasTaskEntry()) {
                 var taskEntry = entry.getTaskEntry();
-                next = Task.of(taskEntry.getUid());
+                next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally());
 
                 if (tasks.containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
@@ -134,6 +134,7 @@ public final class PipelineGraphBuilder {
                     head = next;
                 } else {
                     current.setNext(next);
+                    next.setPrevious(current);
                 }
 
                 current = next;

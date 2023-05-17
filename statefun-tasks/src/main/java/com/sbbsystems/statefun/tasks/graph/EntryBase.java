@@ -24,6 +24,7 @@ import java.util.Objects;
 abstract class EntryBase implements Entry {
     private String id;
     private Entry next;
+    private Entry previous;
     private Group parentGroup;
 
     @SuppressWarnings("unused")  // POJO serialisation
@@ -51,6 +52,17 @@ abstract class EntryBase implements Entry {
     @Override
     public void setNext(@Nullable Entry next) {
         this.next = next;
+    }
+
+    @Nullable
+    @Override
+    public Entry getPrevious() {
+        return previous;
+    }
+
+    @Override
+    public void setPrevious(Entry previous) {
+        this.previous = previous;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation

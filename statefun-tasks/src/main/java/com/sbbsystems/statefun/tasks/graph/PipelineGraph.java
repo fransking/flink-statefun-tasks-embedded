@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 
@@ -98,7 +99,13 @@ public final class PipelineGraph {
         return InitialTasksCollector.of(this).collectFrom(entry);
     }
 
-    public Entry getNextStep(Entry from) {
+    public @NotNull NextStep getNextStep(Entry from, boolean isTaskException)
+            throws InvalidGraphException {
+
+            return NextStepGenerator.of(this).getNextStep(from, isTaskException);
+    }
+
+    public Entry getNextEntry(Entry from) {
         Entry next = null;
 
         if (from instanceof Group) {
@@ -112,7 +119,7 @@ public final class PipelineGraph {
 
         if (Objects.isNull(next) && !Objects.isNull(from.getParentGroup())) {
             // we reached the end of this chain - check if parent group is complete and continue from there
-            return this.getNextStep(from.getParentGroup());
+            return this.getNextEntry(from.getParentGroup());
         }
 
         return next;
