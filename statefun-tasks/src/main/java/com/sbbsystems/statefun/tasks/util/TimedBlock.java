@@ -30,6 +30,10 @@ public final class TimedBlock implements AutoCloseable {
         return new TimedBlock(Objects.requireNonNull(log), message);
     }
 
+    public static TimedBlock of(@NotNull Consumer<String> log, String pattern, Object... arguments) {
+        return TimedBlock.of(log, MessageFormat.format(pattern, arguments));
+    }
+
     private TimedBlock(Consumer<String> log, String message) {
         this.log = log;
         this.message = message;

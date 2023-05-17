@@ -17,6 +17,7 @@ package com.sbbsystems.statefun.tasks.messagehandlers;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -27,17 +28,17 @@ import org.slf4j.LoggerFactory;
 public abstract class MessageHandler<T> {
     private static final Logger LOG = LoggerFactory.getLogger(MessageHandler.class);
 
-    public abstract boolean canHandle(Context context, Object input);
+    public abstract boolean canHandle(Context context, Object input, PipelineFunctionState state);
 
     public abstract CheckedFunction<ByteString, T, InvalidProtocolBufferException> getMessageBuilder();
 
-    public abstract void handleMessage(Context context, T message)
+    public abstract void handleMessage(Context context, T message, PipelineFunctionState state)
             throws StatefunTasksException;
 
-    public final void handleInput(Context context, Object input) {
+    public final void handleInput(Context context, Object input, PipelineFunctionState state) {
         try {
             var message = MessageTypes.asType(input, getMessageBuilder());
-            handleMessage(context, message);
+            handleMessage(context, message, state);
         } catch (StatefunTasksException e) {
             LOG.error("Unable to handle input message", e);
         }
