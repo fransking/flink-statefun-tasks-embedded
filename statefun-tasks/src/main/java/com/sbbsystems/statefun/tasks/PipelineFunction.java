@@ -15,54 +15,35 @@
  */
 package com.sbbsystems.statefun.tasks;
 
-import com.google.protobuf.Any;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
-import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
-import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import com.sbbsystems.statefun.tasks.messagehandlers.MessageHandler;
+import com.sbbsystems.statefun.tasks.messagehandlers.TaskRequestHandler;
+import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.StatefulFunction;
-import org.apache.flink.statefun.sdk.io.EgressIdentifier;
-import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
-import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.text.MessageFormat;
+import java.util.List;
 
 public class PipelineFunction implements StatefulFunction {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunction.class);
 
+    private static final List<MessageHandler<?>> messageHandlers = List.of(
+            new TaskRequestHandler()
+    );
+
     @Override
     public void invoke(Context context, Object input) {
-        try {
-            if (MessageTypes.isType(input, TaskRequest.class)) {
-                LOG.info("GOT A TASK_REQUEST");
+        var logMessage = MessageFormat.format("Invoking function {0}", context.self());
 
-                var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
-                LOG.info("TASK_REQUEST_ID is {}", taskRequest.getId());
-
-                var egress = new EgressIdentifier<>("example", "kafka-generic-egress", TypedValue.class);
-                var taskResult = TaskResult.newBuilder()
-                        .setId(taskRequest.getId())
-                        .setUid(taskRequest.getUid())
-                        .build();
-
-                var egressRecord = KafkaProducerRecord.newBuilder()
-                        .setTopic(taskRequest.getReplyTopic())
-                        .setValueBytes(Any.pack(taskResult).toByteString())
-                        .build();
-
-                var typedValue = TypedValue.newBuilder()
-                        .setValue(egressRecord.toByteString())
-                        .setHasValue(true)
-                        .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
-                        .build();
-
-                context.send(egress, typedValue);
+        try (var ignored = TimedBlock.of(LOG::info, logMessage)) {
+            for (var handler : messageHandlers) {
+                if (handler.canHandle(context, input)) {
+                    handler.handleInput(context, input);
+                    break;
+                }
             }
-        }
-        catch (InvalidMessageTypeException e) {
-            LOG.error("Unable to handle input message", e);
         }
     }
 }

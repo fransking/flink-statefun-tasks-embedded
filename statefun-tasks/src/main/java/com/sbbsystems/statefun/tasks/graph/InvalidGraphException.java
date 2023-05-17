@@ -15,12 +15,10 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-public class InvalidGraphException extends Exception {
+import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+
+public class InvalidGraphException extends StatefunTasksException {
     public InvalidGraphException(String message) {
         super(message);
-    }
-
-    public InvalidGraphException(String message, Throwable cause) {
-        super(message, cause);
     }
 }

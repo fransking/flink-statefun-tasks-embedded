@@ -15,7 +15,9 @@
  */
 package com.sbbsystems.statefun.tasks.types;
 
-public class InvalidMessageTypeException extends Exception {
+import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+
+public class InvalidMessageTypeException extends StatefunTasksException {
     public InvalidMessageTypeException(String message) {
         super(message);
     }
