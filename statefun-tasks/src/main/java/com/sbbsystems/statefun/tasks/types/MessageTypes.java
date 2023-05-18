@@ -18,10 +18,8 @@ package com.sbbsystems.statefun.tasks.types;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
-import com.sbbsystems.statefun.tasks.generated.TaskException;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
@@ -32,11 +30,15 @@ public final class MessageTypes {
     public static final TypeName TASK_REQUEST_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskRequest");
     public static final TypeName TASK_RESULT_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskResult");
     public static final TypeName TASK_EXCEPTION_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskException");
+    public static final TypeName CALLBACK_SIGNAL_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.CallbackSignal");
+    public static final TypeName RESULTS_BATCH_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.ResultsBatch");
 
     public static final Map<Class<? extends Message>, TypeName> TYPES = Map.of(
             TaskRequest.class, TASK_REQUEST_TYPE,
             TaskResult.class, TASK_RESULT_TYPE,
-            TaskException.class, TASK_EXCEPTION_TYPE
+            TaskException.class, TASK_EXCEPTION_TYPE,
+            CallbackSignal.class, CALLBACK_SIGNAL_TYPE,
+            ResultsBatch.class, RESULTS_BATCH_TYPE
     );
 
     public static <T extends Message> boolean isType(Object input, Class<T> type) {
@@ -64,5 +66,13 @@ public final class MessageTypes {
         }
 
         throw new InvalidMessageTypeException("Input must be an instance of TypedValue");
+    }
+
+    public static <T extends Message> TypedValue wrap(T innerValue) {
+        return TypedValue.newBuilder()
+                .setTypename(TYPES.get(innerValue.getClass()).canonicalTypenameString())
+                .setHasValue(true)
+                .setValue(innerValue.toByteString())
+                .build();
     }
 }

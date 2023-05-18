@@ -274,3 +274,15 @@ message TaskStatus {
     }
     Status value = 1;
 }
+
+message CallbackSignal {
+    enum Signal {
+        PIPELINE_STARTING = 0;
+        BATCH_PROCESSED = 1;
+    }
+    Signal value = 1;
+}
+
+message ResultsBatch {
+    repeated TaskResultOrException results = 1;
+}

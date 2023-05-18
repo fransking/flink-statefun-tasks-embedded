@@ -34,11 +34,10 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class TaskRequestHandler extends MessageHandler<TaskRequest> {
-
+public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
 
-    public static TaskRequestHandler getInstance() {
+    public static TaskRequestHandler newInstance() {
         return new TaskRequestHandler();
     }
 

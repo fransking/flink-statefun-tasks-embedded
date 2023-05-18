@@ -17,7 +17,6 @@ package com.sbbsystems.statefun.tasks.messagehandlers;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -25,17 +24,17 @@ import org.apache.flink.statefun.sdk.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class MessageHandler<T> {
+public abstract class MessageHandler<TMessage, TState> {
     private static final Logger LOG = LoggerFactory.getLogger(MessageHandler.class);
 
-    public abstract boolean canHandle(Context context, Object input, PipelineFunctionState state);
+    public abstract boolean canHandle(Context context, Object input, TState state);
 
-    public abstract CheckedFunction<ByteString, T, InvalidProtocolBufferException> getMessageBuilder();
+    public abstract CheckedFunction<ByteString, TMessage, InvalidProtocolBufferException> getMessageBuilder();
 
-    public abstract void handleMessage(Context context, T message, PipelineFunctionState state)
+    public abstract void handleMessage(Context context, TMessage message, TState state)
             throws StatefunTasksException;
 
-    public final void handleInput(Context context, Object input, PipelineFunctionState state) {
+    public final void handleInput(Context context, Object input, TState state) {
         try {
             var message = MessageTypes.asType(input, getMessageBuilder());
             handleMessage(context, message, state);
