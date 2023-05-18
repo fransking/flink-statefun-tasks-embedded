@@ -22,7 +22,7 @@ import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
 
-public class PipelineFunctionState {
+public final class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries = PersistedTable.of("taskEntries", String.class, TaskEntry.class);
 
