@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
+import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -24,6 +25,7 @@ import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -59,14 +61,23 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             throws StatefunTasksException {
 
         try {
-            var request = taskRequest.getRequest();
+            // if inline then copy taskState to pipeline initial state
             var taskState = taskRequest.getState();
 
-            // if inline then copy taskState to pipeline initial state
-            // if we have more args afterpipeline in argsandkwargs then pass to pipeline initial args
-            // if we have kwargs in argsandkwargs then pass to pipeline initial kwargs
+            var taskArgsAndKwargs = TaskRequestSerializer
+                    .forRequest(taskRequest)
+                    .getArgsAndKwargs();
 
-            var pipelineProto = Pipeline.parseFrom(request.getValue());
+            var pipelineProto = Pipeline.parseFrom(taskArgsAndKwargs.getArg(0).getValue());
+            var argsAndKwargs = taskArgsAndKwargs.slice(1);
+
+            if (argsAndKwargs.getArgs().getItemsCount() > 0) {
+                // if we have more args after pipeline in argsandkwargs then pass to pipeline initial args
+            }
+
+            if (argsAndKwargs.getKwargs().getItemsCount() > 0) {
+                // if we have kwargs in argsandkwargs then pass to pipeline initial kwargs
+            }
 
             var tasks = state.getTasks();
 

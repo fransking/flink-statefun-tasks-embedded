@@ -16,10 +16,12 @@
 package com.sbbsystems.statefun.tasks.serialization;
 
 import com.google.protobuf.Any;
+import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
@@ -27,21 +29,6 @@ import java.util.Objects;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class TaskRequestSerializerTests {
-
-    @Test
-    public void get_args_and_kwargs_from_task_request()
-        throws StatefunTasksException {
-
-        var taskRequest = TaskRequest
-                .newBuilder()
-                .setRequest(Any.pack(ArgsAndKwargs.getDefaultInstance()))
-                .build();
-
-        var argsAndKwargs = TaskRequestSerializer.forRequest(taskRequest).getArgsAndKwargs();
-
-        assertThat(argsAndKwargs).isNotNull();
-        assertThat(argsAndKwargs).isInstanceOf(ArgsAndKwargs.class);
-    }
 
     @Test
     public void get_args_and_kwargs_from_task_request_containing_single_proto()
@@ -55,7 +42,31 @@ public class TaskRequestSerializerTests {
         var argsAndKwargs = TaskRequestSerializer.forRequest(taskRequest).getArgsAndKwargs();
 
         assertThat(Objects.requireNonNull(argsAndKwargs)).isNotNull();
-        assertThat(argsAndKwargs).isInstanceOf(ArgsAndKwargs.class);
-        assertThat(argsAndKwargs.getArgs().getItems(0).is(Pipeline.class)).isTrue();
+        assertThat(argsAndKwargs.slice(1)).isInstanceOf(ArgsAndKwargs.class);
+        assertThat(argsAndKwargs.getArg(0).is(Pipeline.class)).isTrue();
+    }
+
+    @Test
+    public void get_args_and_kwargs_from_task_request_containing_multiple_args()
+            throws StatefunTasksException {
+
+        var args = TupleOfAny
+                .newBuilder()
+                .addItems(Any.pack(Pipeline.getDefaultInstance()))
+                .addItems(Any.pack(StringValue.of("Test")));
+        var taskRequest = TaskRequest
+                .newBuilder()
+                .setRequest(Any.pack(ArgsAndKwargs
+                        .newBuilder()
+                        .setArgs(args)
+                        .build()))
+                .build();
+
+        var argsAndKwargs = TaskRequestSerializer.forRequest(taskRequest).getArgsAndKwargs();
+
+        assertThat(Objects.requireNonNull(argsAndKwargs)).isNotNull();
+        assertThat(argsAndKwargs.getArg(0).is(Pipeline.class)).isTrue();
+        assertThat(argsAndKwargs.slice(1)).isInstanceOf(ArgsAndKwargs.class);
+        assertThat(argsAndKwargs.slice(1).getArgs().getItems(0).is(StringValue.class)).isTrue();
     }
 }
