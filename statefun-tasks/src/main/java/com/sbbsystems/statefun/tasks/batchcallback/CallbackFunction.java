@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks;
+package com.sbbsystems.statefun.tasks.batchcallback;
 
-import com.sbbsystems.statefun.tasks.messagehandlers.*;
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.BatchSubmitter;
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.CallbackSignalHandler;
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.TaskExceptionHandler;
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.TaskResultHandler;
+import com.sbbsystems.statefun.tasks.messagehandlers.MessageHandler;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
-import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
@@ -27,21 +30,17 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class PipelineFunction implements StatefulFunction {
-    private static final Logger LOG = LoggerFactory.getLogger(PipelineFunction.class);
-    private final List<MessageHandler<?, PipelineFunctionState>> messageHandlers;
+public class CallbackFunction implements StatefulFunction {
+    private static final Logger LOG = LoggerFactory.getLogger(CallbackFunction.class);
     @Persisted
-    private final PipelineFunctionState state = PipelineFunctionState.newInstance();
+    private final CallbackFunctionState state = CallbackFunctionState.newInstance();
+    private final List<MessageHandler<?, CallbackFunctionState>> messageHandlers;
 
-
-    public PipelineFunction(FunctionType callbackFunctionType) {
+    public CallbackFunction(BatchSubmitter batchSubmitter) {
         this.messageHandlers = List.of(
-                CallbackAwareTaskRequestHandler.withRequestHandler(
-                        callbackFunctionType, TaskRequestHandler.newInstance()
-                ),
-                ResultsBatchHandler.withResultHandler(
-                        callbackFunctionType, TaskResultOrExceptionHandler.newInstance()
-                )
+                TaskResultHandler.newInstance(batchSubmitter),
+                TaskExceptionHandler.newInstance(batchSubmitter),
+                CallbackSignalHandler.newInstance(batchSubmitter)
         );
     }
 

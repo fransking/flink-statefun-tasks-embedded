@@ -32,7 +32,7 @@ public class PipelineFunctionState {
     @Persisted
     private final PersistedValue<MapOfTasks> tasks = PersistedValue.of("tasks", MapOfTasks.class);
 
-    public static PipelineFunctionState getInstance() {
+    public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState();
     }
 

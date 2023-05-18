@@ -13,24 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.utils;
 
-import org.apache.flink.statefun.flink.harness.io.SerializableSupplier;
+package com.sbbsystems.statefun.tasks.batchcallback.messagehandlers;
 
-import java.util.Collection;
+import com.sbbsystems.statefun.tasks.batchcallback.CallbackFunctionState;
+import org.apache.flink.statefun.sdk.Context;
 
-public class IngressMessageSupplier {
-    public static <T> SerializableSupplier<T> create(Collection<T> messages) {
-        var queueSupplier = BlockingQueueSupplier.create(messages);
-        return () -> {
-            var queue = queueSupplier.get();
-            try {
-                return queue.take();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-    }
+public interface BatchSubmitter {
+    void trySubmitBatch(Context context, CallbackFunctionState state);
 }
-
-

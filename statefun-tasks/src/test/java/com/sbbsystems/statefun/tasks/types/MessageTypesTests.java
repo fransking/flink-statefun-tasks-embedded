@@ -15,14 +15,12 @@
  */
 package com.sbbsystems.statefun.tasks.types;
 
-import com.sbbsystems.statefun.tasks.generated.TaskException;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.sbbsystems.statefun.tasks.generated.*;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class MessageTypesTests {
@@ -45,6 +43,18 @@ public class MessageTypesTests {
     }
 
     @Test
+    public void isType_returns_correct_type_for_callback_signal() {
+        var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.CallbackSignal").build();
+        assertTrue(MessageTypes.isType(typedValue, CallbackSignal.class));
+    }
+
+    @Test
+    public void isType_returns_correct_type_for_results_batch() {
+        var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.ResultsBatch").build();
+        assertTrue(MessageTypes.isType(typedValue, ResultsBatch.class));
+    }
+
+    @Test
     public void asType_returns_correct_type_for_task_request() throws InvalidMessageTypeException {
         var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.TaskRequest").build();
         assertInstanceOf(TaskRequest.class, MessageTypes.asType(typedValue, TaskRequest::parseFrom));
@@ -60,5 +70,28 @@ public class MessageTypesTests {
     public void asType_returns_correct_type_for_task_exception() throws InvalidMessageTypeException {
         var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.TaskException").build();
         assertInstanceOf(TaskException.class, MessageTypes.asType(typedValue, TaskException::parseFrom));
+    }
+
+    @Test
+    public void asType_returns_correct_type_for_callback_signal() throws InvalidMessageTypeException {
+        var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.CallbackSignal").build();
+        assertInstanceOf(CallbackSignal.class, MessageTypes.asType(typedValue, CallbackSignal::parseFrom));
+    }
+
+    @Test
+    public void asType_returns_correct_type_for_results_batch() throws InvalidMessageTypeException {
+        var typedValue = TypedValue.newBuilder().setTypename("io.statefun_tasks.types/statefun_tasks.ResultsBatch").build();
+        assertInstanceOf(ResultsBatch.class, MessageTypes.asType(typedValue, ResultsBatch::parseFrom));
+    }
+
+    @Test
+    public void wrap_returns_typed_value_containing_argument() throws InvalidProtocolBufferException {
+        var innerVal = TaskResult.newBuilder().setId("id").build();
+
+        var typedVal = MessageTypes.wrap(innerVal);
+
+        assertTrue(typedVal.getHasValue());
+        assertEquals("io.statefun_tasks.types/statefun_tasks.TaskResult", typedVal.getTypename());
+        assertEquals("id", TaskResult.parseFrom(typedVal.getValue()).getId());
     }
 }
