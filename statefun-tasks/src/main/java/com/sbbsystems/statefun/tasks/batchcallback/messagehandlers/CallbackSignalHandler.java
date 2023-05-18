@@ -55,7 +55,9 @@ public class CallbackSignalHandler extends MessageHandler<CallbackSignal, Callba
     }
 
     @Override
-    public void handleMessage(Context context, CallbackSignal callbackSignal, CallbackFunctionState state) throws StatefunTasksException {
+    public void handleMessage(Context context, CallbackSignal callbackSignal, CallbackFunctionState state)
+            throws StatefunTasksException {
+
         var signal = callbackSignal.getValue();
         switch (signal) {
             case PIPELINE_STARTING:
