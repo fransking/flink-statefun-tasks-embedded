@@ -32,6 +32,7 @@ import org.apache.flink.statefun.sdk.Context;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static com.sbbsystems.statefun.tasks.generated.CallbackSignal.Signal.*;
 import static org.mockito.Mockito.*;
 
 public class CallbackFunctionTests {
@@ -40,7 +41,6 @@ public class CallbackFunctionTests {
     private static final FunctionType CALLBACK_FUNCTION_TYPE = new FunctionType("test", "callback");
     private CallbackFunction callbackFunction;
     private Context context;
-    private TypedValue pipelineStartingSignal;
 
     private static List<TaskResultOrException> extractResultsList(Object arg) {
         try {
@@ -50,20 +50,21 @@ public class CallbackFunctionTests {
         }
     }
 
+    private static TypedValue buildSignalMessage(CallbackSignal.Signal signal) {
+        return MessageTypes.wrap(CallbackSignal.newBuilder().setValue(signal).build());
+    }
+
     @BeforeEach
     public void setup() {
         this.callbackFunction = new CallbackFunction(SimpleBatchSubmitter.newInstance(PIPELINE_FUNCTION_TYPE));
         this.context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
-        this.pipelineStartingSignal = MessageTypes.wrap(CallbackSignal.newBuilder().setValue(CallbackSignal.Signal.PIPELINE_STARTING).build());
     }
 
     @Test
     public void invoking_with_task_result_sends_result_in_batch() {
         var taskResult = TaskResult.newBuilder().setId("result-id").build();
         var wrappedTaskResult = MessageTypes.wrap(taskResult);
-        var context = mock(Context.class);
-        when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
 
         this.callbackFunction.invoke(context, wrappedTaskResult);
 
@@ -96,10 +97,8 @@ public class CallbackFunctionTests {
                 .boxed()
                 .map(i -> TaskResult.newBuilder().setId("result-" + i).build())
                 .map(MessageTypes::wrap);
-        var context = mock(Context.class);
-        when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
 
-        this.callbackFunction.invoke(context, pipelineStartingSignal);
+        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
         taskResults.forEach(result -> this.callbackFunction.invoke(context, result));
         TypedValue batchProcessedMessage = MessageTypes.wrap(
                 CallbackSignal.newBuilder().setValue(CallbackSignal.Signal.BATCH_PROCESSED).build());
@@ -108,5 +107,40 @@ public class CallbackFunctionTests {
         verify(context, times(2)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 1));
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 4));
+    }
+
+    @Test
+    public void pausing_prevents_batch_from_being_sent() {
+        var taskResult = TaskResult.newBuilder().setId("result").build();
+
+        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
+        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
+        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
+
+        verify(context, times(0)).send(any(), anyString(), any());
+    }
+
+    @Test
+    public void pausing_then_resuming_causes_batch_to_be_sent() {
+        var taskResult = TaskResult.newBuilder().setId("result").build();
+
+        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
+        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
+        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
+        this.callbackFunction.invoke(context, buildSignalMessage(RESUME_PIPELINE));
+
+        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
+    }
+
+    @Test
+    public void pausing_then_resuming_then_sending_task_causes_batch_to_be_sent() {
+        var taskResult = TaskResult.newBuilder().setId("result").build();
+
+        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
+        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
+        this.callbackFunction.invoke(context, buildSignalMessage(RESUME_PIPELINE));
+        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
+
+        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
     }
 }

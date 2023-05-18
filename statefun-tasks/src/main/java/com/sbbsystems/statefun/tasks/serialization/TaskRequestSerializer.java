@@ -22,6 +22,8 @@ import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 
+import java.nio.channels.Pipe;
+
 public final class TaskRequestSerializer {
     private final TaskRequest taskRequest;
 
@@ -33,20 +35,20 @@ public final class TaskRequestSerializer {
         this.taskRequest = taskRequest;
     }
 
-    public ArgsAndKwargs getArgsAndKwargs()
+    public ArgsAndKwargsSerializer getArgsAndKwargs()
             throws StatefunTasksException {
 
         try {
             var request = taskRequest.getRequest();
 
             if (request.is(ArgsAndKwargs.class)) {
-                return request.unpack(ArgsAndKwargs.class);
+                return ArgsAndKwargsSerializer.from(request.unpack(ArgsAndKwargs.class));
             }
             else {
-                return ArgsAndKwargs
+                return ArgsAndKwargsSerializer.from(ArgsAndKwargs
                         .newBuilder()
                         .setArgs(TupleOfAny.newBuilder().addItems(request).build())
-                        .build();
+                        .build());
             }
 
         } catch (InvalidProtocolBufferException e) {

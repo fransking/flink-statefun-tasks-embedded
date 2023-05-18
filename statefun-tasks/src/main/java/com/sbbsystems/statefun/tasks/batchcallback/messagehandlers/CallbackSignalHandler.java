@@ -70,6 +70,13 @@ public class CallbackSignalHandler extends MessageHandler<CallbackSignal, Callba
                 state.getPipelineRequestInProgress().set(false);
                 this.batchSubmitter.trySubmitBatch(context, state);
                 break;
+            case PAUSE_PIPELINE:
+                state.getPaused().set(true);
+                break;
+            case RESUME_PIPELINE:
+                state.getPaused().set(false);
+                this.batchSubmitter.trySubmitBatch(context, state);
+                break;
             default:
                 throw new InvalidMessageTypeException(
                         MessageFormat.format("Unexpected CallbackSignal {0}", signal.getValueDescriptor().getName()));
