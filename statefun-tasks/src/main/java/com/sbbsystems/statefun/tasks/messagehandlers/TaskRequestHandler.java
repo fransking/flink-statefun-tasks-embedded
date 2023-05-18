@@ -60,7 +60,13 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
         try {
             var request = taskRequest.getRequest();
-            var pipeline = Pipeline.parseFrom(request.getValue());
+            var taskState = taskRequest.getState();
+
+            // if inline then copy taskState to pipeline initial state
+            // if we have more args afterpipeline in argsandkwargs then pass to pipeline initial args
+            // if we have kwargs in argsandkwargs then pass to pipeline initial kwargs
+
+            var pipelineProto = Pipeline.parseFrom(request.getValue());
 
             var tasks = state.getTasks();
 
@@ -69,12 +75,13 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
                     .withTaskEntries(state.getTaskEntries())
                     .withGroupEntries(state.getGroupEntries())
                     .withTasks(tasks.getItems())
-                    .fromProto(pipeline)
+                    .fromProto(pipelineProto)
                     .build();
 
             state.setTasks(tasks);
 
             LOG.info(String.valueOf(state.getTasks().getItems().size()));
+            LOG.info(pipelineProto.toString());
         }
         catch (InvalidProtocolBufferException e) {
             throw new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
