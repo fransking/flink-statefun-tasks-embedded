@@ -12,7 +12,7 @@ public class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, GroupEntry> groupEntries = PersistedTable.of("groupEntries", String.class, GroupEntry.class);
 
-    public static PipelineFunctionState getInstance() {
+    public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState();
     }
 

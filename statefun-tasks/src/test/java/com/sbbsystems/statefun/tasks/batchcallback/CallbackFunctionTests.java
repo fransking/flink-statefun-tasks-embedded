@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks;
+package com.sbbsystems.statefun.tasks.batchcallback;
 
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.SimpleBatchSubmitter;
 import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.generated.ResultsBatch;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
@@ -39,6 +40,7 @@ public class CallbackFunctionTests {
     private static final FunctionType CALLBACK_FUNCTION_TYPE = new FunctionType("test", "callback");
     private CallbackFunction callbackFunction;
     private Context context;
+    private TypedValue pipelineStartingSignal;
 
     private static List<TaskResultOrException> extractResultsList(Object arg) {
         try {
@@ -50,9 +52,10 @@ public class CallbackFunctionTests {
 
     @BeforeEach
     public void setup() {
-        this.callbackFunction = new CallbackFunction(PIPELINE_FUNCTION_TYPE);
+        this.callbackFunction = new CallbackFunction(SimpleBatchSubmitter.newInstance(PIPELINE_FUNCTION_TYPE));
         this.context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
+        this.pipelineStartingSignal = MessageTypes.wrap(CallbackSignal.newBuilder().setValue(CallbackSignal.Signal.PIPELINE_STARTING).build());
     }
 
     @Test
@@ -96,6 +99,7 @@ public class CallbackFunctionTests {
         var context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
 
+        this.callbackFunction.invoke(context, pipelineStartingSignal);
         taskResults.forEach(result -> this.callbackFunction.invoke(context, result));
         TypedValue batchProcessedMessage = MessageTypes.wrap(
                 CallbackSignal.newBuilder().setValue(CallbackSignal.Signal.BATCH_PROCESSED).build());

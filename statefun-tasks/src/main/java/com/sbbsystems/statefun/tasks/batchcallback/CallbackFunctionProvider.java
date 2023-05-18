@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks;
+package com.sbbsystems.statefun.tasks.batchcallback;
 
+import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.SimpleBatchSubmitter;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
 import org.apache.flink.statefun.sdk.StatefulFunctionProvider;
@@ -31,6 +32,7 @@ public class CallbackFunctionProvider implements StatefulFunctionProvider {
 
     public StatefulFunction functionOfType(FunctionType type) {
         LOG.info("Creating CallbackFunction instance");
-        return new CallbackFunction(this.pipelineFunctionType);
+        var batchSubmitter = SimpleBatchSubmitter.newInstance(this.pipelineFunctionType);
+        return new CallbackFunction(batchSubmitter);
     }
 }
