@@ -18,7 +18,6 @@ package com.sbbsystems.statefun.tasks.graph;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
-import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,14 +35,6 @@ public final class PipelineGraph {
     private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
     private final Entry head;
     private final Entry tail;
-
-//    @SuppressWarnings("unused")
-//    private PipelineGraph() {
-//        this.tasks = new HashMap<>();
-//        this.taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
-//        this.groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
-//        this.head = null;
-//    }
 
     private PipelineGraph(
             @NotNull Map<String, Task> tasks,
@@ -107,12 +98,6 @@ public final class PipelineGraph {
         return InitialTasksCollector.of(this).collectFrom(entry);
     }
 
-    public @NotNull NextStep getNextStep(Entry from, boolean isTaskException)
-            throws InvalidGraphException {
-
-            return NextStepGenerator.of(this).getNextStep(from, isTaskException);
-    }
-
     public Entry getNextEntry(Entry from) {
         Entry next = null;
 
@@ -126,8 +111,8 @@ public final class PipelineGraph {
         }
 
         if (Objects.isNull(next) && !Objects.isNull(from.getParentGroup())) {
-            // we reached the end of this chain - check if parent group is complete and continue from there
-            return this.getNextEntry(from.getParentGroup());
+            // we reached the end of this chain return parent group if we have one
+            return from.getParentGroup();
         }
 
         return next;
@@ -142,7 +127,7 @@ public final class PipelineGraph {
 
         if (Objects.isNull(entry.getNext()) && !Objects.isNull(entry.getParentGroup())) {
             var groupEntry = getGroupEntry(entry.getParentGroup().getId());
-            groupEntry.remaining--;
+            groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
             updatedGroupEntries.put(entry.getParentGroup().getId(), groupEntry);
 
             if (groupEntry.remaining == 0) {
