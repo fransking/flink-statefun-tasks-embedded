@@ -17,7 +17,6 @@ package com.sbbsystems.statefun.tasks.serialization;
 
 import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 

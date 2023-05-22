@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
 import org.apache.flink.statefun.sdk.StatefulFunctionProvider;
@@ -23,14 +24,20 @@ import org.slf4j.LoggerFactory;
 
 public class PipelineFunctionProvider implements StatefulFunctionProvider {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunctionProvider.class);
+    private final PipelineConfiguration configuration;
     private final FunctionType callbackFunctionType;
 
-    public PipelineFunctionProvider(FunctionType callbackFunctionType) {
+    public static PipelineFunctionProvider of(PipelineConfiguration configuration, FunctionType callbackFunctionType) {
+        return new PipelineFunctionProvider(configuration, callbackFunctionType);
+    }
+
+    private PipelineFunctionProvider(PipelineConfiguration configuration, FunctionType callbackFunctionType) {
+        this.configuration = configuration;
         this.callbackFunctionType = callbackFunctionType;
     }
 
     public StatefulFunction functionOfType(FunctionType type) {
         LOG.info("Creating PipelineFunction instance");
-        return new PipelineFunction(this.callbackFunctionType);
+        return PipelineFunction.of(configuration, callbackFunctionType);
     }
 }

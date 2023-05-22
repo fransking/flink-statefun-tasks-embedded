@@ -15,12 +15,14 @@
  */
 package com.sbbsystems.statefun.tasks.types;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.TypeName;
+import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
 import java.util.Map;
@@ -73,6 +75,19 @@ public final class MessageTypes {
                 .setTypename(TYPES.get(innerValue.getClass()).canonicalTypenameString())
                 .setHasValue(true)
                 .setValue(innerValue.toByteString())
+                .build();
+    }
+
+    public static TypedValue toEgress(Message message, String topic) {
+        var egressRecord = KafkaProducerRecord.newBuilder()
+                .setTopic(topic)
+                .setValueBytes(Any.pack(message).toByteString())
+                .build();
+
+        return TypedValue.newBuilder()
+                .setValue(egressRecord.toByteString())
+                .setHasValue(true)
+                .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
                 .build();
     }
 }

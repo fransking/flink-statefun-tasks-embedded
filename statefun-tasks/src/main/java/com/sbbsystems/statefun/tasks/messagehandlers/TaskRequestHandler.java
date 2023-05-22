@@ -15,22 +15,21 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
-import com.google.common.collect.Iterables;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
-import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
@@ -39,11 +38,14 @@ import org.slf4j.LoggerFactory;
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
 
-    public static TaskRequestHandler newInstance() {
-        return new TaskRequestHandler();
+    private final PipelineConfiguration configuration;
+
+    public static TaskRequestHandler from(PipelineConfiguration configuration) {
+        return new TaskRequestHandler(configuration);
     }
 
-    private TaskRequestHandler() {
+    private TaskRequestHandler(PipelineConfiguration configuration) {
+        this.configuration = configuration;
     }
 
     @Override
@@ -61,38 +63,58 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             throws StatefunTasksException {
 
         try {
+            // todo throw if pipeline is already active
+            // reset pipeline state
+            state.reset();
+
             // if inline then copy taskState to pipeline initial state
             var taskState = taskRequest.getState();
 
             var taskArgsAndKwargs = TaskRequestSerializer
-                    .forRequest(taskRequest)
+                    .from(taskRequest)
                     .getArgsAndKwargs();
 
             var pipelineProto = Pipeline.parseFrom(taskArgsAndKwargs.getArg(0).getValue());
             var argsAndKwargs = taskArgsAndKwargs.slice(1);
 
             if (argsAndKwargs.getArgs().getItemsCount() > 0) {
-                // if we have more args after pipeline in argsandkwargs then pass to pipeline initial args
+                // if we have more args after pipeline in argsAndKwargs then pass to pipeline initial args
             }
 
             if (argsAndKwargs.getKwargs().getItemsCount() > 0) {
-                // if we have kwargs in argsandkwargs then pass to pipeline initial kwargs
+                // if we have kwargs in argsAndKwargs then pass to pipeline initial kwargs
             }
 
-            var tasks = state.getTasks();
-
+            // create the graph
             var graph = PipelineGraphBuilder
                     .newInstance()
                     .withTaskEntries(state.getTaskEntries())
                     .withGroupEntries(state.getGroupEntries())
-                    .withTasks(tasks.getItems())
+                    .withTasks(state.getTasks().getItems())
                     .fromProto(pipelineProto)
                     .build();
 
-            state.setTasks(tasks);
+            // save graph structure to state
+            graph.saveState(state);
 
-            LOG.info(String.valueOf(state.getTasks().getItems().size()));
-            LOG.info(pipelineProto.toString());
+
+            // create and start pipeline
+            var pipelineHandler = PipelineHandler.from(context, state, graph);
+            pipelineHandler.beginPipeline(taskRequest);
+
+
+//            if (!Objects.isNull(graph.getHead())) {
+//
+//                var initialTasks = graph.getInitialTasks();
+//
+//                for (var task : initialTasks.getTasks()) {
+//                    var taskEntry = graph.getTaskEntry(task.getId());
+//                    LOG.info(taskEntry.taskType);
+//                }
+//
+//                LOG.info(String.valueOf(state.getTasks().getItems().size()));
+//                LOG.info(pipelineProto.toString());
+//            }
         }
         catch (InvalidProtocolBufferException e) {
             throw new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
@@ -119,23 +141,12 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
         LOG.info("TASK_REQUEST_ID is {}", taskRequest.getId());
 
-        var egress = new EgressIdentifier<>("example", "kafka-generic-egress", TypedValue.class);
+        var egress = new EgressIdentifier<>(configuration.getEgressNamespace(), configuration.getEgressType(), TypedValue.class);
         var taskResult = TaskResult.newBuilder()
                 .setId(taskRequest.getId())
                 .setUid(taskRequest.getUid())
                 .build();
 
-        var egressRecord = KafkaProducerRecord.newBuilder()
-                .setTopic(taskRequest.getReplyTopic())
-                .setValueBytes(Any.pack(taskResult).toByteString())
-                .build();
-
-        var typedValue = TypedValue.newBuilder()
-                .setValue(egressRecord.toByteString())
-                .setHasValue(true)
-                .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
-                .build();
-
-        context.send(egress, typedValue);
+        context.send(egress, MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));
     }
 }

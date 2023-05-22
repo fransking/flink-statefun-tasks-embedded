@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.messagehandlers.*;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
@@ -29,20 +30,28 @@ import java.util.List;
 
 public class PipelineFunction implements StatefulFunction {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineFunction.class);
+
     private final List<MessageHandler<?, PipelineFunctionState>> messageHandlers;
     @Persisted
     private final PipelineFunctionState state = PipelineFunctionState.newInstance();
 
 
-    public PipelineFunction(FunctionType callbackFunctionType) {
-        this.messageHandlers = List.of(
-                CallbackAwareTaskRequestHandler.withRequestHandler(
-                        callbackFunctionType, TaskRequestHandler.newInstance()
-                ),
-                ResultsBatchHandler.withResultHandler(
-                        callbackFunctionType, TaskResultOrExceptionHandler.newInstance()
+    public static PipelineFunction of(PipelineConfiguration configuration, FunctionType callbackFunctionType) {
+        return new PipelineFunction(
+                List.of(
+                        CallbackAwareTaskRequestHandler.withRequestHandler(
+                                callbackFunctionType, TaskRequestHandler.from(configuration)
+                        ),
+                        ResultsBatchHandler.withResultHandler(
+                                callbackFunctionType, TaskResultOrExceptionHandler.from(configuration)
+                        )
                 )
+
         );
+    }
+
+    private PipelineFunction(List<MessageHandler<?, PipelineFunctionState>> messageHandlers) {
+        this.messageHandlers = messageHandlers;
     }
 
     @Override
