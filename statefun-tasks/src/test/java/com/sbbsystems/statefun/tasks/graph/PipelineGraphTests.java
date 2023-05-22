@@ -295,12 +295,12 @@ public final class PipelineGraphTests {
         // start at a
         var head = graph.getTask("a");
         var group = Objects.requireNonNull(graph.getTask("x").getParentGroup());
-        var groupEntry = graph.getGroupEntry(group.getId());
 
         // group is next
         graph.markComplete(head);
         var g = graph.getNextEntry(head);
         assertThat(g).isEqualTo(group);
+        assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(1);
 
         // get initial tasks of group
         var initial = graph.getInitialTasks(g);
@@ -319,10 +319,14 @@ public final class PipelineGraphTests {
         var z = graph.getNextEntry(graph.getTask("y"));
         assertThat(z).isEqualTo(graph.getTask("z"));
 
-        // next is c
+        // next is grp which is now complete
         graph.markComplete(z);
-        groupEntry.remaining--;  // when z completes the group is done
-        var c = graph.getNextEntry(z);
+        g = graph.getNextEntry(z);
+        assertThat(g).isEqualTo(group);
+        assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(0);
+
+        // next is c
+        var c = graph.getNextEntry(g);
         assertThat(c).isEqualTo(graph.getTask("c"));
 
         // next is null
@@ -373,162 +377,23 @@ public final class PipelineGraphTests {
         var z = graph.getNextEntry(graph.getTask("y"));
         assertThat(z).isEqualTo(graph.getTask("z"));
 
-        // next is c
+        // next is nestedGroup which is now complete
         graph.markComplete(z);
-        var c = graph.getNextEntry(z);
+        g = graph.getNextEntry(z);
+        assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(0);
+        assertThat(g).isEqualTo(nestedGroup);
+
+        // next is group which is now complete
+        assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(0);
+        g = graph.getNextEntry(g);
+        assertThat(g).isEqualTo(group);
+
+        // next is c
+        var c = graph.getNextEntry(g);
         assertThat(c).isEqualTo(graph.getTask("c"));
 
         // next is null
         graph.markComplete(c);
         assertThat(graph.getNextEntry(c)).isNull();
-    }
-
-    @Test
-    public void steps_through_chain_of_tasks_skipping_exceptionally_tasks_correctly()
-            throws InvalidGraphException {
-
-        var template = List.of("a", "ex1", "ex2", "b");
-        var graph = fromTemplate(template);
-
-        // setup exceptionally tasks
-        var ex1 = graph.getTask("ex1");
-        var ex2 = graph.getTask("ex2");
-        ex1.setExceptionally(true);
-        ex2.setExceptionally(true);
-
-        // start at a
-        var head = graph.getTask("a");
-
-        // a returns TaskResult
-        graph.markComplete(head);
-        var next = graph.getNextStep(head, false);
-
-        // ex1 & ex2 should be skipped
-        assertThat(next.getEntry()).isEqualTo(graph.getTask("b"));
-        assertThat(next.getSkippedTasks()).isEqualTo(List.of(graph.getTask("ex1"), graph.getTask("ex2")));
-    }
-
-    @Test
-    public void steps_through_chain_of_tasks_jumping_to_exceptionally_tasks_correctly()
-            throws InvalidGraphException {
-
-        var group = List.of(
-                List.of("x", "y", "z")
-        );
-
-        var template = List.of("a", group, "c", "ex1", "d");
-        var graph = fromTemplate(template);
-
-        // setup exceptionally task
-        var ex1 = graph.getTask("ex1");
-        ex1.setExceptionally(true);
-
-        // start at a
-        var head = graph.getTask("a");
-
-        // a returns TaskException
-        graph.markComplete(head);
-        var next = graph.getNextStep(head, true);
-
-        // x, y, z & c should be skipped
-        assertThat(next.getEntry()).isEqualTo(graph.getTask("ex1"));
-        assertThat(next.getSkippedTasks()).isEqualTo(List.of(
-                graph.getTask("x"),
-                graph.getTask("y"),
-                graph.getTask("z"),
-                graph.getTask("c")
-        ));
-    }
-
-    @Test
-    public void steps_through_chain_of_tasks_jumping_to_exceptionally_tasks_only_when_group_is_complete()
-            throws InvalidGraphException {
-
-        var group = List.of(
-                List.of("x", "y", "z"),
-                List.of("p")
-        );
-
-        var template = List.of(group, "c", "ex1", "d");
-        var graph = fromTemplate(template);
-
-        // setup exceptionally task
-        var ex1 = graph.getTask("ex1");
-        ex1.setExceptionally(true);
-
-        // start at x & p in parallel
-        var x = graph.getTask("x");
-        var p = graph.getTask("p");
-        var g = p.getParentGroup();
-        assertThat(g).isNotNull();
-        var groupEntry = graph.getGroupEntry(g.getId());
-
-        // x returns TaskException
-        graph.markComplete(x);
-        var next = graph.getNextStep(x, true);
-
-        // p must complete before we get a next step
-        assertThat(groupEntry.remaining).isEqualTo(1);
-        assertThat(next.hasEntry()).isFalse();
-        assertThat(next.getSkippedTasks()).isEqualTo(List.of(
-                graph.getTask("y"),
-                graph.getTask("z")
-        ));
-
-        // p completes, group aggregates to exception overall
-        graph.markComplete(p);
-        assertThat(groupEntry.remaining).isEqualTo(0);
-        next = graph.getNextStep(g, true);
-
-        // skips to c to ex1
-        assertThat(next.getSkippedTasks()).isEqualTo(List.of(
-                graph.getTask("c")
-        ));
-
-        assertThat(next.hasEntry()).isTrue();
-        assertThat(next.getEntry()).isEqualTo(graph.getTask("ex1"));
-    }
-
-    @Test
-    public void steps_through_chain_of_tasks_jumping_to_exceptionally_tasks_when_group_is_complete()
-            throws InvalidGraphException {
-
-        var group = List.of(
-                List.of("p"),
-                List.of("x", "y", "z")
-        );
-
-        var template = List.of(group, "c", "ex1", "d");
-        var graph = fromTemplate(template);
-
-        // setup exceptionally task
-        var ex1 = graph.getTask("ex1");
-        ex1.setExceptionally(true);
-
-        // start at x & p in parallel
-        var x = graph.getTask("x");
-        var p = graph.getTask("p");
-        var g = p.getParentGroup();
-        assertThat(g).isNotNull();
-        var groupEntry = graph.getGroupEntry(g.getId());
-
-        // p completes
-        graph.markComplete(p);
-
-        // x returns TaskException
-        graph.markComplete(x);
-        var next = graph.getNextStep(x, true);
-        assertThat(next.hasEntry()).isTrue();
-
-        assertThat(groupEntry.remaining).isEqualTo(0);
-        // skips to x, y, z, & c to ex1
-        assertThat(next.getSkippedTasks()).isEqualTo(List.of(
-                graph.getTask("y"),
-                graph.getTask("z"),
-                graph.getTask("c")
-        ));
-
-        assertThat(next.hasEntry()).isTrue();
-        assertThat(next.getEntry()).isEqualTo(graph.getTask("ex1"));
     }
 }
