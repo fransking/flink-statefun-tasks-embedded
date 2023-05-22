@@ -59,11 +59,19 @@ public final class PipelineGraph {
     }
 
     public TaskEntry getTaskEntry(String id) {
-        return taskEntries.get(id);
+        return updatedTaskEntries.getOrDefault(id, taskEntries.get(id));
+    }
+
+    public void updateTaskEntry(TaskEntry entry) {
+        updatedTaskEntries.put(entry.uid, entry);
     }
 
     public GroupEntry getGroupEntry(String id) {
-        return groupEntries.get(id);
+        return updatedGroupEntries.getOrDefault(id, groupEntries.get(id));
+    }
+
+    public void updateGroupEntry(GroupEntry entry) {
+        updatedGroupEntries.put(entry.groupId, entry);
     }
 
     public Task getTask(String id) {
@@ -122,13 +130,13 @@ public final class PipelineGraph {
         if (entry instanceof Task) {
             var taskEntry = getTaskEntry(entry.getId());
             taskEntry.complete = true;
-            updatedTaskEntries.put(entry.getId(), taskEntry);
+            updateTaskEntry(taskEntry);
         }
 
         if (Objects.isNull(entry.getNext()) && !Objects.isNull(entry.getParentGroup())) {
             var groupEntry = getGroupEntry(entry.getParentGroup().getId());
             groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
-            updatedGroupEntries.put(entry.getParentGroup().getId(), groupEntry);
+            updateGroupEntry(groupEntry);
 
             if (groupEntry.remaining == 0) {
                 markComplete(entry.getParentGroup());
@@ -139,6 +147,8 @@ public final class PipelineGraph {
     public void saveUpdatedState(PipelineFunctionState state) {
         updatedGroupEntries.forEach((k, v) -> state.getGroupEntries().set(k, v));
         updatedTaskEntries.forEach((k, v) -> state.getTaskEntries().set(k, v));
+        updatedTaskEntries.clear();
+        updatedGroupEntries.clear();
     }
 
     public void saveState(PipelineFunctionState state) {
