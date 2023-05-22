@@ -57,7 +57,7 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
 
     @Override
     public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) throws StatefunTasksException {
-        for (TaskResultOrException resultOrException : message.getResultsList()) {
+        for (var resultOrException : message.getResultsList()) {
             this.resultHandler.handleMessage(context, resultOrException, state);
         }
         context.send(this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));

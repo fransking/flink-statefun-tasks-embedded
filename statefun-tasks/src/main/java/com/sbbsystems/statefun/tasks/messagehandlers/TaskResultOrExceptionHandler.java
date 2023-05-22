@@ -18,6 +18,7 @@ package com.sbbsystems.statefun.tasks.messagehandlers;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -28,12 +29,16 @@ import org.slf4j.LoggerFactory;
 public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResultOrException, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskResultOrExceptionHandler.class);
 
-    private TaskResultOrExceptionHandler() {
+    private final PipelineConfiguration configuration;
+
+    public static TaskResultOrExceptionHandler from(PipelineConfiguration configuration) {
+        return new TaskResultOrExceptionHandler(configuration);
     }
 
-    public static TaskResultOrExceptionHandler newInstance() {
-        return new TaskResultOrExceptionHandler();
+    private TaskResultOrExceptionHandler(PipelineConfiguration configuration) {
+        this.configuration = configuration;
     }
+
 
     @Override
     public boolean canHandle(Context context, Object input, PipelineFunctionState state) {

@@ -16,11 +16,18 @@
 package com.sbbsystems.statefun.tasks;
 
 import com.sbbsystems.statefun.tasks.batchcallback.CallbackFunctionProvider;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfigurationLoader;
+import org.apache.flink.statefun.flink.common.ResourceLocator;
+import org.apache.flink.statefun.flink.core.StatefulFunctionsConfig;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URL;
+import java.text.MessageFormat;
 import java.util.Map;
 
 public class PipelineFunctionModule implements StatefulFunctionModule {
@@ -29,19 +36,25 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
         LOG.info("Embedded pipeline function module loaded");
 
-        //todo make this configurable from the module.yaml
-        try {
-            var pipelineFunctionType = new FunctionType("example", "embedded_pipeline");
-            var callbackFunctionType = new FunctionType("example", "embedded_pipeline_callback");
-            var pipelineProvider = new PipelineFunctionProvider(callbackFunctionType);
-            var callbackProvider = new CallbackFunctionProvider(pipelineFunctionType);
+        var env = StreamExecutionEnvironment.getExecutionEnvironment();
+        var config = StatefulFunctionsConfig.fromEnvironment(env);
 
-            binder.bindFunctionProvider(pipelineFunctionType, pipelineProvider);
-            binder.bindFunctionProvider(callbackFunctionType, callbackProvider);
+        for (var pipelineConfiguration: PipelineConfigurationLoader.loadFrom(config)) {
+            configure(pipelineConfiguration, binder);
+        }
+    }
+
+    public void configure(PipelineConfiguration configuration, Binder binder) {
+        try {
+            var pipelineFunctionType = new FunctionType(configuration.getNamespace(), configuration.getType());
+            var callbackFunctionType = new FunctionType(configuration.getNamespace(), configuration.getCallbackType());
+
+            binder.bindFunctionProvider(pipelineFunctionType, PipelineFunctionProvider.of(configuration, callbackFunctionType));
+            binder.bindFunctionProvider(callbackFunctionType, CallbackFunctionProvider.of(pipelineFunctionType));
 
             LOG.info("Embedded pipeline function registered");
         } catch (IllegalStateException e) {
-            LOG.warn("Error registering pipeline function", e);
+            LOG.error("Error registering embedded pipeline function", e);
         }
     }
 }

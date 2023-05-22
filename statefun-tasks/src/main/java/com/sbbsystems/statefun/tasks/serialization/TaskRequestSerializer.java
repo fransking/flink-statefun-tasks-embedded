@@ -22,12 +22,10 @@ import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 
-import java.nio.channels.Pipe;
-
 public final class TaskRequestSerializer {
     private final TaskRequest taskRequest;
 
-    public static TaskRequestSerializer forRequest(TaskRequest taskRequest) {
+    public static TaskRequestSerializer from(TaskRequest taskRequest) {
         return new TaskRequestSerializer(taskRequest);
     }
 

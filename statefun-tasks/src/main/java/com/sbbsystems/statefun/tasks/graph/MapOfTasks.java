@@ -21,6 +21,12 @@ import java.util.Map;
 public class MapOfTasks {
     private Map<String, Task> items;
 
+    public static MapOfTasks from(Map<String, Task> items) {
+        var mapOfTasks = new MapOfTasks();
+        mapOfTasks.setItems(items);
+        return mapOfTasks;
+    }
+
     @SuppressWarnings("unused")  // POJO serialisation
     public MapOfTasks() {
         items = new HashMap<>();

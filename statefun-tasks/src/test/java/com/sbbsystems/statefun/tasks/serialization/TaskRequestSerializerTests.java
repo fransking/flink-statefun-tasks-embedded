@@ -39,7 +39,7 @@ public class TaskRequestSerializerTests {
                 .setRequest(Any.pack(Pipeline.getDefaultInstance()))
                 .build();
 
-        var argsAndKwargs = TaskRequestSerializer.forRequest(taskRequest).getArgsAndKwargs();
+        var argsAndKwargs = TaskRequestSerializer.from(taskRequest).getArgsAndKwargs();
 
         assertThat(Objects.requireNonNull(argsAndKwargs)).isNotNull();
         assertThat(argsAndKwargs.slice(1)).isInstanceOf(ArgsAndKwargs.class);
@@ -62,7 +62,7 @@ public class TaskRequestSerializerTests {
                         .build()))
                 .build();
 
-        var argsAndKwargs = TaskRequestSerializer.forRequest(taskRequest).getArgsAndKwargs();
+        var argsAndKwargs = TaskRequestSerializer.from(taskRequest).getArgsAndKwargs();
 
         assertThat(Objects.requireNonNull(argsAndKwargs)).isNotNull();
         assertThat(argsAndKwargs.getArg(0).is(Pipeline.class)).isTrue();

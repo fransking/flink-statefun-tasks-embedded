@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -41,7 +42,8 @@ public class PipelineFunctionTests {
 
     @BeforeEach
     public void setup() {
-        this.pipelineFunction = new PipelineFunction(CALLBACK_FUNCTION_TYPE);
+        var configuration = PipelineConfiguration.of("example/embedded_pipeline", "example/kafka-generic-egress");
+        this.pipelineFunction = PipelineFunction.of(configuration, CALLBACK_FUNCTION_TYPE);
         this.context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
     }

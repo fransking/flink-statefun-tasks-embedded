@@ -15,7 +15,6 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
@@ -37,6 +36,7 @@ public final class PipelineGraphBuilder {
     private PersistedTable<String, GroupEntry> groupEntries;
     private Pipeline pipelineProto;
     private Entry head;
+    private Entry tail;
 
     private PipelineGraphBuilder() {
         tasks = new HashMap<>();
@@ -69,6 +69,11 @@ public final class PipelineGraphBuilder {
         return this;
     }
 
+    public PipelineGraphBuilder withTail(@Nullable Entry tail) {
+        this.tail = tail;
+        return this;
+    }
+
     public PipelineGraphBuilder fromProto(@NotNull Pipeline pipelineProto) {
         this.pipelineProto = Objects.requireNonNull(pipelineProto);
         return this;
@@ -82,7 +87,7 @@ public final class PipelineGraphBuilder {
         }
         //else we use existing state as passed to the builder
 
-        return PipelineGraph.from(tasks, taskEntries, groupEntries, head);
+        return PipelineGraph.from(tasks, taskEntries, groupEntries, head, tail);
     }
 
     private Entry buildGraph(Pipeline pipelineProto)
@@ -138,6 +143,11 @@ public final class PipelineGraphBuilder {
                 }
 
                 current = next;
+
+                if (Objects.isNull(parentGroup)) {
+                    // keep track of tail node in the main chain
+                    tail = current;
+                }
             }
         }
 

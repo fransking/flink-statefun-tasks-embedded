@@ -144,10 +144,12 @@ public final class PipelineGraphBuilderTests {
         var taskEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.TaskEntry.class);
         var groupEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.GroupEntry.class);
         Entry head = null;
+        Entry tail = null;
 
         // initial graph from protobuf
         var builder = PipelineGraphBuilder.newInstance()
                 .withHead(head)
+                .withTail(tail)
                 .withTasks(tasks)
                 .withTaskEntries(taskEntries)
                 .withGroupEntries(groupEntries)
@@ -159,6 +161,12 @@ public final class PipelineGraphBuilderTests {
 
         // updated state
         head = graph.getHead();
+        tail = graph.getTail();
+
+        assertThat(head).isNotNull();
+        assertThat(head.getId()).isEqualTo("1");
+        assertThat(tail).isNotNull();
+        assertThat(tail.getId()).isEqualTo("2");
         assertThat(tasks).hasSize(8);
         assertThat(taskEntries.entries()).hasSize(8);
         assertThat(groupEntries.entries()).hasSize(1);
@@ -173,6 +181,7 @@ public final class PipelineGraphBuilderTests {
         // new graph from previous state
         var newBuilder = PipelineGraphBuilder.newInstance()
                 .withHead(head)
+                .withTail(tail)
                 .withTasks(tasks)
                 .withTaskEntries(taskEntries)
                 .withGroupEntries(groupEntries);

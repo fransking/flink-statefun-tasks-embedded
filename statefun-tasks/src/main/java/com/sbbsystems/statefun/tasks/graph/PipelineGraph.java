@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.util.Id;
@@ -34,32 +35,36 @@ public final class PipelineGraph {
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
     private final Entry head;
+    private final Entry tail;
 
-    @SuppressWarnings("unused")
-    private PipelineGraph() {
-        this.tasks = new HashMap<>();
-        this.taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
-        this.groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
-        this.head = null;
-    }
+//    @SuppressWarnings("unused")
+//    private PipelineGraph() {
+//        this.tasks = new HashMap<>();
+//        this.taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
+//        this.groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
+//        this.head = null;
+//    }
 
-    public PipelineGraph(
+    private PipelineGraph(
             @NotNull Map<String, Task> tasks,
             @NotNull PersistedTable<String, TaskEntry> taskEntries,
             @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable Entry head) {
+            @Nullable Entry head,
+            @Nullable Entry tail) {
         this.tasks = Objects.requireNonNull(tasks);
         this.taskEntries = Objects.requireNonNull(taskEntries);
         this.groupEntries = Objects.requireNonNull(groupEntries);
         this.head = head;
+        this.tail = tail;
     }
 
     public static PipelineGraph from(
             @NotNull Map<String, Task> tasks,
             @NotNull PersistedTable<String, TaskEntry> taskEntries,
             @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable Entry head) {
-        return new PipelineGraph(tasks, taskEntries, groupEntries, head);
+            @Nullable Entry head,
+            @Nullable Entry tail) {
+        return new PipelineGraph(tasks, taskEntries, groupEntries, head, tail);
     }
 
     public TaskEntry getTaskEntry(String id) {
@@ -84,6 +89,10 @@ public final class PipelineGraph {
 
     public @Nullable Entry getHead() {
         return head;
+    }
+
+    public @Nullable Entry getTail() {
+        return tail;
     }
 
     public InitialTasks getInitialTasks()
@@ -140,5 +149,17 @@ public final class PipelineGraph {
                 markComplete(entry.getParentGroup());
             }
         }
+    }
+
+    public void saveUpdatedState(PipelineFunctionState state) {
+        updatedGroupEntries.forEach((k, v) -> state.getGroupEntries().set(k, v));
+        updatedTaskEntries.forEach((k, v) -> state.getTaskEntries().set(k, v));
+    }
+
+    public void saveState(PipelineFunctionState state) {
+        saveUpdatedState(state);
+        state.setHead(head);
+        state.setTail(tail);
+        state.setTasks(MapOfTasks.from(tasks));
     }
 }

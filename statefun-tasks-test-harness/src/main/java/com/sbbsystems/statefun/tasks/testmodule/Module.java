@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.testmodule;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionModule;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
 
 import java.util.Map;
@@ -23,7 +24,9 @@ import java.util.Map;
 public class Module implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
         var mainModule = new PipelineFunctionModule();
-        mainModule.configure(globalConfiguration, binder);
+        var configuration = PipelineConfiguration.of("example/embedded_pipeline", "example/kafka-generic-egress");
+
+        mainModule.configure(configuration, binder);
         binder.bindFunctionProvider(IoIdentifiers.ECHO_FUNCTION_TYPE, unused -> new EchoFunction());
         binder.bindIngressRouter(IoIdentifiers.REQUEST_INGRESS, new TestPipelineRouter());
     }

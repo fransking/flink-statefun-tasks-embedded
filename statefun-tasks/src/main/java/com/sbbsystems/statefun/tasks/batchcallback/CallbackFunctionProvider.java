@@ -26,7 +26,11 @@ public class CallbackFunctionProvider implements StatefulFunctionProvider {
     private static final Logger LOG = LoggerFactory.getLogger(CallbackFunctionProvider.class);
     private final FunctionType pipelineFunctionType;
 
-    public CallbackFunctionProvider(FunctionType pipelineFunctionType) {
+    public static CallbackFunctionProvider of(FunctionType pipelineFunctionType) {
+        return new CallbackFunctionProvider(pipelineFunctionType);
+    }
+
+    private CallbackFunctionProvider(FunctionType pipelineFunctionType) {
         this.pipelineFunctionType = pipelineFunctionType;
     }
 
