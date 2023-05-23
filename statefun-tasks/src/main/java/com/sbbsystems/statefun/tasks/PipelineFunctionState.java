@@ -22,6 +22,8 @@ import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
 
+import java.util.Objects;
+
 public final class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries = PersistedTable.of("taskEntries", String.class, TaskEntry.class);
@@ -38,7 +40,7 @@ public final class PipelineFunctionState {
     @Persisted
     private final PersistedValue<String> tail = PersistedValue.of("tail", String.class);
 
-    private MapOfEntries cachedEntries = new MapOfEntries();
+    private MapOfEntries cachedEntries = null;
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState();
@@ -56,7 +58,11 @@ public final class PipelineFunctionState {
     }
 
     public MapOfEntries getEntries() {
-        cachedEntries = entries.getOrDefault(cachedEntries);
+        if (!Objects.isNull(cachedEntries)) {
+            return cachedEntries;
+        }
+
+        cachedEntries = entries.getOrDefault(new MapOfEntries());
         return cachedEntries;
     }
 

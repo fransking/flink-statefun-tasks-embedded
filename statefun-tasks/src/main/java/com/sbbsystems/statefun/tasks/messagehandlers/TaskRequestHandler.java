@@ -15,8 +15,10 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
@@ -32,6 +34,8 @@ import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
@@ -61,6 +65,11 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             throws StatefunTasksException {
 
         try {
+
+            LOG.info(String.valueOf(state.getEntries().getItems().size()));
+            LOG.info(state.getHead());
+            LOG.info(state.getTail());
+
             // todo throw if pipeline is already active
             // reset pipeline state
             state.reset();
@@ -97,14 +106,24 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             pipelineHandler.beginPipeline(context, taskRequest);
         }
         catch (InvalidProtocolBufferException e) {
-            egressAndThrow(context, taskRequest, new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e));
+            var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
+            emit(context, taskRequest, MessageTypes.toTaskException(taskRequest, ex));
+            throw ex;
         }
     }
 
-    private void egressAndThrow(@NotNull Context context, TaskRequest taskRequest, StatefunTasksException e)
-        throws StatefunTasksException {
-        var taskException = MessageTypes.toTaskException(taskRequest, e);
-        context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskException, taskRequest.getReplyTopic()));
-        throw e;
+    private void emit(@NotNull Context context, TaskRequest taskRequest, Message message) {
+        if (!Strings.isNullOrEmpty(taskRequest.getReplyTopic())) {
+            // send a message to egress if reply_topic was specified
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, taskRequest.getReplyTopic()));
+        }
+        else if (taskRequest.hasReplyAddress()) {
+            // else call back to a particular flink function if reply_address was specified
+            context.send(MessageTypes.toSdkAddress(taskRequest.getReplyAddress()), MessageTypes.wrap(message));
+        }
+        else if (!Objects.isNull(context.caller())) {
+            // else call back to the caller of this function (if there is one)
+            context.send(context.caller(), MessageTypes.wrap(message));
+        }
     }
 }

@@ -22,6 +22,7 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
+import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.io.EgressIdentifier;
@@ -113,5 +114,10 @@ public final class MessageTypes {
 
     public static EgressIdentifier<TypedValue> getEgress(PipelineConfiguration configuration) {
         return new EgressIdentifier<>(configuration.getEgressNamespace(), configuration.getEgressType(), TypedValue.class);
+    }
+
+    public static org.apache.flink.statefun.sdk.Address toSdkAddress(Address address) {
+        var functionType = new FunctionType(address.getNamespace(), address.getType());
+        return new org.apache.flink.statefun.sdk.Address(functionType, address.getId());
     }
 }
