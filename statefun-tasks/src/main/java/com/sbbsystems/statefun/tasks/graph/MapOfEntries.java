@@ -18,27 +18,27 @@ package com.sbbsystems.statefun.tasks.graph;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MapOfTasks {
-    private Map<String, Task> items;
+public class MapOfEntries {
+    private Map<String, Entry> items;
 
-    public static MapOfTasks from(Map<String, Task> items) {
-        var mapOfTasks = new MapOfTasks();
+    public static MapOfEntries from(Map<String, Entry> items) {
+        var mapOfTasks = new MapOfEntries();
         mapOfTasks.setItems(items);
         return mapOfTasks;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public MapOfTasks() {
+    public MapOfEntries() {
         items = new HashMap<>();
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public Map<String, Task> getItems() {
+    public Map<String, Entry> getItems() {
         return items;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public void setItems(Map<String, Task> items) {
+    public void setItems(Map<String, Entry> items) {
         this.items = items;
     }
 }
