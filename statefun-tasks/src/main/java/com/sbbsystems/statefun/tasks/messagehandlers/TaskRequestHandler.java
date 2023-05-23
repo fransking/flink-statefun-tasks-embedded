@@ -22,7 +22,6 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
@@ -30,8 +29,6 @@ import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
-import org.apache.flink.statefun.sdk.io.EgressIdentifier;
-import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,62 +95,14 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             graph.saveState(state);
 
             // create and start pipeline
-            var pipelineHandler = PipelineHandler.from(context, state, graph);
-            pipelineHandler.beginPipeline(taskRequest);
-
-            try {
-                var group = graph.getGroupEntry(graph.getHead().getId());
-                group.remaining = 0;
-                graph.updateGroupEntry(group);
-                var group2 = graph.getGroupEntry(graph.getHead().getId());
-                LOG.info(String.valueOf(group == group2));
-                LOG.info(String.valueOf(group2.remaining));
-            } catch (Exception e) {}
-
-//            if (!Objects.isNull(graph.getHead())) {
-//
-//                var initialTasks = graph.getInitialTasks();
-//
-//                for (var task : initialTasks.getTasks()) {
-//                    var taskEntry = graph.getTaskEntry(task.getId());
-//                    LOG.info(taskEntry.taskType);
-//                }
-//
-//                LOG.info(String.valueOf(state.getTasks().getItems().size()));
-//                LOG.info(pipelineProto.toString());
-//            }
+            var pipelineHandler = PipelineHandler.from(configuration, state, graph);
+            pipelineHandler.beginPipeline(context, taskRequest);
         }
         catch (InvalidProtocolBufferException e) {
-            throw new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
+            var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
+            var taskException = MessageTypes.toTaskException(taskRequest, ex);
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskException, taskRequest.getReplyTopic()));
+            throw ex;
         }
-
-
-//        var request = taskRequest.getRequest();
-//        LOG.info(request.toString());
-
-//        if (Iterables.isEmpty(state.getTaskEntries().entries())) {
-//            for (int i = 0; i < 1000000; i++) {
-//                var id = String.valueOf(UUID.randomUUID());
-//                state.getTaskEntries().set(id, new TaskEntry());
-//            }
-//        }
-//        else {
-//            var id = String.valueOf(UUID.randomUUID());
-//            state.getTaskEntries().set(id, new TaskEntry());
-//        }
-//
-//        LOG.info(String.valueOf(Iterables.size(state.getTaskEntries().keys())));
-
-        LOG.info("GOT A TASK_REQUEST");
-
-        LOG.info("TASK_REQUEST_ID is {}", taskRequest.getId());
-
-        var egress = new EgressIdentifier<>(configuration.getEgressNamespace(), configuration.getEgressType(), TypedValue.class);
-        var taskResult = TaskResult.newBuilder()
-                .setId(taskRequest.getId())
-                .setUid(taskRequest.getUid())
-                .build();
-
-        context.send(egress, MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));
     }
 }

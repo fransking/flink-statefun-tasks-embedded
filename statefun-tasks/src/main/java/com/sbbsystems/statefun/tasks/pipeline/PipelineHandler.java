@@ -16,8 +16,11 @@
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,25 +28,31 @@ import java.util.Objects;
 
 
 public final class PipelineHandler {
-
-    private final Context context;
+    private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
     private final PipelineGraph graph;
 
-    public static PipelineHandler from(@NotNull Context context, @NotNull PipelineFunctionState state, @NotNull PipelineGraph graph) {
+    public static PipelineHandler from(@NotNull PipelineConfiguration configuration,
+                                       @NotNull PipelineFunctionState state,
+                                       @NotNull PipelineGraph graph) {
         return new PipelineHandler(
-                Objects.requireNonNull(context),
+                Objects.requireNonNull(configuration),
                 Objects.requireNonNull(state),
                 Objects.requireNonNull(graph));
     }
 
-    private PipelineHandler(Context context, PipelineFunctionState state, PipelineGraph graph) {
-        this.context = context;
+    private PipelineHandler(PipelineConfiguration configuration, PipelineFunctionState state, PipelineGraph graph) {
+        this.configuration = configuration;
         this.state = state;
         this.graph = graph;
     }
 
-    public void beginPipeline(TaskRequest taskRequest) {
+    public void beginPipeline(Context context, TaskRequest taskRequest) {
+        var taskResult = TaskResult.newBuilder()
+                .setId(taskRequest.getId())
+                .setUid(taskRequest.getUid())
+                .build();
 
+        context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));
     }
 }

@@ -19,12 +19,15 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
+import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
@@ -89,5 +92,26 @@ public final class MessageTypes {
                 .setHasValue(true)
                 .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
                 .build();
+    }
+
+    public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e) {
+        return MessageTypes.toTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
+    }
+
+    public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e, Any state) {
+        return TaskException.newBuilder()
+                .setId(incomingTaskRequest.getId())
+                .setUid(incomingTaskRequest.getUid())
+                .setInvocationId(incomingTaskRequest.getInvocationId())
+                .setType(incomingTaskRequest.getType() + ".error")
+                .setExceptionType(e.getClass().getTypeName())
+                .setExceptionMessage(e.getMessage())
+                .setStacktrace(Arrays.toString(e.getStackTrace()))
+                .setState(state)
+                .build();
+    }
+
+    public static EgressIdentifier<TypedValue> getEgress(PipelineConfiguration configuration) {
+        return new EgressIdentifier<>(configuration.getEgressNamespace(), configuration.getEgressType(), TypedValue.class);
     }
 }
