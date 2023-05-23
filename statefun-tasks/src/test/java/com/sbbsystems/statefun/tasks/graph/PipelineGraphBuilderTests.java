@@ -20,12 +20,9 @@ import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
-import com.sbbsystems.statefun.tasks.util.Id;
-import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -144,20 +141,16 @@ public final class PipelineGraphBuilderTests {
         var state = PipelineFunctionState.newInstance();
 
         // initial graph from protobuf
-        var builder = PipelineGraphBuilder.newInstance()
-                .withHead(state.getHead())
-                .withTail(state.getTail())
-                .withEntries(state.getEntries().getItems())
-                .withTaskEntries(state.getTaskEntries())
-                .withGroupEntries(state.getGroupEntries())
+        var builder = PipelineGraphBuilder
+                .from(state)
                 .fromProto(pipeline);
 
         PipelineGraph graph = builder.build();
 
         assertThat(graph.getTasks()).hasSize(8);
 
-        // updated state
-        graph.saveState(state);
+        // update state
+        graph.saveState();
 
         var head = graph.getHead();
         var tail = graph.getTail();
@@ -178,12 +171,7 @@ public final class PipelineGraphBuilderTests {
         assertThat(groupEntry.remaining).isEqualTo(2);
 
         // new graph from previous state
-        var newBuilder = PipelineGraphBuilder.newInstance()
-                .withHead(state.getHead())
-                .withTail(state.getTail())
-                .withEntries(state.getEntries().getItems())
-                .withTaskEntries(state.getTaskEntries())
-                .withGroupEntries(state.getGroupEntries());
+        var newBuilder = PipelineGraphBuilder.from(state);
 
         PipelineGraph newGraph = newBuilder.build();
 

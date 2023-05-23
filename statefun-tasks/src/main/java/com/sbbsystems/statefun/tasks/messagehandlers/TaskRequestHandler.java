@@ -29,6 +29,7 @@ import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,25 +85,26 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
             // create the graph
             var graph = PipelineGraphBuilder
-                    .newInstance()
-                    .withTaskEntries(state.getTaskEntries())
-                    .withGroupEntries(state.getGroupEntries())
-                    .withEntries(state.getEntries().getItems())
+                    .from(state)
                     .fromProto(pipelineProto)
                     .build();
 
             // save graph structure to state
-            graph.saveState(state);
+            graph.saveState();
 
             // create and start pipeline
             var pipelineHandler = PipelineHandler.from(configuration, state, graph);
             pipelineHandler.beginPipeline(context, taskRequest);
         }
         catch (InvalidProtocolBufferException e) {
-            var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
-            var taskException = MessageTypes.toTaskException(taskRequest, ex);
-            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskException, taskRequest.getReplyTopic()));
-            throw ex;
+            egressAndThrow(context, taskRequest, new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e));
         }
+    }
+
+    private void egressAndThrow(@NotNull Context context, TaskRequest taskRequest, StatefunTasksException e)
+        throws StatefunTasksException {
+        var taskException = MessageTypes.toTaskException(taskRequest, e);
+        context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskException, taskRequest.getReplyTopic()));
+        throw e;
     }
 }

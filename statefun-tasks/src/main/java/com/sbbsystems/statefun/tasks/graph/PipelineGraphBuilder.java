@@ -15,61 +15,31 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
-import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.GroupEntryBuilder;
-import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
-import com.sbbsystems.statefun.tasks.util.Id;
-import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Objects;
 
 public final class PipelineGraphBuilder {
-    private Map<String, Entry> entries;
-    private PersistedTable<String, TaskEntry> taskEntries;
-    private PersistedTable<String, GroupEntry> groupEntries;
-    private Pipeline pipelineProto;
-    private String head;
-    private String tail;
 
-    private PipelineGraphBuilder() {
-        entries = new HashMap<>();
-        taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
-        groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
+    private final PipelineFunctionState state;
+    private Pipeline pipelineProto;
+
+    private PipelineGraphBuilder(PipelineFunctionState state) {
+        this.state = state;
     }
 
     public static PipelineGraphBuilder newInstance() {
-        return new PipelineGraphBuilder();
+        return new PipelineGraphBuilder(PipelineFunctionState.newInstance());
     }
 
-    public PipelineGraphBuilder withEntries(@NotNull Map<String, Entry> entries) {
-        this.entries = Objects.requireNonNull(entries);
-        return this;
-    }
-
-    public PipelineGraphBuilder withTaskEntries(@NotNull PersistedTable<String, TaskEntry> taskEntries) {
-        this.taskEntries = Objects.requireNonNull(taskEntries);
-        return this;
-    }
-
-    public PipelineGraphBuilder withGroupEntries(@NotNull PersistedTable<String, GroupEntry> groupEntries) {
-        this.groupEntries = Objects.requireNonNull(groupEntries);
-        return this;
-    }
-
-    public PipelineGraphBuilder withHead(@Nullable String head) {
-        this.head = head;
-        return this;
-    }
-
-    public PipelineGraphBuilder withTail(@Nullable String tail) {
-        this.tail = tail;
-        return this;
+    public static PipelineGraphBuilder from(PipelineFunctionState state) {
+        return new PipelineGraphBuilder(state);
     }
 
     public PipelineGraphBuilder fromProto(@NotNull Pipeline pipelineProto) {
@@ -79,13 +49,14 @@ public final class PipelineGraphBuilder {
 
     public PipelineGraph build()
             throws InvalidGraphException {
+
         if (!Objects.isNull(pipelineProto)) {
             //build graph from protobuf
             var headEntry = buildGraph(pipelineProto);
-            head = Objects.isNull(headEntry) ? null : headEntry.getId();
+            state.setHead(Objects.isNull(headEntry) ? null : headEntry.getId());
         }
-        //else we use existing state as passed to the builder
-        return PipelineGraph.from(entries, taskEntries, groupEntries, head, tail);
+
+        return PipelineGraph.from(state);
     }
 
     private Entry buildGraph(Pipeline pipelineProto)
@@ -106,23 +77,23 @@ public final class PipelineGraphBuilder {
                 var taskEntry = entry.getTaskEntry();
                 next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally());
 
-                if (entries.containsKey(next.getId())) {
+                if (state.getEntries().getItems().containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
                 }
 
-                entries.put(next.getId(), next);
-                taskEntries.set(next.getId(), TaskEntryBuilder.fromProto(taskEntry));
+                state.getEntries().getItems().put(next.getId(), next);
+                state.getTaskEntries().set(next.getId(), TaskEntryBuilder.fromProto(taskEntry));
 
             } else if (entry.hasGroupEntry()) {
                 var groupEntry = entry.getGroupEntry();
                 next = Group.of(groupEntry.getGroupId());
 
-                if (entries.containsKey(next.getId())) {
+                if (state.getEntries().getItems().containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate group id {0}", next.getId()));
                 }
 
-                entries.put(next.getId(), next);
-                groupEntries.set(next.getId(), GroupEntryBuilder.fromProto(groupEntry));
+                state.getEntries().getItems().put(next.getId(), next);
+                state.getGroupEntries().set(next.getId(), GroupEntryBuilder.fromProto(groupEntry));
 
                 var group = (Group) next;
                 for (Pipeline pipelineInGroupProto : groupEntry.getGroupList()) {
@@ -144,7 +115,7 @@ public final class PipelineGraphBuilder {
 
                 if (Objects.isNull(parentGroup)) {
                     // keep track of tail node in the main chain
-                    tail = current.getId();
+                    state.setTail(current.getId());
                 }
             }
         }

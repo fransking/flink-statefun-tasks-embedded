@@ -18,7 +18,6 @@ package com.sbbsystems.statefun.tasks.graph;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
-import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,38 +27,21 @@ import java.util.Objects;
 
 public final class PipelineGraph {
 
-    private final Map<String, Entry> entries;
-    private final PersistedTable<String, TaskEntry> taskEntries;
-    private final PersistedTable<String, GroupEntry> groupEntries;
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
-    private final String head;
-    private final String tail;
 
-    private PipelineGraph(
-            @NotNull Map<String, Entry> entries,
-            @NotNull PersistedTable<String, TaskEntry> taskEntries,
-            @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable String head,
-            @Nullable String tail) {
-        this.entries = Objects.requireNonNull(entries);
-        this.taskEntries = Objects.requireNonNull(taskEntries);
-        this.groupEntries = Objects.requireNonNull(groupEntries);
-        this.head = head;
-        this.tail = tail;
+    private final PipelineFunctionState state;
+
+    private PipelineGraph(PipelineFunctionState state) {
+        this.state = state;
     }
 
-    public static PipelineGraph from(
-            @NotNull Map<String, Entry> entries,
-            @NotNull PersistedTable<String, TaskEntry> taskEntries,
-            @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable String head,
-            @Nullable String tail) {
-        return new PipelineGraph(entries, taskEntries, groupEntries, head, tail);
+    public static PipelineGraph from(@NotNull PipelineFunctionState state) {
+        return new PipelineGraph(Objects.requireNonNull(state));
     }
 
     public TaskEntry getTaskEntry(String id) {
-        return updatedTaskEntries.getOrDefault(id, taskEntries.get(id));
+        return updatedTaskEntries.getOrDefault(id, state.getTaskEntries().get(id));
     }
 
     public void updateTaskEntry(TaskEntry entry) {
@@ -67,7 +49,7 @@ public final class PipelineGraph {
     }
 
     public GroupEntry getGroupEntry(String id) {
-        return updatedGroupEntries.getOrDefault(id, groupEntries.get(id));
+        return updatedGroupEntries.getOrDefault(id, state.getGroupEntries().get(id));
     }
 
     public void updateGroupEntry(GroupEntry entry) {
@@ -83,7 +65,7 @@ public final class PipelineGraph {
     }
 
     public Entry getEntry(String id) {
-        return entries.get(id);
+        return state.getEntries().getItems().get(id);
     }
 
     public Iterable<Task> getTasks() {
@@ -95,11 +77,11 @@ public final class PipelineGraph {
     }
 
     public @Nullable Entry getHead() {
-        return getEntry(head);
+        return getEntry(state.getHead());
     }
 
     public @Nullable Entry getTail() {
-        return getEntry(tail);
+        return getEntry(state.getTail());
     }
 
     public InitialTasks getInitialTasks()
@@ -152,17 +134,19 @@ public final class PipelineGraph {
         }
     }
 
-    public void saveUpdatedState(PipelineFunctionState state) {
+    public void saveUpdatedState() {
         updatedGroupEntries.forEach((k, v) -> state.getGroupEntries().set(k, v));
         updatedTaskEntries.forEach((k, v) -> state.getTaskEntries().set(k, v));
         updatedTaskEntries.clear();
         updatedGroupEntries.clear();
     }
 
-    public void saveState(PipelineFunctionState state) {
-        saveUpdatedState(state);
-        state.setHead(head);
-        state.setTail(tail);
-        state.setEntries(MapOfEntries.from(entries));
+    public void saveState() {
+        saveUpdatedState();
+
+        // ensure write back to Flink state
+        state.setHead(state.getHead());
+        state.setTail(state.getTail());
+        state.setEntries(state.getEntries());
     }
 }

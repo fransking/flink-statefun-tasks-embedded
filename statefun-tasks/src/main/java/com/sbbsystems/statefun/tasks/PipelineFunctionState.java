@@ -38,6 +38,8 @@ public final class PipelineFunctionState {
     @Persisted
     private final PersistedValue<String> tail = PersistedValue.of("tail", String.class);
 
+    private MapOfEntries cachedEntries = new MapOfEntries();
+
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState();
     }
@@ -54,11 +56,13 @@ public final class PipelineFunctionState {
     }
 
     public MapOfEntries getEntries() {
-        return entries.getOrDefault(new MapOfEntries());
+        cachedEntries = entries.getOrDefault(cachedEntries);
+        return cachedEntries;
     }
 
     public void setEntries(MapOfEntries tasks) {
-        this.entries.set(tasks);
+        cachedEntries = tasks;
+        this.entries.set(cachedEntries);
     }
 
     public String getHead() {
