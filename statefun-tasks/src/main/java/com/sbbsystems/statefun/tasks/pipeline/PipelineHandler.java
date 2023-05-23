@@ -19,6 +19,7 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
@@ -48,6 +49,8 @@ public final class PipelineHandler {
     }
 
     public void beginPipeline(Context context, TaskRequest taskRequest) {
+        state.setStatus(TaskStatus.Status.RUNNING);
+
         var taskResult = TaskResult.newBuilder()
                 .setId(taskRequest.getId())
                 .setUid(taskRequest.getUid())

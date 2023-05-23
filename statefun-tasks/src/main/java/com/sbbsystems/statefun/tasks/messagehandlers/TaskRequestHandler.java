@@ -24,6 +24,7 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
@@ -35,10 +36,18 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
+
+    private static final List<TaskStatus.Status> ALLOWED_INITIAL_STATES = List.of(
+            TaskStatus.Status.PENDING,
+            TaskStatus.Status.COMPLETED,
+            TaskStatus.Status.FAILED,
+            TaskStatus.Status.CANCELLED
+    );
 
     private final PipelineConfiguration configuration;
 
@@ -66,9 +75,9 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
         try {
 
-            LOG.info(String.valueOf(state.getEntries().getItems().size()));
-            LOG.info(state.getHead());
-            LOG.info(state.getTail());
+            if (!ALLOWED_INITIAL_STATES.contains(state.getStatus())) {
+                throw new StatefunTasksException("Pipelines must have finished before they can be re-run");
+            }
 
             // todo throw if pipeline is already active
             // reset pipeline state
@@ -109,6 +118,10 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
             emit(context, taskRequest, MessageTypes.toTaskException(taskRequest, ex));
             throw ex;
+        }
+        catch (StatefunTasksException e) {
+            emit(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
+            throw e;
         }
     }
 

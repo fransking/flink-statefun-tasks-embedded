@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
@@ -39,6 +40,9 @@ public final class PipelineFunctionState {
 
     @Persisted
     private final PersistedValue<String> tail = PersistedValue.of("tail", String.class);
+
+    @Persisted
+    private final PersistedValue<Integer> status = PersistedValue.of("status", Integer.class);
 
     private MapOfEntries cachedEntries = null;
 
@@ -87,11 +91,21 @@ public final class PipelineFunctionState {
         this.tail.set(tail);
     }
 
+    public TaskStatus.Status getStatus() {
+        var status = this.status.getOrDefault(0);
+        return TaskStatus.Status.forNumber(status);
+    }
+
+    public void setStatus(TaskStatus.Status status) {
+        this.status.set(status.getNumber());
+    }
+
     public void reset() {
         taskEntries.clear();
         groupEntries.clear();
         entries.clear();
         head.clear();
         tail.clear();
+        status.clear();
     }
 }
