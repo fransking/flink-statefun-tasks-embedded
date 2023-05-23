@@ -30,17 +30,15 @@ import java.text.MessageFormat;
 import java.util.*;
 
 public final class PipelineGraphBuilder {
-    private Map<String, Task> tasks;
-    private final Set<String> groups;
+    private Map<String, Entry> entries;
     private PersistedTable<String, TaskEntry> taskEntries;
     private PersistedTable<String, GroupEntry> groupEntries;
     private Pipeline pipelineProto;
-    private Entry head;
-    private Entry tail;
+    private String head;
+    private String tail;
 
     private PipelineGraphBuilder() {
-        tasks = new HashMap<>();
-        groups = new HashSet<>();
+        entries = new HashMap<>();
         taskEntries = PersistedTable.of(Id.generate(), String.class, TaskEntry.class);
         groupEntries = PersistedTable.of(Id.generate(), String.class, GroupEntry.class);
     }
@@ -49,8 +47,8 @@ public final class PipelineGraphBuilder {
         return new PipelineGraphBuilder();
     }
 
-    public PipelineGraphBuilder withTasks(@NotNull Map<String, Task> tasks) {
-        this.tasks = Objects.requireNonNull(tasks);
+    public PipelineGraphBuilder withEntries(@NotNull Map<String, Entry> entries) {
+        this.entries = Objects.requireNonNull(entries);
         return this;
     }
 
@@ -64,12 +62,12 @@ public final class PipelineGraphBuilder {
         return this;
     }
 
-    public PipelineGraphBuilder withHead(@Nullable Entry head) {
+    public PipelineGraphBuilder withHead(@Nullable String head) {
         this.head = head;
         return this;
     }
 
-    public PipelineGraphBuilder withTail(@Nullable Entry tail) {
+    public PipelineGraphBuilder withTail(@Nullable String tail) {
         this.tail = tail;
         return this;
     }
@@ -83,11 +81,11 @@ public final class PipelineGraphBuilder {
             throws InvalidGraphException {
         if (!Objects.isNull(pipelineProto)) {
             //build graph from protobuf
-            head = buildGraph(pipelineProto);
+            var headEntry = buildGraph(pipelineProto);
+            head = Objects.isNull(headEntry) ? null : headEntry.getId();
         }
         //else we use existing state as passed to the builder
-
-        return PipelineGraph.from(tasks, taskEntries, groupEntries, head, tail);
+        return PipelineGraph.from(entries, taskEntries, groupEntries, head, tail);
     }
 
     private Entry buildGraph(Pipeline pipelineProto)
@@ -108,22 +106,22 @@ public final class PipelineGraphBuilder {
                 var taskEntry = entry.getTaskEntry();
                 next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally());
 
-                if (tasks.containsKey(next.getId())) {
+                if (entries.containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
                 }
 
-                tasks.put(next.getId(), (Task) next);
+                entries.put(next.getId(), next);
                 taskEntries.set(next.getId(), TaskEntryBuilder.fromProto(taskEntry));
 
             } else if (entry.hasGroupEntry()) {
                 var groupEntry = entry.getGroupEntry();
                 next = Group.of(groupEntry.getGroupId());
 
-                if (groups.contains(next.getId())) {
+                if (entries.containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate group id {0}", next.getId()));
                 }
 
-                groups.add(next.getId());
+                entries.put(next.getId(), next);
                 groupEntries.set(next.getId(), GroupEntryBuilder.fromProto(groupEntry));
 
                 var group = (Group) next;
@@ -146,7 +144,7 @@ public final class PipelineGraphBuilder {
 
                 if (Objects.isNull(parentGroup)) {
                     // keep track of tail node in the main chain
-                    tail = current;
+                    tail = current.getId();
                 }
             }
         }

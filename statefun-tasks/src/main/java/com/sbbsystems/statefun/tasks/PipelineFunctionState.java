@@ -15,8 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.MapOfTasks;
+import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
@@ -31,13 +30,13 @@ public final class PipelineFunctionState {
     private final PersistedTable<String, GroupEntry> groupEntries = PersistedTable.of("groupEntries", String.class, GroupEntry.class);
 
     @Persisted
-    private final PersistedValue<MapOfTasks> tasks = PersistedValue.of("tasks", MapOfTasks.class);
+    private final PersistedValue<MapOfEntries> entries = PersistedValue.of("entries", MapOfEntries.class);
 
     @Persisted
-    private final PersistedValue<Entry> head = PersistedValue.of("head", Entry.class);
+    private final PersistedValue<String> head = PersistedValue.of("head", String.class);
 
     @Persisted
-    private final PersistedValue<Entry> tail = PersistedValue.of("tail", Entry.class);
+    private final PersistedValue<String> tail = PersistedValue.of("tail", String.class);
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState();
@@ -54,34 +53,34 @@ public final class PipelineFunctionState {
         return groupEntries;
     }
 
-    public MapOfTasks getTasks() {
-        return tasks.getOrDefault(new MapOfTasks());
+    public MapOfEntries getEntries() {
+        return entries.getOrDefault(new MapOfEntries());
     }
 
-    public void setTasks(MapOfTasks tasks) {
-        this.tasks.set(tasks);
+    public void setEntries(MapOfEntries tasks) {
+        this.entries.set(tasks);
     }
 
-    public Entry getHead() {
+    public String getHead() {
         return head.get();
     }
 
-    public void setHead(Entry head) {
+    public void setHead(String head) {
         this.head.set(head);
     }
 
-    public Entry getTail() {
+    public String getTail() {
         return tail.get();
     }
 
-    public void setTail(Entry tail) {
+    public void setTail(String tail) {
         this.tail.set(tail);
     }
 
     public void reset() {
         taskEntries.clear();
         groupEntries.clear();
-        tasks.clear();
+        entries.clear();
         head.clear();
         tail.clear();
     }

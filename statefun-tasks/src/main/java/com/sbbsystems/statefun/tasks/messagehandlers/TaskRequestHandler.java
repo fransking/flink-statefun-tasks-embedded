@@ -90,18 +90,25 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
                     .newInstance()
                     .withTaskEntries(state.getTaskEntries())
                     .withGroupEntries(state.getGroupEntries())
-                    .withTasks(state.getTasks().getItems())
+                    .withEntries(state.getEntries().getItems())
                     .fromProto(pipelineProto)
                     .build();
 
             // save graph structure to state
             graph.saveState(state);
 
-
             // create and start pipeline
             var pipelineHandler = PipelineHandler.from(context, state, graph);
             pipelineHandler.beginPipeline(taskRequest);
 
+            try {
+                var group = graph.getGroupEntry(graph.getHead().getId());
+                group.remaining = 0;
+                graph.updateGroupEntry(group);
+                var group2 = graph.getGroupEntry(graph.getHead().getId());
+                LOG.info(String.valueOf(group == group2));
+                LOG.info(String.valueOf(group2.remaining));
+            } catch (Exception e) {}
 
 //            if (!Objects.isNull(graph.getHead())) {
 //

@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
@@ -140,19 +141,15 @@ public final class PipelineGraphBuilderTests {
         var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
 
         // empty initial state
-        var tasks = new HashMap<String, Task>();
-        var taskEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.TaskEntry.class);
-        var groupEntries = PersistedTable.of(Id.generate(), String.class, com.sbbsystems.statefun.tasks.types.GroupEntry.class);
-        Entry head = null;
-        Entry tail = null;
+        var state = PipelineFunctionState.newInstance();
 
         // initial graph from protobuf
         var builder = PipelineGraphBuilder.newInstance()
-                .withHead(head)
-                .withTail(tail)
-                .withTasks(tasks)
-                .withTaskEntries(taskEntries)
-                .withGroupEntries(groupEntries)
+                .withHead(state.getHead())
+                .withTail(state.getTail())
+                .withEntries(state.getEntries().getItems())
+                .withTaskEntries(state.getTaskEntries())
+                .withGroupEntries(state.getGroupEntries())
                 .fromProto(pipeline);
 
         PipelineGraph graph = builder.build();
@@ -160,31 +157,33 @@ public final class PipelineGraphBuilderTests {
         assertThat(graph.getTasks()).hasSize(8);
 
         // updated state
-        head = graph.getHead();
-        tail = graph.getTail();
+        graph.saveState(state);
+
+        var head = graph.getHead();
+        var tail = graph.getTail();
 
         assertThat(head).isNotNull();
         assertThat(head.getId()).isEqualTo("1");
         assertThat(tail).isNotNull();
         assertThat(tail.getId()).isEqualTo("2");
-        assertThat(tasks).hasSize(8);
-        assertThat(taskEntries.entries()).hasSize(8);
-        assertThat(groupEntries.entries()).hasSize(1);
+        assertThat(state.getEntries().getItems()).hasSize(9);
+        assertThat(state.getTaskEntries().entries()).hasSize(8);
+        assertThat(state.getGroupEntries().entries()).hasSize(1);
 
         var task = graph.getTask("a");
         assertThat(task.getParentGroup()).isNotNull();
 
-        var groupEntry = groupEntries.get(task.getParentGroup().getId());
+        var groupEntry = state.getGroupEntries().get(task.getParentGroup().getId());
         assertThat(groupEntry.size).isEqualTo(2);
         assertThat(groupEntry.remaining).isEqualTo(2);
 
         // new graph from previous state
         var newBuilder = PipelineGraphBuilder.newInstance()
-                .withHead(head)
-                .withTail(tail)
-                .withTasks(tasks)
-                .withTaskEntries(taskEntries)
-                .withGroupEntries(groupEntries);
+                .withHead(state.getHead())
+                .withTail(state.getTail())
+                .withEntries(state.getEntries().getItems())
+                .withTaskEntries(state.getTaskEntries())
+                .withGroupEntries(state.getGroupEntries());
 
         PipelineGraph newGraph = newBuilder.build();
 
