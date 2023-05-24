@@ -15,10 +15,8 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
@@ -109,13 +107,11 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             // create and start pipeline
             var pipelineHandler = PipelineHandler.from(configuration, state, graph);
             pipelineHandler.beginPipeline(context, taskRequest);
-        }
-        catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException e) {
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
             respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, ex));
             throw ex;
-        }
-        catch (StatefunTasksException e) {
+        } catch (StatefunTasksException e) {
             respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
             throw e;
         }

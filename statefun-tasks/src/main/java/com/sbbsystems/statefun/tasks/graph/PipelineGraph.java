@@ -16,12 +16,14 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolver;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -29,15 +31,16 @@ public final class PipelineGraph {
 
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
-
     private final PipelineFunctionState state;
+    private final GroupTaskResolver groupTaskResolver;
 
-    private PipelineGraph(PipelineFunctionState state) {
+    private PipelineGraph(PipelineFunctionState state, GroupTaskResolver groupTaskResolver) {
         this.state = state;
+        this.groupTaskResolver = groupTaskResolver;
     }
 
-    public static PipelineGraph from(@NotNull PipelineFunctionState state) {
-        return new PipelineGraph(Objects.requireNonNull(state));
+    public static PipelineGraph from(@NotNull PipelineFunctionState state, @NotNull GroupTaskResolver groupTaskResolver) {
+        return new PipelineGraph(Objects.requireNonNull(state), Objects.requireNonNull(groupTaskResolver));
     }
 
     public TaskEntry getTaskEntry(String id) {
@@ -84,16 +87,16 @@ public final class PipelineGraph {
         return getEntry(state.getTail());
     }
 
-    public InitialTasks getInitialTasks()
+    public List<Task> getInitialTasks()
             throws InvalidGraphException {
 
-        return InitialTasksCollector.of(this).collectFrom(getHead());
+        return getInitialTasks(getHead());
     }
 
-    public InitialTasks getInitialTasks(Entry entry)
+    public List<Task> getInitialTasks(Entry entry)
             throws InvalidGraphException {
 
-        return InitialTasksCollector.of(this).collectFrom(entry);
+        return InitialTasksCollector.of(groupTaskResolver).collectFrom(entry, state);
     }
 
     public Entry getNextEntry(Entry from) {
@@ -148,5 +151,6 @@ public final class PipelineGraph {
         state.setHead(state.getHead());
         state.setTail(state.getTail());
         state.setEntries(state.getEntries());
+        state.saveDeferredTasks();
     }
 }

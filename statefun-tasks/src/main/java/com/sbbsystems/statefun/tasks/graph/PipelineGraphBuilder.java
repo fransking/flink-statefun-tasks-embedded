@@ -18,6 +18,8 @@ package com.sbbsystems.statefun.tasks.graph;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
+import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolver;
+import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolverWithMaxParallelism;
 import com.sbbsystems.statefun.tasks.types.GroupEntryBuilder;
 import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
 import org.jetbrains.annotations.NotNull;
@@ -29,6 +31,7 @@ public final class PipelineGraphBuilder {
 
     private final PipelineFunctionState state;
     private Pipeline pipelineProto;
+    private GroupTaskResolver groupTaskResolver;
 
     private PipelineGraphBuilder(PipelineFunctionState state) {
         this.state = state;
@@ -47,6 +50,11 @@ public final class PipelineGraphBuilder {
         return this;
     }
 
+    public PipelineGraphBuilder withGroupTaskResolver(@NotNull GroupTaskResolver groupTaskResolver) {
+        this.groupTaskResolver = groupTaskResolver;
+        return this;
+    }
+
     public PipelineGraph build()
             throws InvalidGraphException {
 
@@ -55,8 +63,11 @@ public final class PipelineGraphBuilder {
             var headEntry = buildGraph(pipelineProto);
             state.setHead(Objects.isNull(headEntry) ? null : headEntry.getId());
         }
+        if (Objects.isNull(groupTaskResolver)) {
+            groupTaskResolver = GroupTaskResolverWithMaxParallelism.newInstance();
+        }
 
-        return PipelineGraph.from(state);
+        return PipelineGraph.from(state, groupTaskResolver);
     }
 
     private Entry buildGraph(Pipeline pipelineProto)

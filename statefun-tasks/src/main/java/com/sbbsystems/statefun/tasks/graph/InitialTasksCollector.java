@@ -15,75 +15,50 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import java.util.LinkedList;
-import java.util.Objects;
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolver;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class InitialTasksCollector {
 
-    private final PipelineGraph graph;
-    private int maxParallelism;
+    private final GroupTaskResolver groupTaskResolver;
 
-    public static InitialTasksCollector of(PipelineGraph graph) {
-        return new InitialTasksCollector(graph);
+    public static InitialTasksCollector of(GroupTaskResolver groupTaskResolver) {
+        return new InitialTasksCollector(groupTaskResolver);
     }
 
-    private InitialTasksCollector(PipelineGraph graph) {
-        this.graph = graph;
+    private InitialTasksCollector(GroupTaskResolver groupTaskResolver) {
+        this.groupTaskResolver = groupTaskResolver;
     }
 
-    public InitialTasks collectFrom(Entry entry)
+    public List<Task> collectFrom(Entry entry, PipelineFunctionState state)
             throws InvalidGraphException {
-
-        return collect(entry, false);
+        var taskList = new ArrayList<Task>();
+        collect(entry, taskList, state);
+        return taskList;
     }
 
-    private InitialTasks collect(Entry entry, boolean predecessorIsEmptyGroup)
+    private void collect(Entry entry, ArrayList<Task> taskList, PipelineFunctionState state)
             throws InvalidGraphException {
-
-        InitialTasks initialTasks = null;
-
         if (entry instanceof Task) {
-            initialTasks = InitialTasks.of((Task) entry, predecessorIsEmptyGroup);
+            taskList.add((Task) entry);
 
         } else if (entry instanceof Group) {
             var group = (Group) entry;
-
-            // update min maxParallelism value
-            maxParallelism = getMinMaxParallelism(maxParallelism, group);
-
-            // skip over empty groups e.g. [[]] -> a -> b should return a with predecessorIsEmptyGroup set to true
-            if (group.getItems().isEmpty() && !Objects.isNull(group.getNext())) {
-                initialTasks = collect(group.getNext(), true);
-
-            } else {
-                var tasks = new LinkedList<Task>();
-
-                for (Entry item : group.getItems()) {
-                    tasks.addAll(collectFrom(item).getTasks());
+            var groupInitialTasks = groupTaskResolver.resolveInitialTasks(group, state);
+            for (var groupEntry: groupInitialTasks) {
+                if (groupEntry instanceof Task) {
+                    taskList.add((Task)groupEntry);
+                } else if (groupEntry instanceof Group) {
+                    collect(groupEntry, taskList, state);
+                } else {
+                    throw new InvalidGraphException("Expected a Task or Group");
                 }
-
-                initialTasks = InitialTasks.of(tasks, predecessorIsEmptyGroup, maxParallelism);
             }
-        }
-
-        if (Objects.isNull(initialTasks)) {
+        } else {
             throw new InvalidGraphException("Expected a task or a group");
         }
-
-        return initialTasks;
-    }
-
-    private int getMinMaxParallelism(int currentMaxParallelism, Group group) {
-        var groupEntry = graph.getGroupEntry(group.getId());
-
-        if (groupEntry.maxParallelism == 0) {
-            return currentMaxParallelism;
-        }
-
-        if (currentMaxParallelism == 0) {
-            return groupEntry.maxParallelism;
-        }
-
-        return Math.min(groupEntry.maxParallelism, currentMaxParallelism);
     }
 }

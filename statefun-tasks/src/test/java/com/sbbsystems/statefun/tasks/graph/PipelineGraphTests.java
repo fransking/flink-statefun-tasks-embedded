@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -127,9 +128,7 @@ public final class PipelineGraphTests {
         var initialTasks = graph.getInitialTasks();
 
         assertThat(initialTasks).hasSize(1);
-        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.getMaxParallelism()).isEqualTo(0);  // unset
-        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
     }
 
     @Test
@@ -143,15 +142,12 @@ public final class PipelineGraphTests {
 
         var template = List.of(group);
         var graph = fromTemplate(template);
-        getGroupContainingTask("a", graph).maxParallelism = 1;  // set max parallelism on group
 
         var initialTasks = graph.getInitialTasks();
 
         assertThat(initialTasks).hasSize(2);
-        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
-        assertThat(initialTasks.getMaxParallelism()).isEqualTo(1);
-        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.get(1).getId()).isEqualTo("d");
     }
 
     @Test
@@ -179,10 +175,8 @@ public final class PipelineGraphTests {
         var initialTasks = graph.getInitialTasks();
 
         assertThat(initialTasks).hasSize(2);
-        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
-        assertThat(initialTasks.getMaxParallelism()).isEqualTo(2);
-        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(false);
+        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.get(1).getId()).isEqualTo("d");
     }
 
     @Test
@@ -204,11 +198,12 @@ public final class PipelineGraphTests {
         var initialTasks = graph.getInitialTasks();
 
         assertThat(initialTasks).hasSize(2);
-        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.getTasks().get(1).getId()).isEqualTo("d");
+        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
+        assertThat(initialTasks.get(1).getId()).isEqualTo("d");
     }
 
     @Test
+    @Disabled("This functionality should be covered by group result processing")
     public void returns_initial_tasks_after_an_empty_group()
             throws InvalidGraphException {
 
@@ -219,8 +214,7 @@ public final class PipelineGraphTests {
         var initialTasks = graph.getInitialTasks();
 
         assertThat(initialTasks).hasSize(1);
-        assertThat(initialTasks.getTasks().get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.isPredecessorIsEmptyGroup()).isEqualTo(true);
+        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
     }
 
     @Test
@@ -306,7 +300,7 @@ public final class PipelineGraphTests {
         var initial = graph.getInitialTasks(g);
 
         // next is x
-        var x = initial.getTasks().get(0);
+        var x = initial.get(0);
         assertThat(x).isEqualTo(graph.getTask("x"));
 
         // next is y
@@ -364,7 +358,7 @@ public final class PipelineGraphTests {
         var initial = graph.getInitialTasks(g);
 
         // next is x
-        var x = initial.getTasks().get(0);
+        var x = initial.get(0);
         assertThat(x).isEqualTo(graph.getTask("x"));
 
         // next is y
