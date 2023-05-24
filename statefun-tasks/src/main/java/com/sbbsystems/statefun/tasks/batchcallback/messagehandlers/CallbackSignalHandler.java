@@ -19,6 +19,7 @@ package com.sbbsystems.statefun.tasks.batchcallback.messagehandlers;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.batchcallback.CallbackFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.messagehandlers.MessageHandler;
@@ -35,12 +36,13 @@ public class CallbackSignalHandler extends MessageHandler<CallbackSignal, Callba
     private static final Logger LOG = LoggerFactory.getLogger(CallbackSignalHandler.class);
     private final BatchSubmitter batchSubmitter;
 
-    private CallbackSignalHandler(BatchSubmitter batchSubmitter) {
+    private CallbackSignalHandler(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
+        super(configuration);
         this.batchSubmitter = batchSubmitter;
     }
 
-    public static CallbackSignalHandler newInstance(BatchSubmitter batchSubmitter) {
-        return new CallbackSignalHandler(batchSubmitter);
+    public static CallbackSignalHandler of(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
+        return new CallbackSignalHandler(configuration, batchSubmitter);
     }
 
 

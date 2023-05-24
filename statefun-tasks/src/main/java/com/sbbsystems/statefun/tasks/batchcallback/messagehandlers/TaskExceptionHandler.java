@@ -19,6 +19,7 @@ package com.sbbsystems.statefun.tasks.batchcallback.messagehandlers;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.batchcallback.CallbackFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.TaskException;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.messagehandlers.MessageHandler;
@@ -29,12 +30,13 @@ import org.apache.flink.statefun.sdk.Context;
 public class TaskExceptionHandler extends MessageHandler<TaskException, CallbackFunctionState> {
     private final BatchSubmitter batchSubmitter;
 
-    private TaskExceptionHandler(BatchSubmitter batchSubmitter) {
+    private TaskExceptionHandler(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
+        super(configuration);
         this.batchSubmitter = batchSubmitter;
     }
 
-    public static TaskExceptionHandler newInstance(BatchSubmitter batchSubmitter) {
-        return new TaskExceptionHandler(batchSubmitter);
+    public static TaskExceptionHandler of(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
+        return new TaskExceptionHandler(configuration, batchSubmitter);
     }
 
     @Override

@@ -29,14 +29,12 @@ import org.slf4j.LoggerFactory;
 public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResultOrException, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskResultOrExceptionHandler.class);
 
-    private final PipelineConfiguration configuration;
-
     public static TaskResultOrExceptionHandler from(PipelineConfiguration configuration) {
         return new TaskResultOrExceptionHandler(configuration);
     }
 
     private TaskResultOrExceptionHandler(PipelineConfiguration configuration) {
-        this.configuration = configuration;
+        super(configuration);
     }
 
 

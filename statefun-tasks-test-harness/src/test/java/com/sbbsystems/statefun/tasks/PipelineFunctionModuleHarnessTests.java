@@ -1,6 +1,7 @@
 package com.sbbsystems.statefun.tasks;
 
 import com.google.protobuf.Any;
+import com.sbbsystems.statefun.tasks.generated.TaskException;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.testmodule.IoIdentifiers;
@@ -46,8 +47,8 @@ public class PipelineFunctionModuleHarnessTests {
 
         assertThat(result.getTypename()).isEqualTo("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord");
         var kafkaProducerRecord = KafkaProducerRecord.parseFrom(result.getValue());
-        var taskResult = Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(TaskResult.class);
-        Assertions.assertEquals("123", taskResult.getId());
+        var taskException = Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(TaskException.class);
+        Assertions.assertEquals("123", taskException.getId());
     }
 
 }

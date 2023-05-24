@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.batchcallback;
 
 import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.SimpleBatchSubmitter;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.generated.ResultsBatch;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
@@ -56,7 +57,7 @@ public class CallbackFunctionTests {
 
     @BeforeEach
     public void setup() {
-        this.callbackFunction = new CallbackFunction(SimpleBatchSubmitter.newInstance(PIPELINE_FUNCTION_TYPE));
+        this.callbackFunction = CallbackFunction.of(PipelineConfiguration.of("example/embedded_pipeline","example/kafka-generic-egress"), SimpleBatchSubmitter.of(PIPELINE_FUNCTION_TYPE));
         this.context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
     }

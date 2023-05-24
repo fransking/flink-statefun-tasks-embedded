@@ -41,6 +41,7 @@ public final class CallbackAwareTaskRequestHandler extends MessageHandler<TaskRe
     }
 
     private CallbackAwareTaskRequestHandler(FunctionType callbackFunctionType, MessageHandler<TaskRequest, PipelineFunctionState> innerHandler) {
+        super(innerHandler.configuration);
         this.callbackFunctionType = callbackFunctionType;
         this.innerHandler = innerHandler;
     }

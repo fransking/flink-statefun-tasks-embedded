@@ -35,7 +35,7 @@ public class SimpleBatchSubmitter implements BatchSubmitter {
         this.pipelineFunctionType = pipelineFunctionType;
     }
 
-    public static SimpleBatchSubmitter newInstance(FunctionType pipelineFunctionType) {
+    public static SimpleBatchSubmitter of(FunctionType pipelineFunctionType) {
         return new SimpleBatchSubmitter(pipelineFunctionType);
     }
 

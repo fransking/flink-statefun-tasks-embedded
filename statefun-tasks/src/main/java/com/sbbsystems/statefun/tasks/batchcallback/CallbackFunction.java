@@ -19,6 +19,7 @@ import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.BatchSubmitte
 import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.CallbackSignalHandler;
 import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.TaskExceptionHandler;
 import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.TaskResultHandler;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.messagehandlers.MessageHandler;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
@@ -36,11 +37,15 @@ public class CallbackFunction implements StatefulFunction {
     private final CallbackFunctionState state = CallbackFunctionState.newInstance();
     private final List<MessageHandler<?, CallbackFunctionState>> messageHandlers;
 
-    public CallbackFunction(BatchSubmitter batchSubmitter) {
+    public static CallbackFunction of(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
+        return new CallbackFunction(configuration, batchSubmitter);
+    }
+
+    private CallbackFunction(PipelineConfiguration configuration, BatchSubmitter batchSubmitter) {
         this.messageHandlers = List.of(
-                TaskResultHandler.newInstance(batchSubmitter),
-                TaskExceptionHandler.newInstance(batchSubmitter),
-                CallbackSignalHandler.newInstance(batchSubmitter)
+                TaskResultHandler.of(configuration, batchSubmitter),
+                TaskExceptionHandler.of(configuration, batchSubmitter),
+                CallbackSignalHandler.of(configuration, batchSubmitter)
         );
     }
 

@@ -15,17 +15,30 @@
  */
 package com.sbbsystems.statefun.tasks.messagehandlers;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 public abstract class MessageHandler<TMessage, TState> {
     private static final Logger LOG = LoggerFactory.getLogger(MessageHandler.class);
+
+    protected final PipelineConfiguration configuration;
+
+    public MessageHandler(PipelineConfiguration configuration) {
+        this.configuration = configuration;
+    }
 
     public abstract boolean canHandle(Context context, Object input, TState state);
 
@@ -34,12 +47,28 @@ public abstract class MessageHandler<TMessage, TState> {
     public abstract void handleMessage(Context context, TMessage message, TState state)
             throws StatefunTasksException;
 
+
     public final void handleInput(Context context, Object input, TState state) {
         try {
             var message = MessageTypes.asType(input, getMessageBuilder());
             handleMessage(context, message, state);
         } catch (StatefunTasksException e) {
             LOG.error("Unable to handle input message", e);
+        }
+    }
+
+    public final void respond(@NotNull Context context, TaskRequest taskRequest, Message message) {
+        if (!Strings.isNullOrEmpty(taskRequest.getReplyTopic())) {
+            // send a message to egress if reply_topic was specified
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, taskRequest.getReplyTopic()));
+        }
+        else if (taskRequest.hasReplyAddress()) {
+            // else call back to a particular flink function if reply_address was specified
+            context.send(MessageTypes.toSdkAddress(taskRequest.getReplyAddress()), MessageTypes.wrap(message));
+        }
+        else if (!Objects.isNull(context.caller())) {
+            // else call back to the caller of this function (if there is one)
+            context.send(context.caller(), MessageTypes.wrap(message));
         }
     }
 }

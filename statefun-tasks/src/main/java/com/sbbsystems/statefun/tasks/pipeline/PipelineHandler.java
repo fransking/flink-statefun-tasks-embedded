@@ -15,8 +15,11 @@
  */
 package com.sbbsystems.statefun.tasks.pipeline;
 
+import com.google.common.base.Strings;
+import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
+import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
@@ -49,13 +52,36 @@ public final class PipelineHandler {
     }
 
     public void beginPipeline(Context context, TaskRequest taskRequest) {
-        state.setStatus(TaskStatus.Status.RUNNING);
+        try {
+            state.setStatus(TaskStatus.Status.RUNNING);
 
-        var taskResult = TaskResult.newBuilder()
-                .setId(taskRequest.getId())
-                .setUid(taskRequest.getUid())
-                .build();
+            var tasks = graph.getInitialTasks();
 
-        context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));
+            var taskResult = TaskResult.newBuilder()
+                    .setId(taskRequest.getId())
+                    .setUid(taskRequest.getUid())
+                    .build();
+
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));
+        }
+        catch (StatefunTasksException e) {
+            state.setStatus(TaskStatus.Status.FAILED);
+            respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
+        }
+    }
+
+    private void respond(@NotNull Context context, TaskRequest taskRequest, Message message) {
+        if (!Strings.isNullOrEmpty(taskRequest.getReplyTopic())) {
+            // send a message to egress if reply_topic was specified
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, taskRequest.getReplyTopic()));
+        }
+        else if (taskRequest.hasReplyAddress()) {
+            // else call back to a particular flink function if reply_address was specified
+            context.send(MessageTypes.toSdkAddress(taskRequest.getReplyAddress()), MessageTypes.wrap(message));
+        }
+        else if (!Objects.isNull(context.caller())) {
+            // else call back to the caller of this function (if there is one)
+            context.send(context.caller(), MessageTypes.wrap(message));
+        }
     }
 }
