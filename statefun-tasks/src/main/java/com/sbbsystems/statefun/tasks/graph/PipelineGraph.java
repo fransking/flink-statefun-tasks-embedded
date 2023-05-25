@@ -32,11 +32,11 @@ public final class PipelineGraph {
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
     private final PipelineFunctionState state;
-    private final GroupTaskResolver groupTaskResolver;
+    private final InitialTasksCollector initialTasksCollector;
 
     private PipelineGraph(PipelineFunctionState state, GroupTaskResolver groupTaskResolver) {
         this.state = state;
-        this.groupTaskResolver = groupTaskResolver;
+        this.initialTasksCollector = InitialTasksCollector.of(groupTaskResolver);
     }
 
     public static PipelineGraph from(@NotNull PipelineFunctionState state, @NotNull GroupTaskResolver groupTaskResolver) {
@@ -96,7 +96,7 @@ public final class PipelineGraph {
     public Stream<Task> getInitialTasks(Entry entry)
             throws InvalidGraphException {
 
-        return InitialTasksCollector.of(groupTaskResolver).collectFrom(entry, state);
+        return initialTasksCollector.collectFrom(entry, state);
     }
 
     public Entry getNextEntry(Entry from) {

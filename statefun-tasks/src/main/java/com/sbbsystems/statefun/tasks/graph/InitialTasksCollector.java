@@ -17,10 +17,9 @@ package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolver;
+import com.sbbsystems.statefun.tasks.util.Unchecked;
 
 import java.util.stream.Stream;
-
-import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
 
 public class InitialTasksCollector {
 
@@ -43,13 +42,24 @@ public class InitialTasksCollector {
             throws InvalidGraphException {
         if (entry instanceof Task) {
             return Stream.of((Task) entry);
-
         } else if (entry instanceof Group) {
-            var group = (Group) entry;
-            var groupInitialTasks = groupTaskResolver.resolveInitialTasks(group, state);
-            return groupInitialTasks.stream()
-                    .flatMap(unchecked(e -> collect(e, state)));
+            return collectGroup((Group) entry, state);
         } else {
             throw new InvalidGraphException("Expected a task or a group");
-        }    }
+        }
+    }
+
+    private Stream<Task> collectGroup(Group group, PipelineFunctionState state) {
+        var groupInitialTasks = groupTaskResolver.resolveInitialTasks(group, state);
+        return Stream.concat(
+                groupInitialTasks.stream()
+                        .filter(t -> t instanceof Task)
+                        .map(t -> (Task) t),
+                groupInitialTasks.stream()
+                        .filter(t -> t instanceof Group)
+                        .flatMap(Unchecked.<Entry, Stream<Task>, InvalidGraphException>unchecked(
+                                entry -> collectGroup((Group)entry, state))
+                        )
+        );
+    }
 }
