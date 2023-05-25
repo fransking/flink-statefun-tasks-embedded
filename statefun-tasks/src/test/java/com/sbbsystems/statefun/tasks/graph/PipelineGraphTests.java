@@ -125,7 +125,7 @@ public final class PipelineGraphTests {
 
         var template = List.of("a", "b", "c");
         var graph = fromTemplate(template);
-        var initialTasks = graph.getInitialTasks();
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(1);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
@@ -143,7 +143,7 @@ public final class PipelineGraphTests {
         var template = List.of(group);
         var graph = fromTemplate(template);
 
-        var initialTasks = graph.getInitialTasks();
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(2);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
@@ -172,7 +172,7 @@ public final class PipelineGraphTests {
         getGroupContainingTask("a", graph).maxParallelism = 2;  // set max parallelism on group
         getGroupContainingTask("d", graph).maxParallelism = 3;  // set max parallelism on group
 
-        var initialTasks = graph.getInitialTasks();
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(2);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
@@ -195,7 +195,7 @@ public final class PipelineGraphTests {
         var template = List.of(group);
 
         var graph = fromTemplate(template);
-        var initialTasks = graph.getInitialTasks();
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(2);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
@@ -211,7 +211,7 @@ public final class PipelineGraphTests {
         var template = List.of(emptyGroup, emptyGroup, "a", "b", "c");
 
         var graph = fromTemplate(template);
-        var initialTasks = graph.getInitialTasks();
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(1);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
@@ -297,7 +297,7 @@ public final class PipelineGraphTests {
         assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(1);
 
         // get initial tasks of group
-        var initial = graph.getInitialTasks(g);
+        var initial = graph.getInitialTasks(g).collect(Collectors.toList());
 
         // next is x
         var x = initial.get(0);
@@ -355,7 +355,7 @@ public final class PipelineGraphTests {
         assertThat(g).isEqualTo(group);
 
         // get initial tasks of group - jumps to the nested group since grp contains just nested
-        var initial = graph.getInitialTasks(g);
+        var initial = graph.getInitialTasks(g).collect(Collectors.toList());
 
         // next is x
         var x = initial.get(0);

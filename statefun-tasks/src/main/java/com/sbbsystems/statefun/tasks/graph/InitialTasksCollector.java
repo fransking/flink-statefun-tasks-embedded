@@ -18,8 +18,9 @@ package com.sbbsystems.statefun.tasks.graph;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.pipeline.GroupTaskResolver;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.Stream;
+
+import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
 
 public class InitialTasksCollector {
 
@@ -33,32 +34,22 @@ public class InitialTasksCollector {
         this.groupTaskResolver = groupTaskResolver;
     }
 
-    public List<Task> collectFrom(Entry entry, PipelineFunctionState state)
+    public Stream<Task> collectFrom(Entry entry, PipelineFunctionState state)
             throws InvalidGraphException {
-        var taskList = new ArrayList<Task>();
-        collect(entry, taskList, state);
-        return taskList;
+        return collect(entry, state);
     }
 
-    private void collect(Entry entry, ArrayList<Task> taskList, PipelineFunctionState state)
+    private Stream<Task> collect(Entry entry, PipelineFunctionState state)
             throws InvalidGraphException {
         if (entry instanceof Task) {
-            taskList.add((Task) entry);
+            return Stream.of((Task) entry);
 
         } else if (entry instanceof Group) {
             var group = (Group) entry;
             var groupInitialTasks = groupTaskResolver.resolveInitialTasks(group, state);
-            for (var groupEntry: groupInitialTasks) {
-                if (groupEntry instanceof Task) {
-                    taskList.add((Task)groupEntry);
-                } else if (groupEntry instanceof Group) {
-                    collect(groupEntry, taskList, state);
-                } else {
-                    throw new InvalidGraphException("Expected a Task or Group");
-                }
-            }
+            return groupInitialTasks.stream()
+                    .flatMap(unchecked(e -> collect(e, state)));
         } else {
             throw new InvalidGraphException("Expected a task or a group");
-        }
-    }
+        }    }
 }

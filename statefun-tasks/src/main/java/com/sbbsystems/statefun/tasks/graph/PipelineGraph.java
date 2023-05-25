@@ -23,9 +23,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 public final class PipelineGraph {
 
@@ -87,13 +87,13 @@ public final class PipelineGraph {
         return getEntry(state.getTail());
     }
 
-    public List<Task> getInitialTasks()
+    public Stream<Task> getInitialTasks()
             throws InvalidGraphException {
 
         return getInitialTasks(getHead());
     }
 
-    public List<Task> getInitialTasks(Entry entry)
+    public Stream<Task> getInitialTasks(Entry entry)
             throws InvalidGraphException {
 
         return InitialTasksCollector.of(groupTaskResolver).collectFrom(entry, state);
