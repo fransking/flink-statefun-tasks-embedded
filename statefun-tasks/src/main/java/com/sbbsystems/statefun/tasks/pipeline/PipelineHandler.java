@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
@@ -24,13 +25,13 @@ import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import com.sbbsystems.statefun.tasks.util.MoreIterables;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.LinkedList;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 
 public final class PipelineHandler {
@@ -57,15 +58,38 @@ public final class PipelineHandler {
         try {
             state.setStatus(TaskStatus.Status.RUNNING);
 
-            var initialTasks = graph.getInitialTasks().collect(Collectors.toCollection(LinkedList::new));
+            var entry = graph.getHead();
 
-            if (initialTasks.isEmpty()) {
+            if (Objects.isNull(entry)) {
                 throw new StatefunTasksException("Cannot run an empty pipeline");
+            }
+
+            // get the initial tasks to call and the args and kwargs
+            var initialTasks = MoreIterables.from(graph.getInitialTasks(entry));
+            var initialArgsAndKwargs = state.getInitialArgsAndKwargs();
+
+
+            // we may have no initial tasks in the case of empty groups and chains so continue to iterate over these
+            // note that implicitly, the result of an empty chain is () and the result of an empty group is ([])
+            // so we update initialArgsAndKwargs accordingly
+            while (Iterables.isEmpty(initialTasks) && !Objects.isNull(entry)) {
+                initialArgsAndKwargs = (entry instanceof Task)
+                        ? MessageTypes.emptyArgs()
+                        : MessageTypes.argsOfEmptyArray();
+
+                entry = graph.getNextEntry(entry);
+                initialTasks = MoreIterables.from(graph.getInitialTasks(entry));
+            }
+
+            // if we have a completely empty pipeline after iterating over empty groups and chains then return empty result
+            if (Iterables.isEmpty(initialTasks)) {
+                // return empty result here
             }
 
             var taskResult = TaskResult.newBuilder()
                     .setId(taskRequest.getId())
                     .setUid(taskRequest.getUid())
+
                     .build();
 
             context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));

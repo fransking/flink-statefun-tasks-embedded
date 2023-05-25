@@ -16,7 +16,6 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -203,7 +202,6 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    @Disabled("This functionality should be covered by group result processing")
     public void returns_initial_tasks_after_an_empty_group()
             throws InvalidGraphException {
 
@@ -211,7 +209,20 @@ public final class PipelineGraphTests {
         var template = List.of(emptyGroup, emptyGroup, "a", "b", "c");
 
         var graph = fromTemplate(template);
-        var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
+        var entry = graph.getHead();
+        var initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
+
+        // first empty group
+        assertThat(initialTasks).hasSize(0);
+        entry = graph.getNextEntry(entry);
+        initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
+
+        // second empty group
+        assertThat(initialTasks).hasSize(0);
+
+        // move to a
+        entry = graph.getNextEntry(entry);
+        initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
 
         assertThat(initialTasks).hasSize(1);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");

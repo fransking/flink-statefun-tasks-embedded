@@ -82,6 +82,18 @@ public final class MessageTypes {
                 .build();
     }
 
+    public static ArgsAndKwargs emptyArgs() {
+        return ArgsAndKwargs.newBuilder()
+                .setArgs(TupleOfAny.getDefaultInstance())
+                .build();
+    }
+
+    public static ArgsAndKwargs argsOfEmptyArray() {
+        return ArgsAndKwargs.newBuilder()
+                .setArgs(TupleOfAny.newBuilder().addItems(Any.pack(ArrayOfAny.getDefaultInstance())))
+                .build();
+    }
+
     public static TypedValue toEgress(Message message, String topic) {
         var egressRecord = KafkaProducerRecord.newBuilder()
                 .setTopic(topic)
