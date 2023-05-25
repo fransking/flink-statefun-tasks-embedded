@@ -16,10 +16,12 @@
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
@@ -55,11 +57,16 @@ public final class PipelineHandler {
         try {
             state.setStatus(TaskStatus.Status.RUNNING);
 
-            var tasks = graph.getInitialTasks();
+            var initialTasks = graph.getInitialTasks();
+
+            if (Iterables.isEmpty(initialTasks)) {
+                throw new StatefunTasksException("Cannot run an empty pipeline");
+            }
 
             var taskResult = TaskResult.newBuilder()
                     .setId(taskRequest.getId())
                     .setUid(taskRequest.getUid())
+
                     .build();
 
             context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, taskRequest.getReplyTopic()));

@@ -33,11 +33,11 @@ public class PipelineFunction implements StatefulFunction {
 
     private final List<MessageHandler<?, PipelineFunctionState>> messageHandlers;
     @Persisted
-    private final PipelineFunctionState state = PipelineFunctionState.newInstance();
+    private final PipelineFunctionState state;
 
 
     public static PipelineFunction of(PipelineConfiguration configuration, FunctionType callbackFunctionType) {
-        return new PipelineFunction(
+        return new PipelineFunction(configuration,
                 List.of(
                         CallbackAwareTaskRequestHandler.withRequestHandler(
                                 callbackFunctionType, TaskRequestHandler.from(configuration)
@@ -46,12 +46,12 @@ public class PipelineFunction implements StatefulFunction {
                                 callbackFunctionType, TaskResultOrExceptionHandler.from(configuration)
                         )
                 )
-
         );
     }
 
-    private PipelineFunction(List<MessageHandler<?, PipelineFunctionState>> messageHandlers) {
+    private PipelineFunction(PipelineConfiguration configuration, List<MessageHandler<?, PipelineFunctionState>> messageHandlers) {
         this.messageHandlers = messageHandlers;
+        this.state = PipelineFunctionState.withExpiration(configuration.getStateExpiration());
     }
 
     @Override

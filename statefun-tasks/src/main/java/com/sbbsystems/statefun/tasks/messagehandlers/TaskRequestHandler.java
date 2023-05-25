@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
@@ -73,27 +74,27 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
                 throw new StatefunTasksException("Pipelines must have finished before they can be re-run");
             }
 
-            // todo throw if pipeline is already active
-            // reset pipeline state
+            // reset state
             state.reset();
 
-            // if inline then copy taskState to pipeline initial state
-            var taskState = taskRequest.getState();
+//            // if inline then copy taskState to pipeline initial state
+//            var taskState = taskRequest.getState();
 
             var taskArgsAndKwargs = TaskRequestSerializer
                     .from(taskRequest)
                     .getArgsAndKwargs();
 
             var pipelineProto = Pipeline.parseFrom(taskArgsAndKwargs.getArg(0).getValue());
+
             var argsAndKwargs = taskArgsAndKwargs.slice(1);
 
-            if (argsAndKwargs.getArgs().getItemsCount() > 0) {
-                // if we have more args after pipeline in argsAndKwargs then pass to pipeline initial args
-            }
-
-            if (argsAndKwargs.getKwargs().getItemsCount() > 0) {
-                // if we have kwargs in argsAndKwargs then pass to pipeline initial kwargs
-            }
+//            if (argsAndKwargs.getArgs().getItemsCount() > 0) {
+//                // if we have more args after pipeline in argsAndKwargs then pass to pipeline initial args
+//            }
+//
+//            if (argsAndKwargs.getKwargs().getItemsCount() > 0) {
+//                // if we have kwargs in argsAndKwargs then pass to pipeline initial kwargs
+//            }
 
             // create the graph
             var graph = PipelineGraphBuilder
