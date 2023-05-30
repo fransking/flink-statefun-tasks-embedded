@@ -90,7 +90,13 @@ public final class MessageTypes {
 
     public static ArgsAndKwargs argsOfEmptyArray() {
         return ArgsAndKwargs.newBuilder()
-                .setArgs(TupleOfAny.newBuilder().addItems(Any.pack(ArrayOfAny.getDefaultInstance())))
+                .setArgs(tupleOfEmptyArray())
+                .build();
+    }
+
+    public static TupleOfAny tupleOfEmptyArray() {
+        return TupleOfAny.newBuilder()
+                .addItems(Any.pack(ArrayOfAny.getDefaultInstance()))
                 .build();
     }
 
@@ -104,6 +110,23 @@ public final class MessageTypes {
                 .setValue(egressRecord.toByteString())
                 .setHasValue(true)
                 .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
+                .build();
+    }
+
+    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result) {
+        return MessageTypes.toTaskResult(incomingTaskRequest, result, incomingTaskRequest.getState());
+    }
+
+    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result, Any state) {
+        var packedResult = (result instanceof Any) ? (Any) result: Any.pack(result);
+
+        return TaskResult.newBuilder()
+                .setId(incomingTaskRequest.getId())
+                .setUid(incomingTaskRequest.getUid())
+                .setInvocationId(incomingTaskRequest.getInvocationId())
+                .setType(incomingTaskRequest.getType() + ".result")
+                .setResult(packedResult)
+                .setState(state)
                 .build();
     }
 
@@ -131,5 +154,22 @@ public final class MessageTypes {
     public static org.apache.flink.statefun.sdk.Address toSdkAddress(Address address) {
         var functionType = new FunctionType(address.getNamespace(), address.getType());
         return new org.apache.flink.statefun.sdk.Address(functionType, address.getId());
+    }
+
+    public static org.apache.flink.statefun.sdk.Address toSdkAddress(TaskEntry taskEntry) {
+        var functionType = new FunctionType(taskEntry.namespace, taskEntry.workerName);
+        return new org.apache.flink.statefun.sdk.Address(functionType, taskEntry.taskId);
+    }
+
+    public static String toTypeName(org.apache.flink.statefun.sdk.Address address) {
+        return address.type().namespace() + "/" + address.type().name();
+    }
+
+    public static Any packAny(Message message) {
+        if (message instanceof Any) {
+            return (Any) message;
+        }
+
+        return Any.pack(message);
     }
 }

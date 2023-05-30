@@ -96,6 +96,10 @@ public final class PipelineGraph {
     public Stream<Task> getInitialTasks(Entry entry)
             throws InvalidGraphException {
 
+        if (Objects.isNull(entry)) {
+            return Stream.empty();
+        }
+
         return initialTasksCollector.collectFrom(entry, state);
     }
 

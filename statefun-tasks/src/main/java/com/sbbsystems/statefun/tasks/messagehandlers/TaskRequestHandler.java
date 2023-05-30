@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Objects;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
@@ -74,27 +73,14 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
                 throw new StatefunTasksException("Pipelines must have finished before they can be re-run");
             }
 
-            // reset state
+            // reset pipeline state
             state.reset();
 
-//            // if inline then copy taskState to pipeline initial state
-//            var taskState = taskRequest.getState();
-
-            var taskArgsAndKwargs = TaskRequestSerializer
-                    .from(taskRequest)
-                    .getArgsAndKwargs();
-
+            var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer();
             var pipelineProto = Pipeline.parseFrom(taskArgsAndKwargs.getArg(0).getValue());
 
-            var argsAndKwargs = taskArgsAndKwargs.slice(1);
-
-//            if (argsAndKwargs.getArgs().getItemsCount() > 0) {
-//                // if we have more args after pipeline in argsAndKwargs then pass to pipeline initial args
-//            }
-//
-//            if (argsAndKwargs.getKwargs().getItemsCount() > 0) {
-//                // if we have kwargs in argsAndKwargs then pass to pipeline initial kwargs
-//            }
+            state.setIsInline(pipelineProto.getInline());
+            state.setInitialArgsAndKwargs(taskArgsAndKwargs.slice(1));
 
             // create the graph
             var graph = PipelineGraphBuilder
@@ -106,15 +92,15 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             graph.saveState();
 
             // create and start pipeline
-            var pipelineHandler = PipelineHandler.from(configuration, state, graph);
-            pipelineHandler.beginPipeline(context, taskRequest);
+            PipelineHandler.from(configuration, state, graph).beginPipeline(context, taskRequest);
+
         } catch (InvalidProtocolBufferException e) {
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
+            state.setStatus(TaskStatus.Status.FAILED);
             respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, ex));
-            throw ex;
-        } catch (StatefunTasksException e) {
+        } catch (Exception e) {
+            state.setStatus(TaskStatus.Status.FAILED);
             respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
-            throw e;
         }
     }
 }

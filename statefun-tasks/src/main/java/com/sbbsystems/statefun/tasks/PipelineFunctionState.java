@@ -21,6 +21,7 @@ import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
+import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.pipeline.GroupDeferredTasksState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
@@ -195,6 +196,30 @@ public final class PipelineFunctionState {
 
     public void setInitialState(Any initialState) {
         this.initialState.set(initialState);
+    }
+
+    public void setCurrentTaskState(Any currentTaskState) {
+        this.currentTaskState.set(currentTaskState);
+    }
+
+    public Any getCurrentTaskState() {
+        return currentTaskState.get();
+    }
+
+    public String getInvocationId() {
+        return invocationId.get();
+    }
+
+    public void setInvocationId(String invocationId) {
+        this.invocationId.set(invocationId);
+    }
+
+    public TaskRequest getTaskRequest() {
+        return taskRequest.get();
+    }
+
+    public void setTaskRequest(TaskRequest taskRequest) {
+        this.taskRequest.set(taskRequest);
     }
 
     public TaskStatus.Status getStatus() {

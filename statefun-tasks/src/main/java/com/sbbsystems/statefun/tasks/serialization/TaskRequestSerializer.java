@@ -15,17 +15,13 @@
  */
 package com.sbbsystems.statefun.tasks.serialization;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
-import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 
 public final class TaskRequestSerializer {
     private final TaskRequest taskRequest;
 
-    public static TaskRequestSerializer from(TaskRequest taskRequest) {
+    public static TaskRequestSerializer of(TaskRequest taskRequest) {
         return new TaskRequestSerializer(taskRequest);
     }
 
@@ -33,24 +29,9 @@ public final class TaskRequestSerializer {
         this.taskRequest = taskRequest;
     }
 
-    public ArgsAndKwargsSerializer getArgsAndKwargs()
+    public ArgsAndKwargsSerializer getArgsAndKwargsSerializer()
             throws StatefunTasksException {
 
-        try {
-            var request = taskRequest.getRequest();
-
-            if (request.is(ArgsAndKwargs.class)) {
-                return ArgsAndKwargsSerializer.from(request.unpack(ArgsAndKwargs.class));
-            }
-            else {
-                return ArgsAndKwargsSerializer.from(ArgsAndKwargs
-                        .newBuilder()
-                        .setArgs(TupleOfAny.newBuilder().addItems(request).build())
-                        .build());
-            }
-
-        } catch (InvalidProtocolBufferException e) {
-            throw new InvalidMessageTypeException("Protobuf parsing error", e);
-        }
+        return ArgsAndKwargsSerializer.of(taskRequest.getRequest());
     }
 }

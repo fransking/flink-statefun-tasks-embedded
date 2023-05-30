@@ -17,14 +17,44 @@ package com.sbbsystems.statefun.tasks.serialization;
 
 import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 
 public final class ArgsAndKwargsSerializer {
     private final ArgsAndKwargs argsAndKwargs;
 
-    public static ArgsAndKwargsSerializer from(ArgsAndKwargs argsAndKwargs) {
+    public static ArgsAndKwargsSerializer of(ArgsAndKwargs argsAndKwargs) {
         return new ArgsAndKwargsSerializer(argsAndKwargs);
+    }
+
+    public static ArgsAndKwargsSerializer of(byte[] bytes)
+            throws InvalidMessageTypeException {
+        
+        try {
+            return ArgsAndKwargsSerializer.of(Any.parseFrom(bytes));
+        } catch (InvalidProtocolBufferException e) {
+            throw new InvalidMessageTypeException("Protobuf parsing error", e);
+        }
+    }
+
+    public static ArgsAndKwargsSerializer of(Any any)
+            throws InvalidMessageTypeException {
+
+        try {
+            if (any.is(ArgsAndKwargs.class)) {
+                return ArgsAndKwargsSerializer.of(any.unpack(ArgsAndKwargs.class));
+            }
+            else {
+                return ArgsAndKwargsSerializer.of(ArgsAndKwargs
+                        .newBuilder()
+                        .setArgs(TupleOfAny.newBuilder().addItems(any).build())
+                        .build());
+            }
+        } catch (InvalidProtocolBufferException e) {
+            throw new InvalidMessageTypeException("Protobuf parsing error", e);
+        }
     }
 
     private ArgsAndKwargsSerializer(ArgsAndKwargs argsAndKwargs) {
@@ -37,6 +67,10 @@ public final class ArgsAndKwargsSerializer {
         builder.setArgs(TupleOfAny.newBuilder().addAllItems(args).build());
         builder.setKwargs(argsAndKwargs.getKwargs());
         return builder.build();
+    }
+
+    public ArgsAndKwargs getArgsAndKwargs() {
+        return argsAndKwargs;
     }
 
     public Any getArg(int index) {
