@@ -54,6 +54,7 @@ public class TaskRequestSerializerTests {
                 .newBuilder()
                 .addItems(Any.pack(Pipeline.getDefaultInstance()))
                 .addItems(Any.pack(StringValue.of("Test")));
+
         var taskRequest = TaskRequest
                 .newBuilder()
                 .setRequest(Any.pack(ArgsAndKwargs
