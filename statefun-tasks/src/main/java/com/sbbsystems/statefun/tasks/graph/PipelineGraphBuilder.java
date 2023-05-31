@@ -35,11 +35,13 @@ public final class PipelineGraphBuilder {
     private final List<GroupEntry> groupEntries = new LinkedList<>();
 
     private final PipelineFunctionState state;
+    private final MapOfEntries entries;
     private Pipeline pipelineProto;
     private String tail;
 
     private PipelineGraphBuilder(PipelineFunctionState state) {
         this.state = state;
+        this.entries = state.getEntries();
     }
 
     public static PipelineGraphBuilder newInstance() {
@@ -64,6 +66,7 @@ public final class PipelineGraphBuilder {
 
             state.setHead(Objects.isNull(headEntry) ? null : headEntry.getId());
             state.setTail(tail);
+            state.setEntries(entries);
             taskEntries.forEach(task -> state.getTaskEntries().set(task.uid, task));
             groupEntries.forEach(group -> state.getGroupEntries().set(group.groupId, group));
         }
@@ -93,7 +96,7 @@ public final class PipelineGraphBuilder {
                 var taskEntry = entry.getTaskEntry();
                 next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally(), taskEntry.getIsFinally());
 
-                if (state.getEntries().getItems().containsKey(next.getId())) {
+                if (entries.getItems().containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
                 }
 
@@ -102,7 +105,7 @@ public final class PipelineGraphBuilder {
                     finallyTask = task;
                 }
 
-                state.getEntries().getItems().put(next.getId(), next);
+                entries.getItems().put(next.getId(), next);
                 taskEntries.add(TaskEntryBuilder.fromProto(taskEntry));
 
             } else if (entry.hasGroupEntry()) {
@@ -110,11 +113,11 @@ public final class PipelineGraphBuilder {
                 var groupEntry = GroupEntryBuilder.fromProto(groupEntryProto);
                 next = Group.of(groupEntryProto.getGroupId());
 
-                if (state.getEntries().getItems().containsKey(next.getId())) {
+                if (entries.getItems().containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate group id {0}", next.getId()));
                 }
 
-                state.getEntries().getItems().put(next.getId(), next);
+                entries.getItems().put(next.getId(), next);
                 groupEntries.add(groupEntry);
 
                 var group = (Group) next;

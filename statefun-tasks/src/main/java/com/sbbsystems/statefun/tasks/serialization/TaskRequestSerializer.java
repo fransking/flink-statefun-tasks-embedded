@@ -15,7 +15,6 @@
  */
 package com.sbbsystems.statefun.tasks.serialization;
 
-import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.Address;
@@ -23,7 +22,6 @@ import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.Context;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -49,6 +47,7 @@ public final class TaskRequestSerializer {
         var rootPipelineId =  taskRequest.getMetaOrDefault("root_pipeline_id", context.self().id());
         return MessageTypes.toAddress(rootPipelineAddress, rootPipelineId);
     }
+
 
     public TaskRequest.Builder createOutgoingTaskRequest(PipelineFunctionState state, TaskEntry taskEntry) {
 

@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 abstract class EntryBase implements Entry {
     private String id;
@@ -41,7 +42,7 @@ abstract class EntryBase implements Entry {
 
     @SuppressWarnings("unused")  // POJO serialisation
     public void setId(@NotNull String id) {
-        this.id = Objects.requireNonNull(id);
+        this.id = requireNonNull(id);
     }
 
     @Nullable
@@ -90,6 +91,16 @@ abstract class EntryBase implements Entry {
 
     @Override
     public boolean isEmpty() {
-        return true;
+        return false;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return (o instanceof Entry && Objects.equals(((Entry) o).getId(), getId()));
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
     }
 }

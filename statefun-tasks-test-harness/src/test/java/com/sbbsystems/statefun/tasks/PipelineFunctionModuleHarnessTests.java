@@ -50,5 +50,4 @@ public class PipelineFunctionModuleHarnessTests {
         var taskException = Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(TaskException.class);
         Assertions.assertEquals("123", taskException.getId());
     }
-
 }

@@ -25,8 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -71,18 +71,18 @@ public class GroupResultAggregatorTests {
 
     @Test
     public void returns_tuple_of_any_in_correct_order_when_results_are_not_errors() throws InvalidProtocolBufferException {
-        var groupResults = List.of(
+        var groupResults = Stream.of(
                 wrapResult(Int32Value.of(1)),
                 wrapResult(Int32Value.of(2)),
                 wrapResult(Int32Value.of(3))
         );
 
-        var aggregatedResult = resultAggregator.aggregateResult("group-id", "invocation-id", groupResults, false);
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, false, false);
 
         assertThat(aggregatedResult.hasTaskException()).isFalse();
         var resultAny = aggregatedResult.getTaskResult().getResult();
-        assertThat(resultAny.is(TupleOfAny.class)).isTrue();
-        assertThat(resultAny.unpack(TupleOfAny.class).getItemsList()).containsExactly(
+        assertThat(resultAny.is(ArrayOfAny.class)).isTrue();
+        assertThat(resultAny.unpack(ArrayOfAny.class).getItemsList()).containsExactly(
                 Any.pack(Int32Value.of(1)),
                 Any.pack(Int32Value.of(2)),
                 Any.pack(Int32Value.of(3))
@@ -91,13 +91,13 @@ public class GroupResultAggregatorTests {
 
     @Test
     public void returns_exception_when_results_list_contains_an_exception_with_return_exceptions_false() {
-        var groupResults = List.of(
+        var groupResults = Stream.of(
                 wrapResult(Int32Value.of(1)),
                 wrapException("exc-task-id", "SomeExceptionType", "Something went wrong"),
                 wrapResult(Int32Value.of(3))
         );
 
-        var aggregatedResult = resultAggregator.aggregateResult("group-id", "invocation-id", groupResults, false);
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, true, false);
 
         assertThat(aggregatedResult.hasTaskException()).isTrue();
         assertThat(aggregatedResult.getTaskException().getExceptionMessage())
@@ -107,16 +107,16 @@ public class GroupResultAggregatorTests {
     @Test
     public void returns_list_including_exception_when_results_list_contains_an_exception_with_return_exceptions_true() throws InvalidProtocolBufferException {
         var wrappedException = wrapException("exc-task-id", "SomeExceptionType", "Something went wrong");
-        var groupResults = List.of(
+        var groupResults = Stream.of(
                 wrapResult(Int32Value.of(1)),
                 wrappedException,
                 wrapResult(Int32Value.of(3))
         );
 
-        var aggregatedResult = resultAggregator.aggregateResult("group-id", "invocation-id", groupResults, true);
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, true, true);
 
         assertThat(aggregatedResult.hasTaskException()).isFalse();
-        var resultTupleOfAny = aggregatedResult.getTaskResult().getResult().unpack(TupleOfAny.class);
+        var resultTupleOfAny = aggregatedResult.getTaskResult().getResult().unpack(ArrayOfAny.class);
         assertThat(resultTupleOfAny.getItemsList()).containsExactly(
                 Any.pack(Int32Value.of(1)),
                 Any.pack(wrappedException.getTaskException()),
@@ -126,12 +126,13 @@ public class GroupResultAggregatorTests {
 
     @Test
     public void merges_state_when_each_task_returns_state_as_map_of_string_to_any() throws InvalidProtocolBufferException {
-        var groupResults = List.of(
+        var groupResults = Stream.of(
                 wrapResult(NoneValue.getDefaultInstance(), mapToProto(Map.of("A", Int32Value.of(1)))),
-                wrapResult(NoneValue.getDefaultInstance(), mapToProto(Map.of("B", Int32Value.of(2))))
+                wrapResult(NoneValue.getDefaultInstance(), mapToProto(Map.of("B", Int32Value.of(2)))),
+                wrapResult(NoneValue.getDefaultInstance(), mapToProto(Map.of("B", Int32Value.of(3))))
         );
 
-        var aggregatedResult = resultAggregator.aggregateResult("group-id", "invocation-id", groupResults, true);
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, false, false);
 
         var aggregatedState = aggregatedResult.getTaskResult().getState();
         assertThat(aggregatedState.is(MapOfStringToAny.class)).isTrue();
@@ -146,12 +147,12 @@ public class GroupResultAggregatorTests {
 
     @Test
     public void uses_first_results_state_when_all_states_are_not_maps_of_string_to_any() {
-        var groupResults = List.of(
+        var groupResults = Stream.of(
                 wrapResult(NoneValue.getDefaultInstance(), Any.pack(Int32Value.of(1))),
                 wrapResult(NoneValue.getDefaultInstance(), mapToProto(Map.of("A", Int32Value.of(1))))
         );
 
-        var aggregatedResult = resultAggregator.aggregateResult("group-id", "invocation-id", groupResults, true);
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, true, true);
 
         var aggregatedState = aggregatedResult.getTaskResult().getState();
         assertThat(aggregatedState).isEqualTo(Any.pack(Int32Value.of(1)));

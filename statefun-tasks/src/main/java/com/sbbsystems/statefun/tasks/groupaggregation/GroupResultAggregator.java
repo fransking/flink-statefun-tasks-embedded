@@ -19,117 +19,145 @@ package com.sbbsystems.statefun.tasks.groupaggregation;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.util.Unchecked;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
 
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import java.util.LinkedList;
+import java.util.Objects;
+import java.util.stream.Stream;
+
+import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
+
 
 public class GroupResultAggregator {
-    private GroupResultAggregator() {
-    }
 
-    public static GroupResultAggregator newInstance() {
+    public static GroupResultAggregator newInstance( ) {
         return new GroupResultAggregator();
     }
 
-    public TaskResultOrException aggregateResult(String groupId, String invocationId,
-                                                 Iterable<TaskResultOrException> orderedGroupResults, boolean returnExceptions) {
-        var aggregatedState = aggregateState(orderedGroupResults);
+    private GroupResultAggregator() {
+    }
 
-        if (returnExceptions) {
-            return wrapResultsList(groupId, orderedGroupResults, aggregatedState);
-        } else {
-            var hasException = false;
-            for (var resultOrException : orderedGroupResults) {
-                if (resultOrException.hasTaskException()) {
-                    hasException = true;
-                    break;
+    public TaskResultOrException aggregateResults(String groupId,
+                                                  String invocationId,
+                                                  Stream<TaskResultOrException> orderedGroupResults,
+                                                  boolean hasException,
+                                                  boolean returnExceptions) {
+
+        var unaggregatedState = new LinkedList<Any>();
+        var aggregatedState = MapOfStringToAny.newBuilder();
+
+        var aggregatedResults = ArrayOfAny.newBuilder();
+        var aggregatedExceptionMessages = new StringBuilder();
+        var aggregatedExceptionStackTraces = new StringBuilder();
+
+        orderedGroupResults
+                .map(result -> getResult(result, returnExceptions))
+                .forEach(unchecked(result -> {
+
+            if (result.hasTaskResult()) {
+                var taskResult = result.getTaskResult();
+
+                aggregatedResults.addItems(taskResult.getResult());
+                aggregateState(taskResult.getState(), unaggregatedState, aggregatedState);
+
+            } else if (result.hasTaskException()) {
+                var taskException = result.getTaskException();
+
+                if (aggregatedExceptionMessages.length() > 0) {
+                    aggregatedExceptionMessages.append('|');
+                    aggregatedExceptionStackTraces.append('|');
                 }
+                aggregatedExceptionMessages.append(taskException.getId())
+                        .append(", ")
+                        .append(taskException.getExceptionType())
+                        .append(", ")
+                        .append(taskException.getExceptionMessage());
+
+                aggregatedExceptionStackTraces.append(taskException.getId())
+                        .append(", ")
+                        .append(taskException.getStacktrace());
+
+                aggregateState(taskException.getState(), unaggregatedState, aggregatedState);
             }
-            if (hasException) {
-                return buildTaskException(groupId, invocationId, orderedGroupResults, aggregatedState);
+
+        }));
+
+        var state = (unaggregatedState.isEmpty())
+                ? Any.pack(aggregatedState.build())
+                : unaggregatedState.getFirst();
+
+        if (hasException && !returnExceptions) {
+            var taskException = TaskException.newBuilder()
+                    .setId(groupId)
+                    .setUid(groupId)
+                    .setInvocationId(invocationId)
+                    .setType("__aggregate.error")
+                    .setExceptionType("statefun_tasks.AggregatedError")
+                    .setExceptionMessage(aggregatedExceptionMessages.toString())
+                    .setStacktrace(aggregatedExceptionStackTraces.toString())
+                    .setState(state)
+                    .build();
+            return TaskResultOrException.newBuilder()
+                    .setTaskException(taskException)
+                    .build();
+        } else {
+            var taskResult = TaskResult.newBuilder()
+                    .setId(groupId)
+                    .setUid(groupId)
+                    .setInvocationId(invocationId)
+                    .setType("__aggregate.result")
+                    .setResult(Any.pack(aggregatedResults.build()))
+                    .setState(state)
+                    .build();
+            return TaskResultOrException.newBuilder()
+                    .setTaskResult(taskResult)
+                    .build();
+        }
+    }
+
+    private void aggregateState(Any state, LinkedList<Any> unaggregatedState, MapOfStringToAny.Builder aggregatedState)
+            throws InvalidProtocolBufferException {
+
+        if (Objects.isNull(state)) {
+            // ignore null state for empty group results
+            return;
+        }
+
+        if (unaggregatedState.isEmpty()) {
+            // merge state if we can, otherwise just take one
+            if (state.is(MapOfStringToAny.class)) {
+                mergeItems(state.unpack(MapOfStringToAny.class), aggregatedState);
             } else {
-                return wrapResultsList(groupId, orderedGroupResults, aggregatedState);
+                unaggregatedState.add(state); // we will only ever add one item
             }
         }
     }
 
-    private static TaskResultOrException buildTaskException(String groupId, String invocationId, Iterable<TaskResultOrException> orderedGroupResults,
-                                                            Any aggregatedState) {
-        var exceptionMessage = new StringBuilder();
-        var stackTrace = new StringBuilder();
-        for (var resultOrException : orderedGroupResults) {
-            if (resultOrException.hasTaskResult()) {
-                continue;
+    private void mergeItems(MapOfStringToAny from, MapOfStringToAny.Builder into) {
+        from.getItemsMap().forEach((key ,value) -> {
+            if (!into.containsItems(key)) {
+                into.putItems(key, value);
             }
-            if (exceptionMessage.length() > 0) {
-                exceptionMessage.append('|');
-                stackTrace.append('|');
-            }
-            var taskException = resultOrException.getTaskException();
-            exceptionMessage.append(taskException.getId())
-                    .append(", ")
-                    .append(taskException.getExceptionType())
-                    .append(", ")
-                    .append(taskException.getExceptionMessage());
-
-            stackTrace.append(taskException.getId())
-                    .append(", ")
-                    .append(taskException.getStacktrace());
-        }
-        var taskException = TaskException.newBuilder()
-                .setId(groupId)
-                .setUid(groupId)
-                .setExceptionType("__aggregate.error")
-                .setExceptionMessage(exceptionMessage.toString())
-                .setStacktrace(stackTrace.toString())
-                .setState(aggregatedState)
-                .setInvocationId(invocationId)
-                .build();
-        return TaskResultOrException.newBuilder()
-                .setTaskException(taskException)
-                .build();
+        });
     }
 
-    private TaskResultOrException wrapResultsList(String groupId, Iterable<TaskResultOrException> orderedGroupResults, Any aggregatedState) {
-        var tupleResultBuilder = TupleOfAny.newBuilder();
-        for (var resultOrException : orderedGroupResults) {
-            if (resultOrException.hasTaskException()) {
-                tupleResultBuilder.addItems(Any.pack(resultOrException.getTaskException()));
-            } else {
-                tupleResultBuilder.addItems(resultOrException.getTaskResult().getResult());
-            }
+    private static TaskResultOrException getResult(TaskResultOrException result, boolean returnExceptions) {
+        if (Objects.isNull(result)) {
+            return MessageTypes.emptyGroupResult();
         }
+
+        if (result.hasTaskResult() || !returnExceptions) {
+            return result;
+        }
+
+        // convert the TaskException to a TaskResult containing the TaskException
+        var taskException = result.getTaskException();
+
         var taskResult = TaskResult.newBuilder()
-                .setId(groupId)
-                .setUid(groupId)
-                .setResult(Any.pack(tupleResultBuilder.build()))
-                .setState(aggregatedState)
-                .build();
+                .setResult(Any.pack(taskException))
+                .setState(taskException.getState());
         return TaskResultOrException.newBuilder()
                 .setTaskResult(taskResult)
                 .build();
-    }
-
-    private Any aggregateState(Iterable<TaskResultOrException> results) {
-        if (!results.iterator().hasNext()) {
-            return Any.pack(NoneValue.getDefaultInstance());
-        }
-        var resultStates = StreamSupport.stream(results.spliterator(), false)
-                .map(item -> item.hasTaskResult() ? item.getTaskResult().getState() : item.getTaskException().getState())
-                .collect(Collectors.toUnmodifiableList());
-
-        // state aggregation is only supported when each task returns state as a MapOfStringToAny
-        var canAggregate = resultStates.stream()
-                .allMatch(state -> state.is(MapOfStringToAny.class));
-
-        if (canAggregate) {
-            var mergedMap = MapOfStringToAny.newBuilder();
-            resultStates.forEach(Unchecked.<Any, InvalidProtocolBufferException>unchecked(
-                    itemState -> mergedMap.putAllItems(itemState.unpack(MapOfStringToAny.class).getItemsMap())));
-            return Any.pack(mergedMap.build());
-        } else {
-            return resultStates.get(0);
-        }
     }
 }

@@ -22,7 +22,6 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
-import org.apache.commons.math3.analysis.function.Add;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
@@ -83,12 +82,6 @@ public final class MessageTypes {
                 .build();
     }
 
-    public static ArgsAndKwargs emptyArgs() {
-        return ArgsAndKwargs.newBuilder()
-                .setArgs(TupleOfAny.getDefaultInstance())
-                .build();
-    }
-
     public static ArgsAndKwargs argsOfEmptyArray() {
         return ArgsAndKwargs.newBuilder()
                 .setArgs(tupleOfEmptyArray())
@@ -98,6 +91,13 @@ public final class MessageTypes {
     public static TupleOfAny tupleOfEmptyArray() {
         return TupleOfAny.newBuilder()
                 .addItems(Any.pack(ArrayOfAny.getDefaultInstance()))
+                .build();
+    }
+
+    public static TaskResultOrException emptyGroupResult() {
+        return TaskResultOrException.newBuilder()
+                .setTaskResult(TaskResult.newBuilder()
+                        .setResult(Any.pack(ArrayOfAny.getDefaultInstance())))
                 .build();
     }
 
@@ -131,6 +131,17 @@ public final class MessageTypes {
                 .build();
     }
 
+    public static TaskResult toTaskResult(TaskException taskException) {
+        return TaskResult.newBuilder()
+                .setId(taskException.getId())
+                .setUid(taskException.getUid())
+                .setInvocationId(taskException.getInvocationId())
+                .setType(taskException.getType() + ".result")
+                .setResult(Any.pack(taskException))
+                .setState(taskException.getState())
+                .build();
+    }
+
     public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e) {
         return MessageTypes.toTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
     }
@@ -142,7 +153,7 @@ public final class MessageTypes {
                 .setInvocationId(incomingTaskRequest.getInvocationId())
                 .setType(incomingTaskRequest.getType() + ".error")
                 .setExceptionType(e.getClass().getTypeName())
-                .setExceptionMessage(e.getMessage())
+                .setExceptionMessage(String.valueOf(e))
                 .setStacktrace(Arrays.toString(e.getStackTrace()))
                 .setState(state)
                 .build();

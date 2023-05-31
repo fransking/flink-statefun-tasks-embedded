@@ -27,8 +27,6 @@ import org.apache.flink.statefun.sdk.state.PersistedAppendingBuffer;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
 
-import java.util.Objects;
-
 public final class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries;
@@ -63,8 +61,6 @@ public final class PipelineFunctionState {
     private final PersistedValue<Integer> status;
     @Persisted
     private final PersistedTable<String, TaskResultOrException> intermediateGroupResults;
-
-    private MapOfEntries cachedEntries = null;
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -103,17 +99,11 @@ public final class PipelineFunctionState {
     }
 
     public MapOfEntries getEntries() {
-        if (!Objects.isNull(cachedEntries)) {
-            return cachedEntries;
-        }
-
-        cachedEntries = entries.getOrDefault(new MapOfEntries());
-        return cachedEntries;
+        return entries.getOrDefault(new MapOfEntries());
     }
 
     public void setEntries(MapOfEntries tasks) {
-        cachedEntries = tasks;
-        this.entries.set(cachedEntries);
+        this.entries.set(tasks);
     }
 
     public PersistedTable<String, TaskResultOrException> getIntermediateGroupResults() {
