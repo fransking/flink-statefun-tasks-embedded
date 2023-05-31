@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package com.sbbsystems.statefun.tasks.resultaggregation;
+package com.sbbsystems.statefun.tasks.groupaggregation;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregatorImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +30,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class GroupResultAggregatorImplTests {
-    private GroupResultAggregatorImpl resultAggregator;
+public class GroupResultAggregatorTests {
+    private GroupResultAggregator resultAggregator;
 
     private TaskResultOrException wrapResult(Message result) {
         return wrapResult(result, Any.pack(NoneValue.getDefaultInstance()));
@@ -67,7 +66,7 @@ public class GroupResultAggregatorImplTests {
 
     @BeforeEach
     public void setup() {
-        this.resultAggregator = GroupResultAggregatorImpl.newInstance();
+        this.resultAggregator = GroupResultAggregator.newInstance();
     }
 
     @Test

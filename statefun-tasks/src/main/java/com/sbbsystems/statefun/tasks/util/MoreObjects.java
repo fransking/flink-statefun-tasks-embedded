@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.sbbsystems.statefun.tasks.util;
 
-package com.sbbsystems.statefun.tasks.pipeline;
+import java.util.Objects;
 
-import com.sbbsystems.statefun.tasks.PipelineFunctionState;
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.Group;
+public class MoreObjects {
+    public static boolean equalsAndNotNull(Object a, Object b) {
+        if (a == null || b == null) {
+            return false;
+        }
 
-import java.util.List;
-
-public interface GroupTaskResolver {
-    List<Entry> resolveInitialTasks(Group group, PipelineFunctionState state);
-
-    List<Entry> resolveNextTasks(String groupId, PipelineFunctionState state);
+        return Objects.equals(a, b);
+    }
 }

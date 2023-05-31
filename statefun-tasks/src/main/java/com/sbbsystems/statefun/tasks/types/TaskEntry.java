@@ -19,7 +19,6 @@ public final class TaskEntry {
     public String taskId;
     public String taskType;
     public byte[] request;
-    public boolean complete;
     public boolean isFinally;
     public String namespace;
     public String workerName;

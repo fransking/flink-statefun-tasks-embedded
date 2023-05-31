@@ -20,14 +20,16 @@ import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
+import com.sbbsystems.statefun.tasks.types.TaskEntryBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.UUID;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -51,35 +53,7 @@ public final class PipelineGraphBuilderTests {
         return pipeline.build();
     }
 
-    public static Pipeline buildPipelineFromTemplate(List<?> template) {
-        var pipeline = Pipeline.newBuilder();
 
-        template.forEach(item -> {
-            if (item instanceof List<?>) {
-                var groupEntry = GroupEntry.newBuilder()
-                        .setGroupId(String.valueOf(UUID.randomUUID()));
-
-                ((List<?>) item).forEach(groupItem -> {
-                    if (groupItem instanceof List<?>) {
-                        var group = PipelineGraphBuilderTests.buildPipelineFromTemplate((List<?>) groupItem);
-                        groupEntry.addGroup(group);
-                    }
-                });
-
-                pipeline.addEntries(PipelineEntry.newBuilder().setGroupEntry(groupEntry));
-            }
-            else {
-                var taskEntry = TaskEntry.newBuilder()
-                        .setTaskId(String.valueOf(item))
-                        .setUid(String.valueOf(item))
-                        .build();
-
-                pipeline.addEntries(PipelineEntry.newBuilder().setTaskEntry(taskEntry));
-            }
-        });
-
-        return pipeline.build();
-    }
 
     @Test
     public void graph_contains_all_task_entries_given_a_pipeline()
@@ -109,7 +83,7 @@ public final class PipelineGraphBuilderTests {
 
         var template = List.of("1", group, "2");
 
-        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var pipeline = buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
         PipelineGraph graph = builder.build();
 
@@ -135,7 +109,7 @@ public final class PipelineGraphBuilderTests {
         );
 
         var template = List.of("1", group, "2");
-        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var pipeline = buildPipelineFromTemplate(template);
 
         // empty initial state
         var state = PipelineFunctionState.newInstance();
@@ -181,7 +155,7 @@ public final class PipelineGraphBuilderTests {
     @Test
     public void builder_throws_exceptions_when_it_has_duplicate_tasks() {
         var template = List.of("1", "2", "2");
-        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var pipeline = buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
 
         assertThrows(InvalidGraphException.class, builder::build);
@@ -195,5 +169,78 @@ public final class PipelineGraphBuilderTests {
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
 
         assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
+    public void builder_throws_exceptions_if_graph_starts_with_exceptionally() {
+        var entry = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("1").setIsExceptionally(true));
+        var pipeline = Pipeline.newBuilder().addEntries(entry);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
+
+        assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
+    public void builder_throws_exceptions_if_graph_has_more_than_one_finally() {
+        var entryOne = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("1"));
+        var finallyOne = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("2").setIsFinally(true));
+        var finallyTwo = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("3").setIsFinally(true));
+        var pipeline = Pipeline.newBuilder().addEntries(entryOne).addEntries(finallyOne).addEntries(finallyTwo);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
+
+        assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
+    public void sets_chain_head_for_each_element_in_chain()
+            throws InvalidGraphException {
+
+        var group = List.of(
+                List.of("a", "b", "c")
+        );
+        var template = List.of("x", group, "y");
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        for (var entry : List.of(graph.getTask("a"), graph.getTask("b"), graph.getTask("c"))) {
+            assertThat(entry.getChainHead()).isEqualTo(graph.getTask("a"));
+        }
+        for (var entry : List.of(graph.getTask("x"), Objects.requireNonNull(graph.getTask("a").getParentGroup()), graph.getTask("y"))) {
+            assertThat(entry.getChainHead()).isEqualTo(graph.getTask("x"));
+        }
+    }
+
+    @Test
+    public void sets_correct_remaining_count_for_nested_empty_groups()
+            throws InvalidGraphException {
+
+        var empty_group = List.of(
+        );
+
+        var nested_group = List.of(
+                List.of("y")
+        );
+
+        var group = List.of(
+                List.of("x"),
+                List.of(nested_group),
+                List.of(empty_group)
+        );
+
+        var template = List.of(group);
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        var head = Objects.requireNonNull(graph.getHead());
+        var groupEntry = graph.getGroupEntry(head.getId());
+        assertThat(groupEntry.remaining).isEqualTo(2);
     }
 }

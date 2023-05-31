@@ -50,7 +50,7 @@ public final class TaskRequestSerializer {
         return MessageTypes.toAddress(rootPipelineAddress, rootPipelineId);
     }
 
-    public TaskRequest.Builder createOutgoingTaskRequest(Context context, PipelineFunctionState state, TaskEntry taskEntry) {
+    public TaskRequest.Builder createOutgoingTaskRequest(PipelineFunctionState state, TaskEntry taskEntry) {
 
         var outgoingTaskRequest = TaskRequest.newBuilder()
                 .setId(taskEntry.taskId)
@@ -59,8 +59,8 @@ public final class TaskRequestSerializer {
                 .setInvocationId(state.getInvocationId());
 
         // set meta data properties
-        var pipelineAddress = MessageTypes.toTypeName(context.self());
-        var pipelineId = context.self().id();
+        var pipelineAddress = MessageTypes.toTypeName(state.getPipelineAddress());
+        var pipelineId = state.getPipelineAddress().getId();
         outgoingTaskRequest.putMeta("pipeline_address", pipelineAddress);
         outgoingTaskRequest.putMeta("pipeline_id", pipelineId);
 
@@ -69,11 +69,9 @@ public final class TaskRequestSerializer {
         outgoingTaskRequest.putMeta("root_pipeline_address", rootPipelineAddress);
         outgoingTaskRequest.putMeta("root_pipeline_id", rootPipelineId);
 
-        if (!Objects.isNull(context.caller())) {
-            var parentTaskAddress = MessageTypes.toTypeName(context.caller());
-            var parentTaskId = context.caller().id();
-            outgoingTaskRequest.putMeta("parent_task_address", parentTaskAddress);
-            outgoingTaskRequest.putMeta("parent_task_id", parentTaskId);
+        if (!Objects.isNull(state.getCallerAddress())) {
+            outgoingTaskRequest.putMeta("parent_task_address", MessageTypes.toTypeName(state.getCallerAddress()));
+            outgoingTaskRequest.putMeta("parent_task_id", state.getCallerAddress().getId());
         }
 
         if (state.getIsInline()) {

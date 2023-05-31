@@ -31,13 +31,13 @@ import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.fromTemplate;
 import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.getGroupContainingTask;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-public final class GroupResultPropagatorImplTests {
-    private GroupResultPropagatorImpl propagator;
+public final class GroupResultPropagatorTests {
+    private GroupResultPropagator propagator;
 
 
     @BeforeEach
     public void setup() {
-        propagator = GroupResultPropagatorImpl.newInstance(GroupResultAggregatorImpl.newInstance());
+        propagator = GroupResultPropagator.newInstance(GroupResultAggregator.newInstance());
     }
 
     @Test

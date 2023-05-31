@@ -16,14 +16,47 @@
 
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.generated.Pipeline;
+import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
+import com.sbbsystems.statefun.tasks.generated.TaskEntry;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public class GraphTestUtils {
+    public static Pipeline buildPipelineFromTemplate(List<?> template) {
+        var pipeline = Pipeline.newBuilder();
+
+        template.forEach(item -> {
+            if (item instanceof List<?>) {
+                var groupEntry = com.sbbsystems.statefun.tasks.generated.GroupEntry.newBuilder()
+                        .setGroupId(String.valueOf(UUID.randomUUID()));
+
+                ((List<?>) item).forEach(groupItem -> {
+                    if (groupItem instanceof List<?>) {
+                        var group = buildPipelineFromTemplate((List<?>) groupItem);
+                        groupEntry.addGroup(group);
+                    }
+                });
+
+                pipeline.addEntries(PipelineEntry.newBuilder().setGroupEntry(groupEntry));
+            } else {
+                var taskEntry = TaskEntry.newBuilder()
+                        .setTaskId(String.valueOf(item))
+                        .setUid(String.valueOf(item))
+                        .build();
+
+                pipeline.addEntries(PipelineEntry.newBuilder().setTaskEntry(taskEntry));
+            }
+        });
+
+        return pipeline.build();
+    }
+
     public static PipelineGraph fromTemplate(List<?> template) {
-        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
+        var pipeline = buildPipelineFromTemplate(template);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
 
         try {

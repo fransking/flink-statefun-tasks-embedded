@@ -22,11 +22,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.fromTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
-import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.*;
 
 public final class PipelineGraphTests {
-
 
     @Test
     public void can_fetch_tasks_given_id() {
@@ -103,8 +102,7 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    public void returns_initial_task_from_a_chain()
-            throws InvalidGraphException {
+    public void returns_initial_task_from_a_chain() {
 
         var template = List.of("a", "b", "c");
         var graph = fromTemplate(template);
@@ -115,8 +113,7 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    public void returns_initial_tasks_from_a_group()
-            throws InvalidGraphException {
+    public void returns_initial_tasks_from_a_group() {
 
         var group = List.of(
                 List.of("a", "b", "c"),
@@ -134,8 +131,7 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    public void returns_initial_tasks_from_a_group_of_groups()
-            throws InvalidGraphException {
+    public void returns_initial_tasks_from_a_group_of_groups() {
 
         var groupOne = List.of(
                 List.of("a", "b", "c")
@@ -152,19 +148,18 @@ public final class PipelineGraphTests {
 
         var template = List.of(group);
         var graph = fromTemplate(template);
-        getGroupContainingTask("a", graph).maxParallelism = 2;  // set max parallelism on group
-        getGroupContainingTask("d", graph).maxParallelism = 3;  // set max parallelism on group
+
 
         var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
-
         assertThat(initialTasks).hasSize(2);
-        assertThat(initialTasks.get(0).getId()).isEqualTo("a");
-        assertThat(initialTasks.get(1).getId()).isEqualTo("d");
+        var group1InitialTasks = graph.getInitialTasks(initialTasks.get(0)).collect(Collectors.toList());
+        var group2InitialTasks = graph.getInitialTasks(initialTasks.get(1)).collect(Collectors.toList());
+        assertThat(group1InitialTasks.get(0).getId()).isEqualTo("a");
+        assertThat(group2InitialTasks.get(0).getId()).isEqualTo("d");
     }
 
     @Test
-    public void returns_initial_tasks_from_a_nested_group()
-            throws InvalidGraphException {
+    public void returns_initial_tasks_from_a_nested_group() {
 
         var nested = List.of(
                 List.of("a", "b", "c"),
@@ -180,20 +175,19 @@ public final class PipelineGraphTests {
         var graph = fromTemplate(template);
         var initialTasks = graph.getInitialTasks().collect(Collectors.toList());
 
-        assertThat(initialTasks).hasSize(2);
+        assertThat(initialTasks).hasSize(2); // nested group
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
         assertThat(initialTasks.get(1).getId()).isEqualTo("d");
     }
 
     @Test
-    public void returns_initial_tasks_after_an_empty_group()
-            throws InvalidGraphException {
+    public void returns_initial_tasks_after_an_empty_group() {
 
         var emptyGroup = List.of();
         var template = List.of(emptyGroup, emptyGroup, "a", "b", "c");
 
         var graph = fromTemplate(template);
-        var entry = graph.getHead();
+        var entry = Objects.requireNonNull(graph.getHead());
         var initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
 
         // first empty group
@@ -270,8 +264,7 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    public void steps_through_chain_of_tasks_including_groups_correctly()
-            throws InvalidGraphException {
+    public void steps_through_chain_of_tasks_including_groups_correctly() {
 
         var grp = List.of(
                 List.of("x", "y", "z")
@@ -324,8 +317,7 @@ public final class PipelineGraphTests {
     }
 
     @Test
-    public void steps_through_chain_of_tasks_including_nested_groups_correctly()
-            throws InvalidGraphException {
+    public void steps_through_chain_of_tasks_including_nested_groups_correctly() {
 
         var nested = List.of(
                 List.of("x", "y", "z")
@@ -349,7 +341,7 @@ public final class PipelineGraphTests {
         var g = graph.getNextEntry(head);
         assertThat(g).isEqualTo(group);
 
-        // get initial tasks of group - jumps to the nested group since grp contains just nested
+        // get initial tasks of nested group
         var initial = graph.getInitialTasks(g).collect(Collectors.toList());
 
         // next is x
@@ -373,7 +365,6 @@ public final class PipelineGraphTests {
         assertThat(g).isEqualTo(nestedGroup);
 
         // next is group which is now complete
-        assertThat(graph.getGroupEntry(g.getId()).remaining).isEqualTo(0);
         g = graph.getNextEntry(g);
         assertThat(g).isEqualTo(group);
 

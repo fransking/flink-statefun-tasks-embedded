@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.util.Id;
+import org.apache.flink.util.function.ThrowingRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,6 +27,7 @@ abstract class EntryBase implements Entry {
     private Entry next;
     private Entry previous;
     private Group parentGroup;
+    private Entry chainHead;
 
     @SuppressWarnings("unused")  // POJO serialisation
     public EntryBase() {
@@ -76,5 +78,19 @@ abstract class EntryBase implements Entry {
     @Override
     public void setParentGroup(@Nullable Group parentGroup) {
         this.parentGroup = parentGroup;
+    }
+
+    @Override
+    public void setChainHead(Entry head) {
+        this.chainHead = head;
+    }
+    @Override
+    public Entry getChainHead() {
+        return this.chainHead;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return true;
     }
 }

@@ -17,13 +17,8 @@ package com.sbbsystems.statefun.tasks;
 
 import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.Address;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
-import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
-import com.sbbsystems.statefun.tasks.pipeline.GroupDeferredTasksState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
@@ -31,17 +26,10 @@ import org.apache.flink.statefun.sdk.state.Expiration;
 import org.apache.flink.statefun.sdk.state.PersistedAppendingBuffer;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
-import static java.util.Collections.emptyList;
-
 public final class PipelineFunctionState {
-    // todo ensure configurable state expiry
-
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries;
     @Persisted
@@ -74,12 +62,9 @@ public final class PipelineFunctionState {
     @Persisted
     private final PersistedValue<Integer> status;
     @Persisted
-    private final PersistedTable<String, GroupDeferredTasksState> deferredTasks;
-    @Persisted
     private final PersistedTable<String, TaskResultOrException> intermediateGroupResults;
 
     private MapOfEntries cachedEntries = null;
-    private final Map<String, GroupDeferredTasksState> cachedDeferredTasks = new HashMap<>();
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -106,7 +91,6 @@ public final class PipelineFunctionState {
         pipelineAddress = PersistedValue.of("pipelineAddress", Address.class, expiration);
         rootPipelineAddress = PersistedValue.of("rootPipelineAddress", Address.class, expiration);
         status = PersistedValue.of("status", Integer.class, expiration);
-        deferredTasks = PersistedTable.of("deferredTasksMap", String.class, GroupDeferredTasksState.class, expiration);
         intermediateGroupResults = PersistedTable.of("intermediateGroupResults", String.class, TaskResultOrException.class, expiration);
     }
 
@@ -130,28 +114,6 @@ public final class PipelineFunctionState {
     public void setEntries(MapOfEntries tasks) {
         cachedEntries = tasks;
         this.entries.set(cachedEntries);
-    }
-
-    @NotNull
-    public GroupDeferredTasksState getDeferredTasks(String groupId) {
-        var groupCachedTasks = cachedDeferredTasks.getOrDefault(groupId, null);
-        if (groupCachedTasks != null) {
-            return groupCachedTasks;
-        }
-        var groupTasks = deferredTasks.get(groupId);
-        if (groupTasks == null) {
-            groupTasks = GroupDeferredTasksState.of(emptyList());
-        }
-        cachedDeferredTasks.put(groupId, groupTasks);
-        return groupTasks;
-    }
-
-    public void cacheDeferredTasks(String groupId, GroupDeferredTasksState deferredTasks) {
-        cachedDeferredTasks.put(groupId, deferredTasks);
-    }
-
-    public void saveDeferredTasks() {
-        cachedDeferredTasks.forEach(deferredTasks::set);
     }
 
     public PersistedTable<String, TaskResultOrException> getIntermediateGroupResults() {
@@ -246,7 +208,7 @@ public final class PipelineFunctionState {
         this.pipelineAddress.set(pipelineAddress);
     }
 
-    public Address geRootPipelineAddress() {
+    public Address getRootPipelineAddress() {
         return rootPipelineAddress.get();
     }
 
