@@ -20,7 +20,48 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.graph.Group;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.Task;
 
-public interface GroupResultPropagator {
-    TaskResultOrException propagateGroupResult(Group group, PipelineGraph graph, PipelineFunctionState state, String invocationId);
+import java.text.MessageFormat;
+import java.util.ArrayList;
+
+public class GroupResultPropagator {
+
+    private final GroupResultAggregator aggregator;
+
+    private GroupResultPropagator(GroupResultAggregator aggregator) {
+        this.aggregator = aggregator;
+    }
+
+    public static GroupResultPropagator newInstance(GroupResultAggregator aggregator) {
+        return new GroupResultPropagator(aggregator);
+    }
+
+    public TaskResultOrException propagateGroupResult(Group group, PipelineGraph graph, PipelineFunctionState state, String invocationId) {
+        var currentGroup = group;
+        while (currentGroup.getParentGroup() != null && graph.getGroupEntry(currentGroup.getParentGroup().getId()).remaining == 0) {
+            currentGroup = currentGroup.getParentGroup();
+        }
+        return aggregateChildResults(currentGroup, graph, state, invocationId);
+    }
+
+    private TaskResultOrException aggregateChildResults(Group group, PipelineGraph graph, PipelineFunctionState state, String invocationId) {
+        var aggregatedResultList = new ArrayList<TaskResultOrException>();
+        for (var entry : group.getItems()) {
+            if (entry instanceof Task) {
+                var taskResult = state.getIntermediateGroupResults().get(entry.getId());
+                if (taskResult == null) {
+                    throw new RuntimeException(MessageFormat.format("No intermediate task result in state for {0}", entry.getId()));
+                }
+                aggregatedResultList.add(taskResult);
+            } else if (entry instanceof Group) {
+                aggregatedResultList.add(aggregateChildResults((Group) entry, graph, state, invocationId));
+            } else {
+                throw new RuntimeException("Unexpected entry type");
+            }
+        }
+        var groupEntry = graph.getGroupEntry(group.getId());
+
+        return aggregator.aggregateResult(group.getId(), invocationId, aggregatedResultList, groupEntry.returnExceptions);
+    }
 }
