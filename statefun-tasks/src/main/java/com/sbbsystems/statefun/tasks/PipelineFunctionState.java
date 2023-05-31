@@ -17,15 +17,14 @@ package com.sbbsystems.statefun.tasks;
 
 import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.generated.Address;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
-import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.pipeline.GroupDeferredTasksState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
-import org.apache.flink.statefun.sdk.Address;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.state.Expiration;
 import org.apache.flink.statefun.sdk.state.PersistedAppendingBuffer;
@@ -68,6 +67,7 @@ public final class PipelineFunctionState {
     private final PersistedValue<TaskRequest> taskRequest;
     @Persisted
     private final PersistedValue<Address> callerAddress;
+    private final PersistedValue<Address> pipelineAddress;
     @Persisted
     private final PersistedValue<Address> rootPipelineAddress;
     @Persisted
@@ -101,6 +101,7 @@ public final class PipelineFunctionState {
         invocationId = PersistedValue.of("invocationId", String.class, expiration);
         taskRequest = PersistedValue.of("taskRequest", TaskRequest.class, expiration);
         callerAddress = PersistedValue.of("callerAddress", Address.class, expiration);
+        pipelineAddress = PersistedValue.of("pipelineAddress", Address.class, expiration);
         rootPipelineAddress = PersistedValue.of("rootPipelineAddress", Address.class, expiration);
         status = PersistedValue.of("status", Integer.class, expiration);
         deferredTasks = PersistedTable.of("deferredTasksMap", String.class, GroupDeferredTasksState.class, expiration);
@@ -220,6 +221,30 @@ public final class PipelineFunctionState {
 
     public void setTaskRequest(TaskRequest taskRequest) {
         this.taskRequest.set(taskRequest);
+    }
+
+    public Address getCallerAddress() {
+        return callerAddress.get();
+    }
+
+    public void setCallerAddress(Address callerAddress) {
+        this.callerAddress.set(callerAddress);
+    }
+
+    public Address getPipelineAddress() {
+        return pipelineAddress.get();
+    }
+
+    public void setPipelineAddress(Address pipelineAddress) {
+        this.pipelineAddress.set(pipelineAddress);
+    }
+
+    public Address geRootPipelineAddress() {
+        return rootPipelineAddress.get();
+    }
+
+    public void setRootPipelineAddress(Address rootPipelineAddress) {
+        this.pipelineAddress.set(rootPipelineAddress);
     }
 
     public TaskStatus.Status getStatus() {
