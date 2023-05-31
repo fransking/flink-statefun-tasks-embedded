@@ -22,6 +22,7 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
+import org.apache.commons.math3.analysis.function.Add;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
@@ -156,13 +157,42 @@ public final class MessageTypes {
         return new org.apache.flink.statefun.sdk.Address(functionType, address.getId());
     }
 
-    public static org.apache.flink.statefun.sdk.Address toSdkAddress(TaskEntry taskEntry) {
+    public static org.apache.flink.statefun.sdk.Address getSdkAddress(TaskEntry taskEntry) {
         var functionType = new FunctionType(taskEntry.namespace, taskEntry.workerName);
         return new org.apache.flink.statefun.sdk.Address(functionType, taskEntry.taskId);
     }
 
+    public static Address toAddress(org.apache.flink.statefun.sdk.Address sdkAddress) {
+        return Address.newBuilder()
+                .setNamespace(sdkAddress.type().namespace())
+                .setType(sdkAddress.type().namespace())
+                .setId(sdkAddress.id())
+                .build();
+    }
+
+    public static Address toAddress(String namespaceAndType, String id) {
+        var split = namespaceAndType.split("/");
+        return Address.newBuilder()
+                .setNamespace(split[0])
+                .setType(split[1])
+                .setId(id)
+                .build();
+    }
+
+    public static Address getCallbackFunctionAddress(PipelineConfiguration configuration, String id) {
+        return Address.newBuilder()
+            .setNamespace(configuration.getNamespace())
+            .setType(configuration.getCallbackType())
+            .setId(id)
+            .build();
+    }
+
     public static String toTypeName(org.apache.flink.statefun.sdk.Address address) {
         return address.type().namespace() + "/" + address.type().name();
+    }
+
+    public static String toTypeName(Address address) {
+        return address.getNamespace() + "/" + address.getType();
     }
 
     public static Any packAny(Message message) {

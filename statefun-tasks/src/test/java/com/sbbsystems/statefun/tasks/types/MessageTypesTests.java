@@ -94,4 +94,17 @@ public class MessageTypesTests {
         assertEquals("io.statefun_tasks.types/statefun_tasks.TaskResult", typedVal.getTypename());
         assertEquals("id", TaskResult.parseFrom(typedVal.getValue()).getId());
     }
+
+    @Test
+    public void pack_any_packs_any_proto_message() {
+        var any = MessageTypes.packAny(TaskRequest.getDefaultInstance());
+        assertTrue(any.is(TaskRequest.class));
+    }
+
+    @Test
+    public void pack_any_does_not_double_pack() {
+        var any = MessageTypes.packAny(TaskRequest.getDefaultInstance());
+        any = MessageTypes.packAny(any);
+        assertTrue(any.is(TaskRequest.class));
+    }
 }

@@ -21,20 +21,25 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
+import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
-import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 
 public final class PipelineHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(PipelineHandler.class);
+
     private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
     private final PipelineGraph graph;
@@ -57,10 +62,18 @@ public final class PipelineHandler {
     public void beginPipeline(Context context, TaskRequest incomingTaskRequest)
         throws StatefunTasksException {
 
+        var taskRequest = TaskRequestSerializer.of(incomingTaskRequest);
+
+        state.setPipelineAddress(MessageTypes.toAddress(context.self()));
+        state.setRootPipelineAddress(taskRequest.getRootPipelineAddress(context));
         state.setTaskRequest(incomingTaskRequest);
         state.setInvocationId(Id.generate());
         state.setIsFruitful(incomingTaskRequest.getIsFruitful()); // todo move this into the calling task
         state.setStatus(TaskStatus.Status.RUNNING);
+
+        if (!Objects.isNull(context.caller())) {
+            state.setCallerAddress(MessageTypes.toAddress(context.caller()));
+        }
 
         if (state.getIsInline()) {
             // if this is an inline pipeline then copy incomingTaskRequest state to pipeline initial state
@@ -99,26 +112,22 @@ public final class PipelineHandler {
             // else call the initial tasks
             for (var task: initialTasks) {
                 var taskEntry = graph.getTaskEntry(task.getId());
+                var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(context, state, taskEntry);
 
+                // add task arguments
                 var taskArgsAndKwargs = TaskEntrySerializer.of(taskEntry).mergeWith(initialArgsAndKwargs);
+                outgoingTaskRequest.setRequest(taskArgsAndKwargs);
 
-                var outgoingTaskRequest = TaskRequest.newBuilder()
-                        .setId(taskEntry.taskId)
-                        .setUid(taskEntry.uid)
-                        .setType(taskEntry.taskType)
-                        .setInvocationId(state.getInvocationId())
-                        .setRequest(taskArgsAndKwargs);
-
-                // add state if present
+                // add initial state if present otherwise we start each pipeline with empty state
                 if (!Objects.isNull(state.getInitialState())) {
                     outgoingTaskRequest.setState(state.getInitialState());
                 }
 
-                // add meta properties
-                setMetaData(context, incomingTaskRequest, taskEntry, outgoingTaskRequest);
+                // set the reply address to be the callback function
+                outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
 
                 // send message
-                context.send(MessageTypes.toSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
+                context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
 
             // todo remove once TaskResult processing is working
@@ -127,31 +136,11 @@ public final class PipelineHandler {
         }
     }
 
-    private void setMetaData(Context context, TaskRequest incomingTaskRequest, TaskEntry taskEntry, TaskRequest.Builder outgoingTaskRequest) {
-        var pipelineAddress = MessageTypes.toTypeName(context.self());
-        var pipelineId = context.self().id();
-        outgoingTaskRequest.putMeta("pipeline_address", pipelineAddress);
-        outgoingTaskRequest.putMeta("pipeline_id", pipelineId);
-
-        var rootPipelineAddress =  incomingTaskRequest.getMetaOrDefault("root_pipeline_address", pipelineAddress);
-        var rootPipelineId =  incomingTaskRequest.getMetaOrDefault("root_pipeline_id", pipelineId);
-        outgoingTaskRequest.putMeta("root_pipeline_address", rootPipelineAddress);
-        outgoingTaskRequest.putMeta("root_pipeline_id", rootPipelineId);
-
-        if (!Objects.isNull(context.caller())) {
-            var parentTaskAddress = MessageTypes.toTypeName(context.caller());
-            var parentTaskId = context.caller().id();
-            outgoingTaskRequest.putMeta("parent_task_address", parentTaskAddress);
-            outgoingTaskRequest.putMeta("parent_task_id", parentTaskId);
+    public void continuePipeline(Context context, TaskResultOrException message) {
+        if (message.hasTaskResult()) {
+            LOG.info("Received a TaskResult with ID {}", message.getTaskResult().getId());
+        } else {
+            LOG.info("Received a TaskException with ID {}", message.getTaskException().getId());
         }
-
-        if (state.getIsInline()) {
-            var inlineParentPipelineAddress = incomingTaskRequest.getMetaOrDefault("inline_parent_pipeline_address", pipelineAddress);
-            var inlineParentPipelineId = incomingTaskRequest.getMetaOrDefault("inline_parent_pipeline_id", pipelineId);
-            outgoingTaskRequest.putMeta("inline_parent_pipeline_address", inlineParentPipelineAddress);
-            outgoingTaskRequest.putMeta("inline_parent_pipeline_id", inlineParentPipelineId);
-        }
-
-        outgoingTaskRequest.putMeta("display_name", taskEntry.displayName);
     }
 }

@@ -22,6 +22,8 @@ import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 
+import java.util.Objects;
+
 public final class ArgsAndKwargsSerializer {
     private final ArgsAndKwargs argsAndKwargs;
 
@@ -31,7 +33,7 @@ public final class ArgsAndKwargsSerializer {
 
     public static ArgsAndKwargsSerializer of(byte[] bytes)
             throws InvalidMessageTypeException {
-        
+
         try {
             return ArgsAndKwargsSerializer.of(Any.parseFrom(bytes));
         } catch (InvalidProtocolBufferException e) {

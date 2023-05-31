@@ -9,6 +9,8 @@ import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 
+import java.util.Objects;
+
 public class TaskEntrySerializer {
     private final TaskEntry taskEntry;
 
@@ -29,11 +31,14 @@ public class TaskEntrySerializer {
     public Any mergeWith(Message args, MapOfStringToAny kwargs)
             throws StatefunTasksException {
 
-        var argsAndKwargs = ArgsAndKwargsSerializer.of(taskEntry.request).getArgsAndKwargs();
+        var argsAndKwargs = Objects.isNull(taskEntry.request)
+                ? ArgsAndKwargs.getDefaultInstance()
+                : ArgsAndKwargsSerializer.of(taskEntry.request).getArgsAndKwargs();
+
         var mergedKwargs = argsAndKwargs.getKwargs().toBuilder();
 
         // merge kwargs
-        mergedKwargs.putAllItems(argsAndKwargs.getKwargs().getItemsMap());
+        mergedKwargs.putAllItems(kwargs.getItemsMap());
 
         // if task kwargs and merged kwargs are empty then just return args - nothing in task entry to pass to task
         if (argsAndKwargs.getArgs().getItemsCount() == 0 && mergedKwargs.getItemsCount() == 0) {
@@ -48,6 +53,8 @@ public class TaskEntrySerializer {
         } else {
             mergedArgs.addItems(MessageTypes.packAny(args));
         }
+
+        mergedArgs.addAllItems(argsAndKwargs.getArgs().getItemsList());
 
         return MessageTypes.packAny(ArgsAndKwargs.newBuilder()
                 .setArgs(mergedArgs)
