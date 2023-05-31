@@ -15,7 +15,6 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
-import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,25 +23,10 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.*;
 
 public final class PipelineGraphTests {
 
-    private PipelineGraph fromTemplate(List<?> template) {
-        var pipeline = PipelineGraphBuilderTests.buildPipelineFromTemplate(template);
-        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline);
-
-        try {
-            return builder.build();
-        } catch (InvalidGraphException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private GroupEntry getGroupContainingTask(String taskId, PipelineGraph graph) {
-        var taskA = graph.getTask(taskId);
-        var groupId = Objects.requireNonNull(taskA.getParentGroup()).getId();
-        return graph.getGroupEntry(groupId);
-    }
 
     @Test
     public void can_fetch_tasks_given_id() {
@@ -287,7 +271,7 @@ public final class PipelineGraphTests {
 
     @Test
     public void steps_through_chain_of_tasks_including_groups_correctly()
-        throws InvalidGraphException {
+            throws InvalidGraphException {
 
         var grp = List.of(
                 List.of("x", "y", "z")

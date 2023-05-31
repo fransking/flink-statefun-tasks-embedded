@@ -19,9 +19,9 @@ import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
-import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.pipeline.GroupDeferredTasksState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
@@ -74,9 +74,10 @@ public final class PipelineFunctionState {
     private final PersistedValue<Integer> status;
     @Persisted
     private final PersistedTable<String, GroupDeferredTasksState> deferredTasks;
+    @Persisted
+    private final PersistedTable<String, TaskResultOrException> intermediateGroupResults;
 
     private MapOfEntries cachedEntries = null;
-
     private final Map<String, GroupDeferredTasksState> cachedDeferredTasks = new HashMap<>();
 
     public static PipelineFunctionState newInstance() {
@@ -104,6 +105,7 @@ public final class PipelineFunctionState {
         rootPipelineAddress = PersistedValue.of("rootPipelineAddress", Address.class, expiration);
         status = PersistedValue.of("status", Integer.class, expiration);
         deferredTasks = PersistedTable.of("deferredTasksMap", String.class, GroupDeferredTasksState.class, expiration);
+        intermediateGroupResults = PersistedTable.of("intermediateGroupResults", String.class, TaskResultOrException.class, expiration);
     }
 
     public PersistedTable<String, TaskEntry> getTaskEntries() {
@@ -148,6 +150,10 @@ public final class PipelineFunctionState {
 
     public void saveDeferredTasks() {
         cachedDeferredTasks.forEach(deferredTasks::set);
+    }
+
+    public PersistedTable<String, TaskResultOrException> getIntermediateGroupResults() {
+        return intermediateGroupResults;
     }
 
     public String getHead() {

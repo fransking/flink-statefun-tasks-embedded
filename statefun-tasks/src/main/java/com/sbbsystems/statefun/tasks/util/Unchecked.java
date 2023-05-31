@@ -16,6 +16,7 @@
 
 package com.sbbsystems.statefun.tasks.util;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class Unchecked {
@@ -23,6 +24,15 @@ public class Unchecked {
         return t -> {
             try {
                 return checkedFunction.apply(t);
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+    public static <T, E extends Throwable> Consumer<T> unchecked(CheckedConsumer<T, E> checkedConsumer) {
+        return t -> {
+            try {
+                checkedConsumer.apply(t);
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
