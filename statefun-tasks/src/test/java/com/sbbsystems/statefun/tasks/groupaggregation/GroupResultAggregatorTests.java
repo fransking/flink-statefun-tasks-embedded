@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package com.sbbsystems.statefun.tasks.resultaggregation;
+package com.sbbsystems.statefun.tasks.groupaggregation;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

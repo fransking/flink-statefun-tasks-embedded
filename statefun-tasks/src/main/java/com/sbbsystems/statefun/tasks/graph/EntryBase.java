@@ -26,6 +26,7 @@ abstract class EntryBase implements Entry {
     private Entry next;
     private Entry previous;
     private Group parentGroup;
+    private Entry chainHead;
 
     @SuppressWarnings("unused")  // POJO serialisation
     public EntryBase() {
@@ -76,5 +77,14 @@ abstract class EntryBase implements Entry {
     @Override
     public void setParentGroup(@Nullable Group parentGroup) {
         this.parentGroup = parentGroup;
+    }
+
+    @Override
+    public void setChainHead(Entry head) {
+        this.chainHead = head;
+    }
+    @Override
+    public Entry getChainHead() {
+        return this.chainHead;
     }
 }

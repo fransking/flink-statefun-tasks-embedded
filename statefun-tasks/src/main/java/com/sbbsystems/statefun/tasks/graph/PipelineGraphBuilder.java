@@ -121,6 +121,7 @@ public final class PipelineGraphBuilder {
                     current.setNext(next);
                     next.setPrevious(current);
                 }
+                next.setChainHead(head);
 
                 current = next;
 

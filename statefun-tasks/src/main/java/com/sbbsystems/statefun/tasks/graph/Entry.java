@@ -31,4 +31,8 @@ public interface Entry {
     @Nullable Group getParentGroup();
 
     void setParentGroup(@Nullable Group parentGroup);
+
+    void setChainHead(Entry head);
+
+    Entry getChainHead();
 }
