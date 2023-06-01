@@ -19,12 +19,17 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
+import org.apache.commons.math3.analysis.function.Add;
+import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.TypeName;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
+import org.apache.flink.statefun.sdk.io.EgressIdentifier;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
@@ -78,6 +83,24 @@ public final class MessageTypes {
                 .build();
     }
 
+    public static ArgsAndKwargs emptyArgs() {
+        return ArgsAndKwargs.newBuilder()
+                .setArgs(TupleOfAny.getDefaultInstance())
+                .build();
+    }
+
+    public static ArgsAndKwargs argsOfEmptyArray() {
+        return ArgsAndKwargs.newBuilder()
+                .setArgs(tupleOfEmptyArray())
+                .build();
+    }
+
+    public static TupleOfAny tupleOfEmptyArray() {
+        return TupleOfAny.newBuilder()
+                .addItems(Any.pack(ArrayOfAny.getDefaultInstance()))
+                .build();
+    }
+
     public static TypedValue toEgress(Message message, String topic) {
         var egressRecord = KafkaProducerRecord.newBuilder()
                 .setTopic(topic)
@@ -89,5 +112,94 @@ public final class MessageTypes {
                 .setHasValue(true)
                 .setTypename("type.googleapis.com/io.statefun.sdk.egress.KafkaProducerRecord")
                 .build();
+    }
+
+    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result) {
+        return MessageTypes.toTaskResult(incomingTaskRequest, result, incomingTaskRequest.getState());
+    }
+
+    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result, Any state) {
+        var packedResult = (result instanceof Any) ? (Any) result: Any.pack(result);
+
+        return TaskResult.newBuilder()
+                .setId(incomingTaskRequest.getId())
+                .setUid(incomingTaskRequest.getUid())
+                .setInvocationId(incomingTaskRequest.getInvocationId())
+                .setType(incomingTaskRequest.getType() + ".result")
+                .setResult(packedResult)
+                .setState(state)
+                .build();
+    }
+
+    public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e) {
+        return MessageTypes.toTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
+    }
+
+    public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e, Any state) {
+        return TaskException.newBuilder()
+                .setId(incomingTaskRequest.getId())
+                .setUid(incomingTaskRequest.getUid())
+                .setInvocationId(incomingTaskRequest.getInvocationId())
+                .setType(incomingTaskRequest.getType() + ".error")
+                .setExceptionType(e.getClass().getTypeName())
+                .setExceptionMessage(e.getMessage())
+                .setStacktrace(Arrays.toString(e.getStackTrace()))
+                .setState(state)
+                .build();
+    }
+
+    public static EgressIdentifier<TypedValue> getEgress(PipelineConfiguration configuration) {
+        return new EgressIdentifier<>(configuration.getEgressNamespace(), configuration.getEgressType(), TypedValue.class);
+    }
+
+    public static org.apache.flink.statefun.sdk.Address toSdkAddress(Address address) {
+        var functionType = new FunctionType(address.getNamespace(), address.getType());
+        return new org.apache.flink.statefun.sdk.Address(functionType, address.getId());
+    }
+
+    public static org.apache.flink.statefun.sdk.Address getSdkAddress(TaskEntry taskEntry) {
+        var functionType = new FunctionType(taskEntry.namespace, taskEntry.workerName);
+        return new org.apache.flink.statefun.sdk.Address(functionType, taskEntry.taskId);
+    }
+
+    public static Address toAddress(org.apache.flink.statefun.sdk.Address sdkAddress) {
+        return Address.newBuilder()
+                .setNamespace(sdkAddress.type().namespace())
+                .setType(sdkAddress.type().namespace())
+                .setId(sdkAddress.id())
+                .build();
+    }
+
+    public static Address toAddress(String namespaceAndType, String id) {
+        var split = namespaceAndType.split("/");
+        return Address.newBuilder()
+                .setNamespace(split[0])
+                .setType(split[1])
+                .setId(id)
+                .build();
+    }
+
+    public static Address getCallbackFunctionAddress(PipelineConfiguration configuration, String id) {
+        return Address.newBuilder()
+            .setNamespace(configuration.getNamespace())
+            .setType(configuration.getCallbackType())
+            .setId(id)
+            .build();
+    }
+
+    public static String toTypeName(org.apache.flink.statefun.sdk.Address address) {
+        return address.type().namespace() + "/" + address.type().name();
+    }
+
+    public static String toTypeName(Address address) {
+        return address.getNamespace() + "/" + address.getType();
+    }
+
+    public static Any packAny(Message message) {
+        if (message instanceof Any) {
+            return (Any) message;
+        }
+
+        return Any.pack(message);
     }
 }

@@ -55,4 +55,9 @@ public final class Group extends EntryBase implements Entry {
     public String toString() {
         return MessageFormat.format("Group {0}", getId());
     }
+
+    @Override
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
 }

@@ -15,17 +15,22 @@
  */
 package com.sbbsystems.statefun.tasks.serialization;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Any;
+import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
+import com.sbbsystems.statefun.tasks.generated.Address;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
-import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import com.sbbsystems.statefun.tasks.types.TaskEntry;
+import org.apache.flink.statefun.sdk.Context;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 public final class TaskRequestSerializer {
     private final TaskRequest taskRequest;
 
-    public static TaskRequestSerializer from(TaskRequest taskRequest) {
+    public static TaskRequestSerializer of(TaskRequest taskRequest) {
         return new TaskRequestSerializer(taskRequest);
     }
 
@@ -33,24 +38,51 @@ public final class TaskRequestSerializer {
         this.taskRequest = taskRequest;
     }
 
-    public ArgsAndKwargsSerializer getArgsAndKwargs()
+    public ArgsAndKwargsSerializer getArgsAndKwargsSerializer()
             throws StatefunTasksException {
 
-        try {
-            var request = taskRequest.getRequest();
+        return ArgsAndKwargsSerializer.of(taskRequest.getRequest());
+    }
 
-            if (request.is(ArgsAndKwargs.class)) {
-                return ArgsAndKwargsSerializer.from(request.unpack(ArgsAndKwargs.class));
-            }
-            else {
-                return ArgsAndKwargsSerializer.from(ArgsAndKwargs
-                        .newBuilder()
-                        .setArgs(TupleOfAny.newBuilder().addItems(request).build())
-                        .build());
-            }
+    public Address getRootPipelineAddress(Context context) {
+        var rootPipelineAddress =  taskRequest.getMetaOrDefault("root_pipeline_address", MessageTypes.toTypeName(context.self()));
+        var rootPipelineId =  taskRequest.getMetaOrDefault("root_pipeline_id", context.self().id());
+        return MessageTypes.toAddress(rootPipelineAddress, rootPipelineId);
+    }
 
-        } catch (InvalidProtocolBufferException e) {
-            throw new InvalidMessageTypeException("Protobuf parsing error", e);
+    public TaskRequest.Builder createOutgoingTaskRequest(PipelineFunctionState state, TaskEntry taskEntry) {
+
+        var outgoingTaskRequest = TaskRequest.newBuilder()
+                .setId(taskEntry.taskId)
+                .setUid(taskEntry.uid)
+                .setType(taskEntry.taskType)
+                .setInvocationId(state.getInvocationId());
+
+        // set meta data properties
+        var pipelineAddress = MessageTypes.toTypeName(state.getPipelineAddress());
+        var pipelineId = state.getPipelineAddress().getId();
+        outgoingTaskRequest.putMeta("pipeline_address", pipelineAddress);
+        outgoingTaskRequest.putMeta("pipeline_id", pipelineId);
+
+        var rootPipelineAddress =  taskRequest.getMetaOrDefault("root_pipeline_address", pipelineAddress);
+        var rootPipelineId =  taskRequest.getMetaOrDefault("root_pipeline_id", pipelineId);
+        outgoingTaskRequest.putMeta("root_pipeline_address", rootPipelineAddress);
+        outgoingTaskRequest.putMeta("root_pipeline_id", rootPipelineId);
+
+        if (!Objects.isNull(state.getCallerAddress())) {
+            outgoingTaskRequest.putMeta("parent_task_address", MessageTypes.toTypeName(state.getCallerAddress()));
+            outgoingTaskRequest.putMeta("parent_task_id", state.getCallerAddress().getId());
         }
+
+        if (state.getIsInline()) {
+            var inlineParentPipelineAddress = taskRequest.getMetaOrDefault("inline_parent_pipeline_address", pipelineAddress);
+            var inlineParentPipelineId = taskRequest.getMetaOrDefault("inline_parent_pipeline_id", pipelineId);
+            outgoingTaskRequest.putMeta("inline_parent_pipeline_address", inlineParentPipelineAddress);
+            outgoingTaskRequest.putMeta("inline_parent_pipeline_id", inlineParentPipelineId);
+        }
+
+        outgoingTaskRequest.putMeta("display_name", taskEntry.displayName);
+
+        return outgoingTaskRequest;
     }
 }

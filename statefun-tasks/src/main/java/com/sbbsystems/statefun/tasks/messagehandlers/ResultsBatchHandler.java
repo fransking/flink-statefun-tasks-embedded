@@ -36,6 +36,7 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
             .build();
 
     private ResultsBatchHandler(FunctionType callbackFunctionType, MessageHandler<TaskResultOrException, PipelineFunctionState> resultHandler) {
+        super(resultHandler.configuration);
         this.callbackFunctionType = callbackFunctionType;
         this.resultHandler = resultHandler;
     }

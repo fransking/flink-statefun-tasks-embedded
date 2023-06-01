@@ -18,56 +18,35 @@ package com.sbbsystems.statefun.tasks.graph;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
-import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+import java.util.stream.Stream;
+
+import static java.util.Objects.isNull;
+import static java.util.Objects.requireNonNull;
 
 public final class PipelineGraph {
 
-    private final Map<String, Entry> entries;
-    private final PersistedTable<String, TaskEntry> taskEntries;
-    private final PersistedTable<String, GroupEntry> groupEntries;
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
-    private final Map<String, TaskEntry> updatedTaskEntries = new HashMap<>();
-    private final String head;
-    private final String tail;
+    private final PipelineFunctionState state;
 
-    private PipelineGraph(
-            @NotNull Map<String, Entry> entries,
-            @NotNull PersistedTable<String, TaskEntry> taskEntries,
-            @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable String head,
-            @Nullable String tail) {
-        this.entries = Objects.requireNonNull(entries);
-        this.taskEntries = Objects.requireNonNull(taskEntries);
-        this.groupEntries = Objects.requireNonNull(groupEntries);
-        this.head = head;
-        this.tail = tail;
+    private PipelineGraph(PipelineFunctionState state) {
+        this.state = state;
     }
 
-    public static PipelineGraph from(
-            @NotNull Map<String, Entry> entries,
-            @NotNull PersistedTable<String, TaskEntry> taskEntries,
-            @NotNull PersistedTable<String, GroupEntry> groupEntries,
-            @Nullable String head,
-            @Nullable String tail) {
-        return new PipelineGraph(entries, taskEntries, groupEntries, head, tail);
+    public static PipelineGraph from(@NotNull PipelineFunctionState state) {
+        return new PipelineGraph(requireNonNull(state));
     }
 
     public TaskEntry getTaskEntry(String id) {
-        return updatedTaskEntries.getOrDefault(id, taskEntries.get(id));
-    }
-
-    public void updateTaskEntry(TaskEntry entry) {
-        updatedTaskEntries.put(entry.uid, entry);
+        return state.getTaskEntries().get(id);
     }
 
     public GroupEntry getGroupEntry(String id) {
-        return updatedGroupEntries.getOrDefault(id, groupEntries.get(id));
+        return updatedGroupEntries.getOrDefault(id, state.getGroupEntries().get(id));
     }
 
     public void updateGroupEntry(GroupEntry entry) {
@@ -83,7 +62,7 @@ public final class PipelineGraph {
     }
 
     public Entry getEntry(String id) {
-        return entries.get(id);
+        return state.getEntries().getItems().get(id);
     }
 
     public Iterable<Task> getTasks() {
@@ -95,38 +74,41 @@ public final class PipelineGraph {
     }
 
     public @Nullable Entry getHead() {
-        return getEntry(head);
+        return getEntry(state.getHead());
     }
 
     public @Nullable Entry getTail() {
-        return getEntry(tail);
+        return getEntry(state.getTail());
     }
 
-    public InitialTasks getInitialTasks()
-            throws InvalidGraphException {
-
-        return InitialTasksCollector.of(this).collectFrom(getHead());
+    public Stream<Task> getInitialTasks() {
+        return getInitialTasks(getHead());
     }
 
-    public InitialTasks getInitialTasks(Entry entry)
-            throws InvalidGraphException {
+    public Stream<Task> getInitialTasks(Entry entry) {
 
-        return InitialTasksCollector.of(this).collectFrom(entry);
+        if (entry instanceof Task) {
+            return Stream.of((Task) entry);
+        }
+
+        if (entry instanceof Group) {
+            var group = (Group) entry;
+            var stream = Stream.<Task>of();
+
+            for (var groupEntry: group.getItems()) {
+                stream = Stream.concat(stream, getInitialTasks(groupEntry));
+            }
+
+            return stream;
+        }
+
+        return Stream.empty();
     }
 
     public Entry getNextEntry(Entry from) {
-        Entry next = null;
+        var next = from.getNext();
 
-        if (from instanceof Group) {
-            var groupEntry = getGroupEntry(from.getId());
-            if (groupEntry.remaining <= 0) {
-                next = from.getNext();
-            }
-        } else {
-            next = from.getNext();
-        }
-
-        if (Objects.isNull(next) && !Objects.isNull(from.getParentGroup())) {
+        if (isNull(next) && !isNull(from.getParentGroup())) {
             // we reached the end of this chain return parent group if we have one
             return from.getParentGroup();
         }
@@ -135,34 +117,42 @@ public final class PipelineGraph {
     }
 
     public void markComplete(Entry entry) {
-        if (entry instanceof Task) {
-            var taskEntry = getTaskEntry(entry.getId());
-            taskEntry.complete = true;
-            updateTaskEntry(taskEntry);
+        if (entry instanceof Group) {
+            var groupEntry = getGroupEntry(entry.getId());
+            groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
+            updateGroupEntry(groupEntry);
         }
 
-        if (Objects.isNull(entry.getNext()) && !Objects.isNull(entry.getParentGroup())) {
+        if (isNull(entry.getNext()) && !isNull(entry.getParentGroup())) {
             var groupEntry = getGroupEntry(entry.getParentGroup().getId());
             groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
             updateGroupEntry(groupEntry);
 
-            if (groupEntry.remaining == 0) {
+            if (isComplete(groupEntry)) {
                 markComplete(entry.getParentGroup());
             }
         }
     }
 
-    public void saveUpdatedState(PipelineFunctionState state) {
+    public boolean isComplete(String groupId) {
+        return isComplete(getGroupEntry(groupId));
+    }
+
+    public boolean isComplete(GroupEntry groupEntry) {
+        return groupEntry.remaining == 0;
+    }
+
+    public void saveUpdatedState() {
         updatedGroupEntries.forEach((k, v) -> state.getGroupEntries().set(k, v));
-        updatedTaskEntries.forEach((k, v) -> state.getTaskEntries().set(k, v));
-        updatedTaskEntries.clear();
         updatedGroupEntries.clear();
     }
 
-    public void saveState(PipelineFunctionState state) {
-        saveUpdatedState(state);
-        state.setHead(head);
-        state.setTail(tail);
-        state.setEntries(MapOfEntries.from(entries));
+    public void saveState() {
+        saveUpdatedState();
+
+        // ensure write back to Flink state
+        state.setHead(state.getHead());
+        state.setTail(state.getTail());
+        state.setEntries(state.getEntries());
     }
 }

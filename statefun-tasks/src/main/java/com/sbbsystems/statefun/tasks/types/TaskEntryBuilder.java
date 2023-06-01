@@ -22,7 +22,6 @@ public final class TaskEntryBuilder {
         task.taskId = taskEntry.getTaskId();
         task.taskType = taskEntry.getTaskType();
         task.request = taskEntry.getRequest().toByteArray();
-        task.complete = taskEntry.getComplete();
         task.isFinally = taskEntry.getIsFinally();
         task.namespace = taskEntry.getNamespace();
         task.workerName = taskEntry.getWorkerName();

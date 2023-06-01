@@ -20,6 +20,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
@@ -29,14 +32,12 @@ import org.slf4j.LoggerFactory;
 public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResultOrException, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskResultOrExceptionHandler.class);
 
-    private final PipelineConfiguration configuration;
-
     public static TaskResultOrExceptionHandler from(PipelineConfiguration configuration) {
         return new TaskResultOrExceptionHandler(configuration);
     }
 
     private TaskResultOrExceptionHandler(PipelineConfiguration configuration) {
-        this.configuration = configuration;
+        super(configuration);
     }
 
 
@@ -52,10 +53,22 @@ public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResul
 
     @Override
     public void handleMessage(Context context, TaskResultOrException message, PipelineFunctionState state) {
-        if (message.hasTaskResult()) {
-            LOG.info("Received a TaskResult with ID {}", message.getTaskResult().getId());
-        } else {
-            LOG.info("Received a TaskException with ID {}", message.getTaskException().getId());
+        var taskRequest = state.getTaskRequest();
+
+        try {
+            // create the graph
+            var graph = PipelineGraphBuilder.from(state).build();
+
+            // continue pipeline
+            PipelineHandler.from(configuration, state, graph).continuePipeline(context, message);
+
+            // save updated graph state
+            graph.saveUpdatedState();
+
+        } catch (Exception e) {
+            LOG.error(e.getMessage(), e);
+            state.setStatus(TaskStatus.Status.FAILED);
+            respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
         }
     }
 }

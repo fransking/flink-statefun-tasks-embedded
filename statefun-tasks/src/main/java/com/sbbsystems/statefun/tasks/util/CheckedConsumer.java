@@ -13,19 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.types;
+package com.sbbsystems.statefun.tasks.util;
 
-public final class TaskEntry {
-    public String taskId;
-    public String taskType;
-    public byte[] request;
-    public boolean isFinally;
-    public String namespace;
-    public String workerName;
-    public boolean isFruitful;
-    public RetryPolicy retryPolicy;
-    public String displayName;
-    public boolean isWait;
-    public String uid;
-    public boolean isExceptionally;
+@FunctionalInterface
+public interface CheckedConsumer<T, E extends Throwable> {
+    void apply(T t) throws E;
 }

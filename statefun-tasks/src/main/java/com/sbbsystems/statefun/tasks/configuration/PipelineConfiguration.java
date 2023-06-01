@@ -15,13 +15,16 @@
  */
 package com.sbbsystems.statefun.tasks.configuration;
 
+import com.google.common.base.Strings;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonPointer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.statefun.flink.common.json.Selectors;
+import org.apache.flink.statefun.sdk.state.Expiration;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -31,10 +34,11 @@ public final class PipelineConfiguration {
 
     private static final JsonPointer PIPELINES = JsonPointer.compile("/module/spec/pipelines");
     private static final JsonPointer PIPELINE_META_ID = JsonPointer.compile("/pipeline/meta/id");
+    private static final JsonPointer PIPELINE_SPEC_STATE_EXPIRATION = JsonPointer.compile("/pipeline/spec/stateExpiration");
     private static final JsonPointer PIPELINE_SPEC_EGRESS = JsonPointer.compile("/pipeline/spec/egress");
 
     private final String pipelineId;
-
+    private final String stateExpiration;
     private final String egress;
 
     public static Stream<PipelineConfiguration> fromModuleYaml(JsonNode node) {
@@ -42,23 +46,34 @@ public final class PipelineConfiguration {
         return StreamSupport.stream(pipelineNodes.spliterator(), false).map(PipelineConfiguration::from);
     }
 
+    public static PipelineConfiguration of(@NotNull String pipelineId, @NotNull String egress, String stateExpiration) {
+        return new PipelineConfiguration(
+                Objects.requireNonNull(pipelineId),
+                Objects.requireNonNull(egress),
+                stateExpiration
+        );
+    }
+
     public static PipelineConfiguration of(@NotNull String pipelineId, @NotNull String egress) {
         return new PipelineConfiguration(
                 Objects.requireNonNull(pipelineId),
-                Objects.requireNonNull(egress)
+                Objects.requireNonNull(egress),
+                null
         );
     }
 
     private static PipelineConfiguration from(JsonNode pipelineNode) {
         return new PipelineConfiguration(
                 Selectors.textAt(pipelineNode, PIPELINE_META_ID),
-                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EGRESS)
+                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EGRESS),
+                Selectors.textAt(pipelineNode, PIPELINE_SPEC_STATE_EXPIRATION)
         );
     }
 
-    private PipelineConfiguration(String pipelineId, String egress) {
+    private PipelineConfiguration(String pipelineId, String egress, String stateExpiration) {
         this.pipelineId = pipelineId;
         this.egress = egress;
+        this.stateExpiration = stateExpiration;
     }
 
     public String getNamespace() {
@@ -73,9 +88,18 @@ public final class PipelineConfiguration {
         return pipelineId.split("/")[1] + "_callback";
     }
 
+    public Expiration getStateExpiration() {
+        if (Strings.isNullOrEmpty(stateExpiration)) {
+            return Expiration.none();
+        }
+
+        return Expiration.expireAfter(Duration.parse(stateExpiration), Expiration.Mode.AFTER_READ_OR_WRITE);
+    }
+
     public String getEgressNamespace() {
         return egress.split("/")[0];
     }
+
     public String getEgressType() {
         return egress.split("/")[1];
     }

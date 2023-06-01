@@ -50,7 +50,7 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
             var callbackFunctionType = new FunctionType(configuration.getNamespace(), configuration.getCallbackType());
 
             binder.bindFunctionProvider(pipelineFunctionType, PipelineFunctionProvider.of(configuration, callbackFunctionType));
-            binder.bindFunctionProvider(callbackFunctionType, CallbackFunctionProvider.of(pipelineFunctionType));
+            binder.bindFunctionProvider(callbackFunctionType, CallbackFunctionProvider.of(configuration, pipelineFunctionType));
 
             LOG.info("Embedded pipeline function registered");
         } catch (IllegalStateException e) {

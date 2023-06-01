@@ -21,11 +21,13 @@ import java.text.MessageFormat;
 
 public final class Task extends EntryBase implements Entry {
     private boolean isExceptionally;
+    private boolean isFinally;
 
-    public static Task of(@NotNull String id, boolean isExceptionally) {
+    public static Task of(@NotNull String id, boolean isExceptionally, boolean isFinally) {
         var task = new Task();
         task.setId(id);
         task.setExceptionally(isExceptionally);
+        task.setFinally(isFinally);
         return task;
     }
 
@@ -42,5 +44,15 @@ public final class Task extends EntryBase implements Entry {
     @SuppressWarnings("unused")  // POJO serialisation
     public void setExceptionally(boolean exceptionally) {
         isExceptionally = exceptionally;
+    }
+
+    @SuppressWarnings("unused")  // POJO serialisation
+    public boolean isFinally() {
+        return isFinally;
+    }
+
+    @SuppressWarnings("unused")  // POJO serialisation
+    public void setFinally(boolean isFinally) {
+        this.isFinally = isFinally;
     }
 }

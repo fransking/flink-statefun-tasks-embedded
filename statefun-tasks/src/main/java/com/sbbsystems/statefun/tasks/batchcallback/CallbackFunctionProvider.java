@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.batchcallback;
 
 import com.sbbsystems.statefun.tasks.batchcallback.messagehandlers.SimpleBatchSubmitter;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
 import org.apache.flink.statefun.sdk.StatefulFunctionProvider;
@@ -24,19 +25,21 @@ import org.slf4j.LoggerFactory;
 
 public class CallbackFunctionProvider implements StatefulFunctionProvider {
     private static final Logger LOG = LoggerFactory.getLogger(CallbackFunctionProvider.class);
+    private final PipelineConfiguration configuration;
     private final FunctionType pipelineFunctionType;
 
-    public static CallbackFunctionProvider of(FunctionType pipelineFunctionType) {
-        return new CallbackFunctionProvider(pipelineFunctionType);
+    public static CallbackFunctionProvider of(PipelineConfiguration configuration, FunctionType pipelineFunctionType) {
+        return new CallbackFunctionProvider(configuration, pipelineFunctionType);
     }
 
-    private CallbackFunctionProvider(FunctionType pipelineFunctionType) {
+    private CallbackFunctionProvider(PipelineConfiguration configuration, FunctionType pipelineFunctionType) {
+        this.configuration = configuration;
         this.pipelineFunctionType = pipelineFunctionType;
     }
 
     public StatefulFunction functionOfType(FunctionType type) {
         LOG.info("Creating CallbackFunction instance");
-        var batchSubmitter = SimpleBatchSubmitter.newInstance(this.pipelineFunctionType);
-        return new CallbackFunction(batchSubmitter);
+        var batchSubmitter = SimpleBatchSubmitter.of(this.pipelineFunctionType);
+        return CallbackFunction.of(configuration, batchSubmitter);
     }
 }
