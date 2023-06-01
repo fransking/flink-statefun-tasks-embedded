@@ -79,6 +79,7 @@ public class GroupResultAggregator {
         }
         var taskException = TaskException.newBuilder()
                 .setId(groupId)
+                .setUid(groupId)
                 .setExceptionType("__aggregate.error")
                 .setExceptionMessage(exceptionMessage.toString())
                 .setStacktrace(stackTrace.toString())
@@ -100,6 +101,7 @@ public class GroupResultAggregator {
             }
         }
         var taskResult = TaskResult.newBuilder()
+                .setId(groupId)
                 .setUid(groupId)
                 .setResult(Any.pack(tupleResultBuilder.build()))
                 .setState(aggregatedState)

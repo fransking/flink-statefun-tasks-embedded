@@ -24,10 +24,11 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.buildPipelineFromTemplate;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -170,6 +171,26 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
+    public void builder_throws_exceptions_if_graph_starts_with_exceptionally() {
+        var entry = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("1").setIsExceptionally(true));
+        var pipeline = Pipeline.newBuilder().addEntries(entry);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
+
+        assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
+    public void builder_throws_exceptions_if_graph_has_more_than_one_finally() {
+        var entryOne = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("1"));
+        var finallyOne = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("2").setIsFinally(true));
+        var finallyTwo = PipelineEntry.newBuilder().setTaskEntry(TaskEntry.newBuilder().setTaskId("3").setIsFinally(true));
+        var pipeline = Pipeline.newBuilder().addEntries(entryOne).addEntries(finallyOne).addEntries(finallyTwo);
+        var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
+
+        assertThrows(InvalidGraphException.class, builder::build);
+    }
+
+    @Test
     public void sets_chain_head_for_each_element_in_chain() throws InvalidGraphException {
         var group = List.of(
                 List.of("a", "b", "c")
@@ -185,7 +206,7 @@ public final class PipelineGraphBuilderTests {
         for (var entry : List.of(graph.getTask("a"), graph.getTask("b"), graph.getTask("c"))) {
             assertThat(entry.getChainHead()).isEqualTo(graph.getTask("a"));
         }
-        for (var entry : List.of(graph.getTask("x"), Objects.requireNonNull(graph.getTask("a").getParentGroup()), graph.getTask("y"))) {
+        for (var entry : List.of(graph.getTask("x"), requireNonNull(graph.getTask("a").getParentGroup()), graph.getTask("y"))) {
             assertThat(entry.getChainHead()).isEqualTo(graph.getTask("x"));
         }
 
