@@ -16,7 +16,6 @@
 package com.sbbsystems.statefun.tasks.graph;
 
 import com.sbbsystems.statefun.tasks.util.Id;
-import org.apache.flink.util.function.ThrowingRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
