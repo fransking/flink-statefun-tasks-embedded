@@ -32,9 +32,11 @@ public final class PipelineGraph {
 
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final PipelineFunctionState state;
+    private final MapOfEntries entries;
 
     private PipelineGraph(PipelineFunctionState state) {
         this.state = state;
+        this.entries = state.getEntries();
     }
 
     public static PipelineGraph from(@NotNull PipelineFunctionState state) {
@@ -62,7 +64,7 @@ public final class PipelineGraph {
     }
 
     public Entry getEntry(String id) {
-        return state.getEntries().getItems().get(id);
+        return entries.getItems().get(id);
     }
 
     public Iterable<Task> getTasks() {
@@ -134,6 +136,20 @@ public final class PipelineGraph {
         }
     }
 
+    public void markHasException(Group group) {
+        var groupEntry = getGroupEntry(group.getId());
+        groupEntry.hasException = true;
+        updateGroupEntry(groupEntry);
+    }
+
+    public boolean hasException(String groupId) {
+        return isComplete(getGroupEntry(groupId));
+    }
+
+    public boolean hasException(GroupEntry groupEntry) {
+        return groupEntry.hasException;
+    }
+
     public boolean isComplete(String groupId) {
         return isComplete(getGroupEntry(groupId));
     }
@@ -153,6 +169,6 @@ public final class PipelineGraph {
         // ensure write back to Flink state
         state.setHead(state.getHead());
         state.setTail(state.getTail());
-        state.setEntries(state.getEntries());
+        state.setEntries(entries);
     }
 }
