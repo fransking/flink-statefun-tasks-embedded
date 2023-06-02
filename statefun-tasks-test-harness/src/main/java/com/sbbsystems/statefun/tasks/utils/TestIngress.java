@@ -13,24 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sbbsystems.statefun.tasks.utils;
 
 import org.apache.flink.statefun.flink.harness.io.SerializableSupplier;
+import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
-import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-public class IngressMessageSupplier {
-    public static <T> SerializableSupplier<T> create(Collection<T> messages) {
-        var queueSupplier = BlockingQueueSupplier.create(messages);
+public class TestIngress {
+    private static final BlockingQueue<TypedValue> ingressQueue = new LinkedBlockingQueue<>();
+
+    public static void addMessage(TypedValue message) {
+        ingressQueue.add(message);
+    }
+
+    public static SerializableSupplier<TypedValue> get() {
         return () -> {
-            var queue = queueSupplier.get();
             try {
-                return queue.take();
+                return ingressQueue.take();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         };
     }
 }
-
-
