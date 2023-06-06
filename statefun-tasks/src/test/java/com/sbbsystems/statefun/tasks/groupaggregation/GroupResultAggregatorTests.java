@@ -81,8 +81,8 @@ public class GroupResultAggregatorTests {
 
         assertThat(aggregatedResult.hasTaskException()).isFalse();
         var resultAny = aggregatedResult.getTaskResult().getResult();
-        assertThat(resultAny.is(TupleOfAny.class)).isTrue();
-        assertThat(resultAny.unpack(TupleOfAny.class).getItemsList()).containsExactly(
+        assertThat(resultAny.is(ArrayOfAny.class)).isTrue();
+        assertThat(resultAny.unpack(ArrayOfAny.class).getItemsList()).containsExactly(
                 Any.pack(Int32Value.of(1)),
                 Any.pack(Int32Value.of(2)),
                 Any.pack(Int32Value.of(3))
@@ -116,7 +116,7 @@ public class GroupResultAggregatorTests {
         var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, true, true);
 
         assertThat(aggregatedResult.hasTaskException()).isFalse();
-        var resultTupleOfAny = aggregatedResult.getTaskResult().getResult().unpack(TupleOfAny.class);
+        var resultTupleOfAny = aggregatedResult.getTaskResult().getResult().unpack(ArrayOfAny.class);
         assertThat(resultTupleOfAny.getItemsList()).containsExactly(
                 Any.pack(Int32Value.of(1)),
                 Any.pack(wrappedException.getTaskException()),

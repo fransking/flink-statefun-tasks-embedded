@@ -88,6 +88,10 @@ public final class PipelineGraph {
     }
 
     public Stream<Task> getInitialTasks(Entry entry) {
+        // deal with empty groups
+        while (!isNull(entry) && entry.isEmpty()) {
+            entry = entry.getNext();
+        }
 
         if (entry instanceof Task) {
             return Stream.of((Task) entry);
@@ -143,7 +147,7 @@ public final class PipelineGraph {
     }
 
     public boolean hasException(String groupId) {
-        return isComplete(getGroupEntry(groupId));
+        return hasException(getGroupEntry(groupId));
     }
 
     public boolean hasException(GroupEntry groupEntry) {

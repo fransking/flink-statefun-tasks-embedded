@@ -19,8 +19,10 @@ package com.sbbsystems.statefun.tasks.groupaggregation;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.*;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
 
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
@@ -44,7 +46,7 @@ public class GroupResultAggregator {
         var unaggregatedState = new LinkedList<Any>();
         var aggregatedState = MapOfStringToAny.newBuilder();
 
-        var aggregatedResults = TupleOfAny.newBuilder();
+        var aggregatedResults = ArrayOfAny.newBuilder();
         var aggregatedExceptionMessages = new StringBuilder();
         var aggregatedExceptionStackTraces = new StringBuilder();
 
@@ -116,7 +118,13 @@ public class GroupResultAggregator {
     private void aggregateState(Any state, LinkedList<Any> unaggregatedState, MapOfStringToAny.Builder aggregatedState)
             throws InvalidProtocolBufferException {
 
+        if (Objects.isNull(state)) {
+            // ignore null state for empty group results
+            return;
+        }
+
         if (unaggregatedState.isEmpty()) {
+            // merge state if we can, otherwise just take one
             if (state.is(MapOfStringToAny.class)) {
                 mergeItems(state.unpack(MapOfStringToAny.class), aggregatedState);
             } else {
@@ -134,6 +142,10 @@ public class GroupResultAggregator {
     }
 
     private static TaskResultOrException getResult(TaskResultOrException result, boolean returnExceptions) {
+        if (Objects.isNull(result)) {
+            return MessageTypes.emptyGroupResult();
+        }
+
         if (result.hasTaskResult() || !returnExceptions) {
             return result;
         }
@@ -143,8 +155,7 @@ public class GroupResultAggregator {
 
         var taskResult = TaskResult.newBuilder()
                 .setResult(Any.pack(taskException))
-                .setState(taskException.getState())
-                .build();
+                .setState(taskException.getState());
         return TaskResultOrException.newBuilder()
                 .setTaskResult(taskResult)
                 .build();

@@ -15,28 +15,39 @@
  */
 package com.sbbsystems.statefun.tasks.utils;
 
+import com.sbbsystems.statefun.tasks.testmodule.IoIdentifiers;
 import org.apache.flink.statefun.flink.harness.Harness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HarnessUtils {
     private static final Logger LOG = LoggerFactory.getLogger(HarnessUtils.class);
+    private static Thread harnessThread = null;
 
-    public static Thread startHarnessInTheBackground(Harness harness) {
-        Thread t =
-                new Thread(
-                        () -> {
-                            try {
-                                harness.start();
-                            } catch (InterruptedException ignored) {
-                                LOG.info("Harness Interrupted");
-                            } catch (Exception exception) {
-                                throw new RuntimeException(exception);
-                            }
-                        });
-        t.setName("harness-runner");
-        t.setDaemon(true);
-        t.start();
-        return t;
+    public static synchronized void ensureHarnessThreadIsRunning() {
+        if (harnessThread == null || !harnessThread.isAlive()) {
+            LOG.info("Starting test harness");
+            var harness = new Harness()
+                    .withParallelism(1)
+                    .withSupplyingIngress(IoIdentifiers.REQUEST_INGRESS, TestIngress.get())
+                    .withConsumingEgress(IoIdentifiers.RESULT_EGRESS, TestEgress::addMessage);
+            harnessThread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    harness.start();
+                                } catch (InterruptedException ignored) {
+                                    LOG.info("Harness Interrupted");
+                                } catch (Exception exception) {
+                                    throw new RuntimeException(exception);
+                                }
+                            });
+            harnessThread.setName("harness-runner");
+            harnessThread.setDaemon(true);
+            harnessThread.start();
+
+            TestEgress.initialise(harnessThread);
+        }
     }
+
 }

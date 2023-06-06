@@ -190,18 +190,6 @@ public final class PipelineGraphTests {
         var entry = Objects.requireNonNull(graph.getHead());
         var initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
 
-        // first empty group
-        assertThat(initialTasks).hasSize(0);
-        entry = graph.getNextEntry(entry);
-        initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
-
-        // second empty group
-        assertThat(initialTasks).hasSize(0);
-
-        // move to a
-        entry = graph.getNextEntry(entry);
-        initialTasks = graph.getInitialTasks(entry).collect(Collectors.toList());
-
         assertThat(initialTasks).hasSize(1);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
     }
@@ -375,5 +363,25 @@ public final class PipelineGraphTests {
         // next is null
         graph.markComplete(c);
         assertThat(graph.getNextEntry(c)).isNull();
+    }
+
+    @Test
+    public void steps_through_nested_empty_groups_correctly() {
+        var emptyGroup = List.of();
+
+        var group = List.of(
+                List.of(emptyGroup, "a")
+        );
+
+        var template = List.of(group, "b");
+        var graph = fromTemplate(template);
+        assertThat(graph.getHead()).isNotNull();
+
+        var initialTasks = graph.getInitialTasks().collect(Collectors.toUnmodifiableList());
+        assertThat(initialTasks).containsExactly(graph.getTask("a"));
+
+        var previousTask = graph.getTask("a").getPrevious();
+        assertThat(previousTask).isNotNull();
+        assertThat(previousTask.isEmpty()).isTrue();
     }
 }

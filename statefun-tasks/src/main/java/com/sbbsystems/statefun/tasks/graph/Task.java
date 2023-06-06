@@ -19,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.text.MessageFormat;
 
+import static java.util.Objects.isNull;
+
 public final class Task extends EntryBase implements Entry {
     private boolean isExceptionally;
     private boolean isFinally;
@@ -55,4 +57,8 @@ public final class Task extends EntryBase implements Entry {
     public void setFinally(boolean isFinally) {
         this.isFinally = isFinally;
     }
+
+//    public boolean isPreviousEntryEmpty() {
+//        return (!isNull(getPrevious()) && getPrevious().isEmpty());
+//    }
 }
