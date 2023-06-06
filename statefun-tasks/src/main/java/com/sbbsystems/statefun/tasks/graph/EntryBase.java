@@ -103,4 +103,14 @@ abstract class EntryBase implements Entry {
     public int hashCode() {
         return getId().hashCode();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        return (o instanceof Entry && Objects.equals(((Entry) o).getId(), getId()));
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
 }
