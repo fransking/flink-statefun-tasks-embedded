@@ -32,6 +32,7 @@ public class EchoFunction implements StatefulFunction {
                 var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
                 var taskResult = TaskResult.newBuilder().setId(taskRequest.getId())
                         .setUid(taskRequest.getUid())
+                        .setInvocationId(taskRequest.getInvocationId())
                         .setType(taskRequest.getType() + ".result")
                         .setResult(taskRequest.getRequest())
                         .build();

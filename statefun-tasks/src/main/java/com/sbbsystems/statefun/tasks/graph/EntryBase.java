@@ -28,6 +28,7 @@ abstract class EntryBase implements Entry {
     private Entry previous;
     private Group parentGroup;
     private Entry chainHead;
+    private boolean precededByAnEmptyGroup;
 
     @SuppressWarnings("unused")  // POJO serialisation
     public EntryBase() {
@@ -84,9 +85,20 @@ abstract class EntryBase implements Entry {
     public void setChainHead(Entry head) {
         this.chainHead = head;
     }
+
     @Override
     public Entry getChainHead() {
         return this.chainHead;
+    }
+
+    @Override
+    public boolean isPrecededByAnEmptyGroup() {
+        return precededByAnEmptyGroup;
+    }
+
+    @Override
+    public void setPrecededByAnEmptyGroup(boolean precededByAnEmptyGroup) {
+        this.precededByAnEmptyGroup = precededByAnEmptyGroup;
     }
 
     @Override

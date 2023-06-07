@@ -191,7 +191,9 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
-    public void sets_chain_head_for_each_element_in_chain() throws InvalidGraphException {
+    public void sets_chain_head_for_each_element_in_chain()
+            throws InvalidGraphException {
+
         var group = List.of(
                 List.of("a", "b", "c")
         );
@@ -209,6 +211,172 @@ public final class PipelineGraphBuilderTests {
         for (var entry : List.of(graph.getTask("x"), requireNonNull(graph.getTask("a").getParentGroup()), graph.getTask("y"))) {
             assertThat(entry.getChainHead()).isEqualTo(graph.getTask("x"));
         }
+    }
 
+    @Test
+    public void calculates_correct_remaining_count_for_a_group()
+            throws InvalidGraphException {
+
+        var group = List.of(
+                List.of("a"),
+                List.of("b"),
+                List.of("c")
+        );
+
+        var template = List.of(group);
+
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        var grp = (Group) graph.getHead();
+        assertThat(grp).isNotNull();
+        assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(3);
+    }
+
+    @Test
+    public void calculates_correct_remaining_count_for_groups_that_are_empty_empty()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+
+        var group = List.of(
+                List.of(emptyGroup),  // empty chain
+                List.of(emptyGroup, emptyGroup),  // empty chain
+                List.of("a"),   // not empty
+                List.of(emptyGroup, "b", emptyGroup), // not empty
+                List.of(emptyGroup, "c") // not empty for total of 3 items
+        );
+
+        var template = List.of(group);
+
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        var grp = (Group) graph.getHead();
+        assertThat(grp).isNotNull();
+        assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(3);
+    }
+
+    @Test
+    public void calculates_correct_remaining_count_for_groups_that_are_partially_empty()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+
+        var nonEmptyGroup = List.of(
+                List.of("a")
+        );
+
+        var group = List.of(
+                List.of(nonEmptyGroup),
+                List.of(emptyGroup, emptyGroup, "b")
+        );
+
+        var template = List.of(group);
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        var grp = (Group) graph.getHead();
+        assertThat(grp).isNotNull();
+        assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(2);
+    }
+
+    @Test
+    public void marks_tasks_that_are_preceded_by_empty_groups()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+        var nestedEmptyGroup = List.of(List.of(emptyGroup));
+
+        var group = List.of(
+                List.of("a", emptyGroup, "b", "c", emptyGroup, "d", nestedEmptyGroup, "e"),
+                List.of("x", "y"),
+                List.of("1", emptyGroup, "ex2", "ex3", "4", "5")
+        );
+
+        var template = List.of(emptyGroup, group);
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        var groupOfa = graph.getTask("a").getParentGroup();
+
+        assertThat(groupOfa).isNotNull();
+        assertThat(graph.getGroup(groupOfa.getId()).isPrecededByAnEmptyGroup()).isTrue();
+
+        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("b").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("c").isPrecededByAnEmptyGroup()).isFalse();
+        assertThat(graph.getTask("d").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("e").isPrecededByAnEmptyGroup()).isTrue();
+
+        assertThat(graph.getTask("x").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("y").isPrecededByAnEmptyGroup()).isFalse();
+
+        assertThat(graph.getTask("1").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("ex2").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("ex3").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("4").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("5").isPrecededByAnEmptyGroup()).isFalse();
+    }
+
+    @Test
+    public void marks_tasks_that_are_preceded_by_groups_which_have_exceptionally_in_them_but_are_effectively_empty()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+
+        var group = List.of(
+                List.of(emptyGroup, "ex2"), // empty followed by exceptionally and nothing else is equivalent to empty
+                List.of(emptyGroup, "ex3") // empty followed by exceptionally and nothing else is equivalent to empty
+        );
+
+        var template = List.of(group, "a");
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        assertThat(graph.getTask("ex2").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
+    }
+
+    @Test
+    public void marks_tasks_that_are_preceded_by_nested_empty_groups_correctly()
+            throws InvalidGraphException {
+
+        var emptyGroup = List.of();
+
+        var group = List.of(
+                List.of(emptyGroup, "a")
+        );
+
+        var template = List.of(group, "b");
+        var pipeline = buildPipelineFromTemplate(template);
+
+        var graph = PipelineGraphBuilder
+                .from(PipelineFunctionState.newInstance())
+                .fromProto(pipeline)
+                .build();
+
+        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getTask("b").isPrecededByAnEmptyGroup()).isFalse();
     }
 }

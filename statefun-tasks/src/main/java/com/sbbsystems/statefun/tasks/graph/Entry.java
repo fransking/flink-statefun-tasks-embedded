@@ -36,5 +36,9 @@ public interface Entry {
 
     Entry getChainHead();
 
+    boolean isPrecededByAnEmptyGroup();
+
+    void setPrecededByAnEmptyGroup(boolean precededByAnEmptyGroup);
+
     boolean isEmpty();
 }

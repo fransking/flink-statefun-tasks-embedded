@@ -46,6 +46,7 @@ public class GraphTestUtils {
                 var taskEntry = TaskEntry.newBuilder()
                         .setTaskId(String.valueOf(item))
                         .setUid(String.valueOf(item))
+                        .setIsExceptionally(String.valueOf(item).startsWith("ex"))
                         .build();
 
                 pipeline.addEntries(PipelineEntry.newBuilder().setTaskEntry(taskEntry));

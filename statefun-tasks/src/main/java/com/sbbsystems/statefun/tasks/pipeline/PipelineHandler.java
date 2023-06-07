@@ -15,18 +15,14 @@
  */
 package com.sbbsystems.statefun.tasks.pipeline;
 
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.Any;
 import com.google.protobuf.Message;
-import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
-import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.Entry;
 import com.sbbsystems.statefun.tasks.graph.Group;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
@@ -34,7 +30,6 @@ import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
-import com.sbbsystems.statefun.tasks.serialization.TaskResultOrExceptionSerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskResultSerializer;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.Id;
@@ -93,8 +88,11 @@ public final class PipelineHandler {
         state.setRootPipelineAddress(taskRequest.getRootPipelineAddress(context));
         state.setTaskRequest(incomingTaskRequest);
         state.setInvocationId(Id.generate());
-        state.setIsFruitful(incomingTaskRequest.getIsFruitful()); // todo move this into the calling task
         state.setStatus(TaskStatus.Status.RUNNING);
+
+        if (incomingTaskRequest.hasField(TaskRequest.getDescriptor().findFieldByNumber(TaskRequest.IS_FRUITFUL_FIELD_NUMBER))) {
+            state.setIsFruitful(incomingTaskRequest.getIsFruitful());
+        }
 
         if (!isNull(context.caller())) {
             state.setCallerAddress(MessageTypes.toAddress(context.caller()));
@@ -115,20 +113,21 @@ public final class PipelineHandler {
         }
 
         // get the initial tasks to call and the args and kwargs
-        var initialTasks = graph.getInitialTasks(entry).collect(Collectors.toUnmodifiableList());
+        var skippedTasks = new LinkedList<Task>();
+        var initialTasks = getInitialTasks(entry, false, skippedTasks);
         var taskArgsAndKwargs = state.getInitialArgsAndKwargs();
 
         // we may have no initial tasks in the case of empty groups so continue to iterate over these
         while (initialTasks.isEmpty() && !isNull(entry)) {
+            graph.markComplete(entry);
             entry = graph.getNextEntry(entry);
-            initialTasks = graph.getInitialTasks(entry).collect(Collectors.toUnmodifiableList());
+            initialTasks = getInitialTasks(entry, false, skippedTasks);
         }
 
         if (initialTasks.isEmpty()) {
             // if we have a completely empty pipeline after iterating over empty groups then return empty result
-            state.setStatus(TaskStatus.Status.COMPLETED);
             var taskResult = MessageTypes.toTaskResult(incomingTaskRequest, ArrayOfAny.getDefaultInstance());
-            respond(context, incomingTaskRequest, taskResult);
+            respondWithResult(context, incomingTaskRequest, taskResult);
         }
         else {
             LOG.info("We have some tasks to call at the start of the pipeline - {}", initialTasks);
@@ -138,9 +137,8 @@ public final class PipelineHandler {
                 var taskEntry = graph.getTaskEntry(task.getId());
                 var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
 
-                // add task arguments - if previous task was empty (by definition) group then send []
-                // todo we could modify this to sent nested [[]] but for now empty is consistent with python API
-                var mergedArgsAndKwargs = task.getPrevious() instanceof Group
+                // add task arguments - if we skipped any empty groups then we have to send [] to the next task
+                var mergedArgsAndKwargs = task.isPrecededByAnEmptyGroup()
                         ? TaskEntrySerializer.of(taskEntry).mergeWith(MessageTypes.argsOfEmptyArray())
                         : TaskEntrySerializer.of(taskEntry).mergeWith(taskArgsAndKwargs);
 
@@ -157,10 +155,9 @@ public final class PipelineHandler {
                 // send message
                 context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
-
 //            // todo remove once TaskResult processing is working
-            var taskResult = MessageTypes.toTaskResult(incomingTaskRequest, StringValue.of("DONE"));
-            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, incomingTaskRequest.getReplyTopic()));
+//            var taskResult = MessageTypes.toTaskResult(incomingTaskRequest, StringValue.of("DONE"));
+//            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, incomingTaskRequest.getReplyTopic()));
         }
     }
 
@@ -192,38 +189,27 @@ public final class PipelineHandler {
         // is task part of a group?
         var parentGroup = completedEntry.getParentGroup();
 
-        // if so and we have an exception then record this to aid in aggregation later
-        if (!isNull(parentGroup) && message.hasTaskException()) {
-            graph.markHasException(parentGroup);
-        }
-
         // get next entry skipping over exceptionally tasks as required
         var skippedTasks = new LinkedList<Task>();
         var nextEntry = graph.getNextEntry(completedEntry);
-        var skippedAnEmptyGroup = false;
+        var initialTasks = getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
 
-        var initialTasks = graph.getInitialTasks(nextEntry).collect(Collectors.toUnmodifiableList());
-        while (nextEntry != parentGroup && skipEntry(nextEntry, initialTasks, message, skippedTasks)) {
-
-            if (initialTasks.isEmpty()) {
-                // then we have an empty group between this entry and our next entry
-                skippedAnEmptyGroup = true;
-            }
-
+        while (nextEntry != parentGroup && initialTasks.isEmpty()) {
             graph.markComplete(nextEntry);
             nextEntry = graph.getNextEntry(nextEntry);
-            initialTasks = graph.getInitialTasks(nextEntry).collect(Collectors.toUnmodifiableList());
-        }
-
-        if (skippedAnEmptyGroup) {
-            // we need to pass [] as the result to the next task(s)
-            message = TaskResultOrExceptionSerializer.of(message).toEmptyGroupResult();
+            initialTasks = getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
         }
 
         if (equalsAndNotNull(parentGroup, nextEntry)) {
             // if the next step is the parent group this task was the end of a chain
             // save the result so that we can aggregate later
+            LOG.info("Saving {} for {}", message, completedEntry.getChainHead());
             state.getIntermediateGroupResults().set(completedEntry.getChainHead().getId(), message);
+
+            // if we have an exception then record this to aid in aggregation later
+            if (message.hasTaskException()) {
+                graph.markHasException(parentGroup);
+            }
 
             if (graph.isComplete(parentGroup.getId())) {
                 LOG.info("{} is complete", parentGroup);
@@ -247,6 +233,8 @@ public final class PipelineHandler {
                 } else {
                     LOG.info("We have some tasks to call - {}", initialTasks);
 
+                    LOG.info("So message was {}", message);
+
                     // todo support for finally_do
                     var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
                     var taskResult = TaskResultSerializer.of(message);
@@ -256,7 +244,10 @@ public final class PipelineHandler {
                         var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
 
                         // add task arguments
-                        var mergedArgsAndKwargs = TaskEntrySerializer.of(taskEntry).mergeWith(taskResult.getResult());
+                        var mergedArgsAndKwargs = (task.isPrecededByAnEmptyGroup() && !message.hasTaskException())
+                                ? TaskEntrySerializer.of(taskEntry).mergeWith(ArrayOfAny.getDefaultInstance())
+                                : TaskEntrySerializer.of(taskEntry).mergeWith(taskResult.getResult());
+
                         outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
 
                         // set the state
@@ -273,14 +264,19 @@ public final class PipelineHandler {
             else {
                 if (lastTaskIsCompleteOrSkipped(skippedTasks, completedEntry)) {
                     LOG.info("We are at the end of the pipeline with a result or exception");
-                }
-//                else if (message.hasTaskException()) {
-//                    //todo not needed
-//                    LOG.info("We failed and need to return an error now");
-//                }
-            }
 
-            LOG.info("Skipped tasks is {}", skippedTasks);
+                    if (message.hasTaskResult()) {
+                        LOG.info("THE RESULT IS {}", message.getTaskResult());
+                        respondWithResult(context, state.getTaskRequest(), message.getTaskResult());
+                    } else {
+
+                    }
+                }
+
+//              todo handle exceptions
+
+
+            }
         }
     }
 
@@ -296,30 +292,8 @@ public final class PipelineHandler {
         return false;
     }
 
-
-    private boolean skipEntry(Entry entry, List<Task> initialTasks, TaskResultOrException taskResultOrException, List<Task> skippedTasks) {
-        if (isNull(entry) || initialTasks.isEmpty()) {
-            return true;
-        }
-
-        if (entry instanceof Group && taskResultOrException.hasTaskException()) {
-            var group = (Group) entry;
-            for (var groupEntry: group.getItems()) {
-                graph.getTasks(groupEntry).forEach(skippedTasks::add);
-            }
-            return true;
-        }
-
-        if (entry instanceof Task) {
-            var task = (Task) entry;
-
-            if (!task.isFinally() && task.isExceptionally() != taskResultOrException.hasTaskException()) {
-                skippedTasks.add(task);
-                return true;
-            }
-        }
-
-        return false;
+    private List<Task> getInitialTasks(Entry entry, boolean exceptionally, List<Task> skippedTasks) {
+        return graph.getInitialTasks(entry, exceptionally, skippedTasks).collect(Collectors.toUnmodifiableList());
     }
 
     private boolean lastTaskIsCompleteOrSkipped(List<Task> skippedTasks, Entry completedEntry) {
@@ -340,6 +314,24 @@ public final class PipelineHandler {
 
         return groupResultAggregator.aggregateResults(group.getId(),
                 state.getInvocationId(), groupResults, hasException, groupEntry.returnExceptions);
+    }
+
+    private void respondWithResult(@NotNull Context context, TaskRequest taskRequest, TaskResult taskResult) {
+        var result = state.getIsFruitful()
+                ? taskResult.getResult()
+                : MessageTypes.tupleOfEmptyArray();
+
+        var outgoingTaskResult = state.getIsInline()
+                ? MessageTypes.toTaskResult(taskRequest, result, taskResult.getState())
+                : MessageTypes.toTaskResult(taskRequest, result);
+
+        state.setStatus(TaskStatus.Status.COMPLETED);
+        respond(context, taskRequest, outgoingTaskResult);
+    }
+
+    private void respondWithError(@NotNull Context context, TaskRequest taskRequest, TaskException error) {
+        state.setStatus(TaskStatus.Status.FAILED);
+        respond(context, taskRequest, error);
     }
 
     private void respond(@NotNull Context context, TaskRequest taskRequest, Message message) {

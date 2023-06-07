@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -29,7 +30,6 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 
 public final class PipelineGraph {
-
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final PipelineFunctionState state;
     private final MapOfEntries entries;
@@ -83,18 +83,23 @@ public final class PipelineGraph {
         return getEntry(state.getTail());
     }
 
-    public Stream<Task> getInitialTasks() {
-        return getInitialTasks(getHead());
-    }
-
-    public Stream<Task> getInitialTasks(Entry entry) {
+    public Stream<Task> getInitialTasks(Entry entry, boolean exceptionally, List<Task> skippedTasks) {
         // deal with empty groups
-        while (!isNull(entry) && entry.isEmpty()) {
+        while (entry instanceof Group && entry.isEmpty()) {
             entry = entry.getNext();
         }
 
         if (entry instanceof Task) {
-            return Stream.of((Task) entry);
+            var task = (Task) entry;
+
+            // skip tasks that don't match our current execution state
+            if (!task.isFinally() && task.isExceptionally() != exceptionally) {
+                markComplete(task);
+                skippedTasks.add(task);
+                return getInitialTasks(task.getNext(), exceptionally, skippedTasks);
+            }
+
+            return Stream.of(task);
         }
 
         if (entry instanceof Group) {
@@ -102,7 +107,7 @@ public final class PipelineGraph {
             var stream = Stream.<Task>of();
 
             for (var groupEntry: group.getItems()) {
-                stream = Stream.concat(stream, getInitialTasks(groupEntry));
+                stream = Stream.concat(stream, getInitialTasks(groupEntry, exceptionally, skippedTasks));
             }
 
             return stream;
@@ -124,19 +129,17 @@ public final class PipelineGraph {
 
     public void markComplete(Entry entry) {
         if (entry instanceof Group) {
+            // if we are a group then mark group as complete
             var groupEntry = getGroupEntry(entry.getId());
-            groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
+            groupEntry.remaining = 0;
             updateGroupEntry(groupEntry);
         }
 
         if (isNull(entry.getNext()) && !isNull(entry.getParentGroup())) {
+            // if we are the end of a chain in a parent group then decrement the parent group remaining count
             var groupEntry = getGroupEntry(entry.getParentGroup().getId());
             groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
             updateGroupEntry(groupEntry);
-
-            if (isComplete(groupEntry)) {
-                markComplete(entry.getParentGroup());
-            }
         }
     }
 
@@ -144,10 +147,6 @@ public final class PipelineGraph {
         var groupEntry = getGroupEntry(group.getId());
         groupEntry.hasException = true;
         updateGroupEntry(groupEntry);
-    }
-
-    public boolean hasException(String groupId) {
-        return hasException(getGroupEntry(groupId));
     }
 
     public boolean hasException(GroupEntry groupEntry) {
