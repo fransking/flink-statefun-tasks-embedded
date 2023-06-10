@@ -119,14 +119,12 @@ public final class MessageTypes {
     }
 
     public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result, Any state) {
-        var packedResult = (result instanceof Any) ? (Any) result: Any.pack(result);
-
         return TaskResult.newBuilder()
                 .setId(incomingTaskRequest.getId())
                 .setUid(incomingTaskRequest.getUid())
                 .setInvocationId(incomingTaskRequest.getInvocationId())
                 .setType(incomingTaskRequest.getType() + ".result")
-                .setResult(packedResult)
+                .setResult(MessageTypes.packAny(result))
                 .setState(state)
                 .build();
     }

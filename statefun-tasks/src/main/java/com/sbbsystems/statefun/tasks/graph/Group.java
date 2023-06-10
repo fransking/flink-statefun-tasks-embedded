@@ -21,6 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import java.text.MessageFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 @TypeInfo(GroupTypeInfoFactory.class)
 public final class Group extends EntryBase implements Entry {
@@ -58,6 +59,14 @@ public final class Group extends EntryBase implements Entry {
 
     @Override
     public boolean isEmpty() {
-        return items.isEmpty();
+        for (var item: items) {
+            while (!Objects.isNull(item)) {
+                if (!item.isEmpty()) {
+                    return false;
+                }
+                item = item.getNext();
+            }
+        }
+        return true;
     }
 }
