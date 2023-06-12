@@ -99,8 +99,9 @@ public final class PipelineHandler {
             state.setCallerAddress(MessageTypes.toAddress(context.caller()));
         }
 
-        if (state.getIsInline()) {
-            // if this is an inline pipeline then copy incomingTaskRequest state to pipeline initial state
+        if (state.getIsInline() && isNull(state.getInitialState())) {
+            // if this is an inline pipeline and we haven't been given pipeline initial state
+            // then copy incomingTaskRequest state to pipeline current state
             state.setInitialState(incomingTaskRequest.getState());
         }
 
@@ -148,6 +149,7 @@ public final class PipelineHandler {
 
                 // add initial state if present otherwise we start each pipeline with empty state
                 if (!isNull(state.getInitialState())) {
+                    var a = String.valueOf(state.getInitialState());
                     outgoingTaskRequest.setState(state.getInitialState());
                 }
 
@@ -157,7 +159,7 @@ public final class PipelineHandler {
                 // send message
                 context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
-            LOG.info("Pipeline {} started", state.getPipelineAddress());
+            LOG.info("Pipeline {} started", getPipelineAddress());
         }
     }
 
@@ -234,7 +236,6 @@ public final class PipelineHandler {
             if (!isNull(nextEntry)) {
                 LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, initialTasks.size());
 
-                // todo support for finally_do
                 var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
                 var taskResult = TaskResultSerializer.of(message);
 

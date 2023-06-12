@@ -83,6 +83,10 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             state.setIsInline(pipelineProto.getInline());
             state.setInitialArgsAndKwargs(taskArgsAndKwargs.slice(1));
 
+            if (pipelineProto.hasInitialState()) {
+                state.setInitialState(pipelineProto.getInitialState());
+            }
+
             // create the graph
             var graph = PipelineGraphBuilder
                     .from(state)
