@@ -15,9 +15,9 @@
  */
 package com.sbbsystems.statefun.tasks.pipeline;
 
-import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
@@ -38,6 +38,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -126,11 +127,12 @@ public final class PipelineHandler {
 
         if (initialTasks.isEmpty()) {
             // if we have a completely empty pipeline after iterating over empty groups then return empty result
-            var taskResult = MessageTypes.toTaskResult(incomingTaskRequest, ArrayOfAny.getDefaultInstance());
+            LOG.info("Pipeline {} is empty, returning []", getPipelineAddress());
+            var taskResult = MessageTypes.toOutgoingTaskResult(incomingTaskRequest, ArrayOfAny.getDefaultInstance());
             respondWithResult(context, incomingTaskRequest, taskResult);
         }
         else {
-            LOG.info("We have some tasks to call at the start of the pipeline - {}", initialTasks);
+            LOG.info("Pipeline {} is starting with {} tasks to call", getPipelineAddress(), initialTasks.size());
             // else call the initial tasks
             for (var task: initialTasks) {
 
@@ -155,33 +157,40 @@ public final class PipelineHandler {
                 // send message
                 context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
-//            // todo remove once TaskResult processing is working
-//            var taskResult = MessageTypes.toTaskResult(incomingTaskRequest, StringValue.of("DONE"));
-//            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(taskResult, incomingTaskRequest.getReplyTopic()));
+            LOG.info("Pipeline {} started", state.getPipelineAddress());
         }
     }
 
     public void continuePipeline(Context context, TaskResultOrException message)
         throws StatefunTasksException {
 
+        var pipelineAddress = getPipelineAddress();
+        var callerId = message.hasTaskResult() ? message.getTaskResult().getUid() : message.getTaskException().getUid();
+
         if (!isInThisInvocation(message)) {
             // invocation ids don't match - must be delayed result of previous invocation
+            LOG.warn("Mismatched invocation id in message from {} for pipeline {}", callerId, pipelineAddress);
             return;
         }
 
+        // N.B. that context.caller() will return callback function address not the task address
+        var completedEntry = graph.getEntry(callerId);
+
+
+        if (graph.isFinally(completedEntry)) {
+            // if this task is the finally task then set message to saved result before finally
+            message = state.getResponseBeforeFinally();
+        }
+
         if (message.hasTaskResult()) {
-            LOG.info("Got a task result for {}", message.getTaskResult().getUid());
+            LOG.info("Got a task result from {} for pipeline {}", callerId, pipelineAddress);
             state.setCurrentTaskState(message.getTaskException().getState());
         }
 
         if (message.hasTaskException()) {
-            LOG.info("Got a task exception for {}", message.getTaskException().getUid());
+            LOG.info("Got a task exception from {} for pipeline {}", callerId, pipelineAddress);
             state.setCurrentTaskState(message.getTaskException().getState());
         }
-
-        // N.B. that context.caller() will return callback function address not the task address
-        var callerId = message.hasTaskResult() ? message.getTaskResult().getUid() : message.getTaskException().getUid();
-        var completedEntry = graph.getEntry(callerId);
 
         // mark task complete
         graph.markComplete(completedEntry);
@@ -192,7 +201,10 @@ public final class PipelineHandler {
         // get next entry skipping over exceptionally tasks as required
         var skippedTasks = new LinkedList<Task>();
         var nextEntry = graph.getNextEntry(completedEntry);
-        var initialTasks = getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
+
+        var initialTasks = nextEntry == parentGroup
+                ? List.<Task>of()
+                : getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
 
         while (nextEntry != parentGroup && initialTasks.isEmpty()) {
             graph.markComplete(nextEntry);
@@ -203,81 +215,89 @@ public final class PipelineHandler {
         if (equalsAndNotNull(parentGroup, nextEntry)) {
             // if the next step is the parent group this task was the end of a chain
             // save the result so that we can aggregate later
-            LOG.info("Saving {} for {}", message, completedEntry.getChainHead());
+            LOG.info("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
             state.getIntermediateGroupResults().set(completedEntry.getChainHead().getId(), message);
 
-            // if we have an exception then record this to aid in aggregation later
             if (message.hasTaskException()) {
+                // if we have an exception then record this to aid in aggregation later
                 graph.markHasException(parentGroup);
             }
 
             if (graph.isComplete(parentGroup.getId())) {
                 LOG.info("{} is complete", parentGroup);
-
-                var groupResult = aggregateGroupResults(parentGroup);
-                LOG.info("Got a {} group result", groupResult);
-
-                continuePipeline(context, groupResult);
-                return;
-            } else {
-                LOG.info("{} is not complete", parentGroup);
+                continuePipeline(context, aggregateGroupResults(parentGroup));
             }
         } else {
-            LOG.info("The next entry is {}", nextEntry);
+
+            LOG.info("The next entry is {} for pipeline {}", nextEntry, pipelineAddress);
 
             if (!isNull(nextEntry)) {
-                LOG.info("We have a next entry to call");
+                LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, initialTasks.size());
 
-                if (initialTasks.isEmpty()) {
-                    LOG.info("We do not have some tasks to call - initial tasks was empty");
-                } else {
-                    LOG.info("We have some tasks to call - {}", initialTasks);
+                // todo support for finally_do
+                var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
+                var taskResult = TaskResultSerializer.of(message);
 
-                    LOG.info("So message was {}", message);
+                for (var task: initialTasks) {
+                    var entry = graph.getTaskEntry(task.getId());
+                    var taskEntry = TaskEntrySerializer.of(entry);
 
-                    // todo support for finally_do
-                    var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
-                    var taskResult = TaskResultSerializer.of(message);
+                    var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
 
-                    for (var task: initialTasks) {
-                        var taskEntry = graph.getTaskEntry(task.getId());
-                        var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
+                    // add task arguments
+                    var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
 
-                        // add task arguments
-                        var mergedArgsAndKwargs = (task.isPrecededByAnEmptyGroup() && !message.hasTaskException())
-                                ? TaskEntrySerializer.of(taskEntry).mergeWith(ArrayOfAny.getDefaultInstance())
-                                : TaskEntrySerializer.of(taskEntry).mergeWith(taskResult.getResult());
+                    outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
 
-                        outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
+                    // set the state
+                    outgoingTaskRequest.setState(taskResult.getState());
 
-                        // set the state
-                        outgoingTaskRequest.setState(taskResult.getState());
+                    // set the reply address to be the callback function
+                    outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
 
-                        // set the reply address to be the callback function
-                        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
-
-                        // send message
-                        context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
-                    }
+                    // send message
+                    context.send(MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
                 }
             }
             else {
                 if (lastTaskIsCompleteOrSkipped(skippedTasks, completedEntry)) {
-                    LOG.info("We are at the end of the pipeline with a result or exception");
-
                     if (message.hasTaskResult()) {
-                        LOG.info("THE RESULT IS {}", message.getTaskResult());
+                        LOG.info("Pipeline {} completed successfully", pipelineAddress);
                         respondWithResult(context, state.getTaskRequest(), message.getTaskResult());
                     } else {
+                        LOG.info("Pipeline {} completed with error", pipelineAddress);
+                        respondWithError(context, state.getTaskRequest(), message.getTaskException());
+                    }
 
+                } else if (message.hasTaskResult()) {
+                    if (isNull(parentGroup) || graph.isComplete(parentGroup.getId())) {
+                        // end pipeline waiting for group to complete so we get the full aggregate exception
+                        LOG.info("Pipeline {} failed", pipelineAddress);
+                        respondWithError(context, state.getTaskRequest(), message.getTaskException());
                     }
                 }
-
-//              todo handle exceptions
-
-
             }
         }
+    }
+
+    private Any mergeArgsAndKwargs(Task task, TaskEntrySerializer taskEntry, TaskResultSerializer taskResult, TaskResultOrException message)
+            throws StatefunTasksException {
+
+        if (task.isFinally()) {
+            state.setResponseBeforeFinally(message);
+            return taskEntry.mergeWith(TupleOfAny.getDefaultInstance());
+        } else if (task.isPrecededByAnEmptyGroup() && !message.hasTaskException()) {
+            return taskEntry.mergeWith(ArrayOfAny.getDefaultInstance());
+        } else {
+            return taskEntry.mergeWith(taskResult.getResult());
+        }
+    }
+
+    private String getPipelineAddress() {
+        var address = state.getPipelineAddress();
+        return isNull(address)
+                ? ""
+                : MessageFormat.format("{0}/{1}/{2}", address.getNamespace(), address.getType(), address.getId());
     }
 
     private boolean isInThisInvocation(TaskResultOrException message) {
@@ -322,16 +342,22 @@ public final class PipelineHandler {
                 : MessageTypes.tupleOfEmptyArray();
 
         var outgoingTaskResult = state.getIsInline()
-                ? MessageTypes.toTaskResult(taskRequest, result, taskResult.getState())
-                : MessageTypes.toTaskResult(taskRequest, result);
+                ? MessageTypes.toOutgoingTaskResult(taskRequest, result, taskResult.getState())
+                : MessageTypes.toOutgoingTaskResult(taskRequest, result);
 
+        state.setTaskResult(outgoingTaskResult);
         state.setStatus(TaskStatus.Status.COMPLETED);
         respond(context, taskRequest, outgoingTaskResult);
     }
 
     private void respondWithError(@NotNull Context context, TaskRequest taskRequest, TaskException error) {
+        var outgoingTaskException = state.getIsInline()
+                ? MessageTypes.toOutgoingTaskException(taskRequest, error, error.getState())
+                : MessageTypes.toOutgoingTaskException(taskRequest, error);
+
+        state.setTaskException(outgoingTaskException);
         state.setStatus(TaskStatus.Status.FAILED);
-        respond(context, taskRequest, error);
+        respond(context, taskRequest, outgoingTaskException);
     }
 
     private void respond(@NotNull Context context, TaskRequest taskRequest, Message message) {

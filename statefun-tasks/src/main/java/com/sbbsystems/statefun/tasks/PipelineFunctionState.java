@@ -53,6 +53,10 @@ public final class PipelineFunctionState {
     @Persisted
     private final PersistedValue<TaskRequest> taskRequest;
     @Persisted
+    private final PersistedValue<TaskResult> taskResult;
+    @Persisted
+    private final PersistedValue<TaskException> taskException;
+    @Persisted
     private final PersistedValue<Address> callerAddress;
     private final PersistedValue<Address> pipelineAddress;
     @Persisted
@@ -61,6 +65,8 @@ public final class PipelineFunctionState {
     private final PersistedValue<Integer> status;
     @Persisted
     private final PersistedTable<String, TaskResultOrException> intermediateGroupResults;
+    @Persisted
+    private final PersistedValue<TaskResultOrException> responseBeforeFinally;
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -83,11 +89,14 @@ public final class PipelineFunctionState {
         currentTaskState = PersistedValue.of("currentTaskState", Any.class, expiration);
         invocationId = PersistedValue.of("invocationId", String.class, expiration);
         taskRequest = PersistedValue.of("taskRequest", TaskRequest.class, expiration);
+        taskResult = PersistedValue.of("taskResult", TaskResult.class, expiration);
+        taskException = PersistedValue.of("taskResult", TaskException.class, expiration);
         callerAddress = PersistedValue.of("callerAddress", Address.class, expiration);
         pipelineAddress = PersistedValue.of("pipelineAddress", Address.class, expiration);
         rootPipelineAddress = PersistedValue.of("rootPipelineAddress", Address.class, expiration);
         status = PersistedValue.of("status", Integer.class, expiration);
         intermediateGroupResults = PersistedTable.of("intermediateGroupResults", String.class, TaskResultOrException.class, expiration);
+        responseBeforeFinally = PersistedValue.of("responseBeforeFinally", TaskResultOrException.class, expiration);
     }
 
     public PersistedTable<String, TaskEntry> getTaskEntries() {
@@ -182,6 +191,22 @@ public final class PipelineFunctionState {
         this.taskRequest.set(taskRequest);
     }
 
+    public void setTaskResult(TaskResult taskResult) {
+        this.taskResult.set(taskResult);
+    }
+
+    public TaskResult getTaskResult() {
+        return taskResult.get();
+    }
+
+    public void setTaskException(TaskException taskException) {
+        this.taskException.set(taskException);
+    }
+
+    public TaskException getTaskException() {
+        return taskException.get();
+    }
+
     public Address getCallerAddress() {
         return callerAddress.get();
     }
@@ -213,6 +238,14 @@ public final class PipelineFunctionState {
 
     public void setStatus(TaskStatus.Status status) {
         this.status.set(status.getNumber());
+    }
+
+    public TaskResultOrException getResponseBeforeFinally() {
+        return responseBeforeFinally.get();
+    }
+
+    public void setResponseBeforeFinally(TaskResultOrException response) {
+        responseBeforeFinally.set(response);
     }
 
     public void reset()

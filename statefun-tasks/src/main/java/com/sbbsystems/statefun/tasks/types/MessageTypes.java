@@ -114,11 +114,11 @@ public final class MessageTypes {
                 .build();
     }
 
-    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result) {
-        return MessageTypes.toTaskResult(incomingTaskRequest, result, incomingTaskRequest.getState());
+    public static TaskResult toOutgoingTaskResult(TaskRequest incomingTaskRequest, Message result) {
+        return MessageTypes.toOutgoingTaskResult(incomingTaskRequest, result, incomingTaskRequest.getState());
     }
 
-    public static TaskResult toTaskResult(TaskRequest incomingTaskRequest, Message result, Any state) {
+    public static TaskResult toOutgoingTaskResult(TaskRequest incomingTaskRequest, Message result, Any state) {
         return TaskResult.newBuilder()
                 .setId(incomingTaskRequest.getId())
                 .setUid(incomingTaskRequest.getUid())
@@ -153,6 +153,23 @@ public final class MessageTypes {
                 .setExceptionType(e.getClass().getTypeName())
                 .setExceptionMessage(String.valueOf(e))
                 .setStacktrace(Arrays.toString(e.getStackTrace()))
+                .setState(state)
+                .build();
+    }
+
+    public static TaskException toOutgoingTaskException(TaskRequest incomingTaskRequest, TaskException e) {
+        return MessageTypes.toOutgoingTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
+    }
+
+    public static TaskException toOutgoingTaskException(TaskRequest incomingTaskRequest, TaskException e, Any state) {
+        return TaskException.newBuilder()
+                .setId(incomingTaskRequest.getId())
+                .setUid(incomingTaskRequest.getUid())
+                .setInvocationId(incomingTaskRequest.getInvocationId())
+                .setType(incomingTaskRequest.getType() + ".error")
+                .setExceptionType(e.getExceptionType())
+                .setExceptionMessage(e.getExceptionMessage())
+                .setStacktrace(e.getStacktrace())
                 .setState(state)
                 .build();
     }
