@@ -166,6 +166,10 @@ public final class PipelineGraph {
         updatedGroupEntries.clear();
     }
 
+    public boolean isFinally(Entry entry) {
+        return entry instanceof Task && ((Task) entry).isFinally();
+    }
+
     public void saveState() {
         saveUpdatedState();
 
