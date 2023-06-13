@@ -17,13 +17,16 @@
 package com.sbbsystems.statefun.tasks.utils;
 
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -60,14 +63,35 @@ public class NamespacedTestHarness {
     }
 
     public TypedValue runPipeline(Pipeline pipeline) {
+        return runPipeline(pipeline, null);
+    }
+
+    public TypedValue runPipeline(Pipeline pipeline, Any state) {
         var uid = UUID.randomUUID().toString();
         var taskRequest = TaskRequest.newBuilder()
                 .setId(uid)
                 .setUid(uid)
                 .setReplyTopic(uid)
-                .setRequest(Any.pack(pipeline))
-                .build();
-        addIngressTaskRequest(taskRequest);
+                .setRequest(Any.pack(pipeline));
+
+        if (!Objects.isNull(state)) {
+            taskRequest.setState(state);
+        }
+
+        addIngressTaskRequest(taskRequest.build());
         return getMessage(uid);
+    }
+
+    public Any runPipelineAndGetResponse(Pipeline pipeline)
+            throws InvalidProtocolBufferException
+    {
+        return runPipelineAndGetResponse(pipeline, null);
+    }
+
+    public Any runPipelineAndGetResponse(Pipeline pipeline, Any state)
+            throws InvalidProtocolBufferException
+    {
+        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(runPipeline(pipeline, state).getValue());
+        return Any.parseFrom(kafkaProducerRecord.getValueBytes());
     }
 }

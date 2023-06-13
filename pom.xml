@@ -15,6 +15,7 @@
         <module>statefun-tasks-test-harness</module>
         <module>statefun-tasks-distribution</module>
         <module>statefun-tasks</module>
+        <module>statefun-tasks-e2e-tests</module>
     </modules>
 
     <properties>
