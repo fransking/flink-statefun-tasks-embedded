@@ -7,6 +7,8 @@ import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
 import com.sbbsystems.statefun.tasks.util.Id;
 
+import java.util.Objects;
+
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 
 public class PipelineBuilder {
@@ -45,15 +47,26 @@ public class PipelineBuilder {
         return this;
     }
 
+    public PipelineBuilder continueWith(String taskType) {
+        return continueWith(taskType, null);
+    }
+
+    public PipelineBuilder continueWith(String taskType, Message request) {
+        return this.addTask(taskType, request);
+    }
+
     private PipelineBuilder addTask(String taskType, Message request) {
         var taskEntry = TaskEntry.newBuilder()
-                .setNamespace(RemoteFunction.FUNCTION_TYPE.namespace())
-                .setWorkerName(RemoteFunction.FUNCTION_TYPE.name())
+                .setNamespace(EndToEndRemoteFunction.FUNCTION_TYPE.namespace())
+                .setWorkerName(EndToEndRemoteFunction.FUNCTION_TYPE.name())
                 .setTaskType(taskType)
-                .setRequest(packAny(request))
                 .setTaskId(Id.generate())
-                .setUid(Id.generate())
-                .build();
+                .setUid(Id.generate());
+
+        if (!Objects.isNull(request)) {
+            taskEntry.setRequest(packAny(request));
+        }
+
         var pipelineEntry = PipelineEntry.newBuilder()
                 .setTaskEntry(taskEntry)
                 .build();

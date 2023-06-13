@@ -65,8 +65,7 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
     }
 
     @Override
-    public void handleMessage(Context context, TaskRequest taskRequest, PipelineFunctionState state)
-            throws StatefunTasksException {
+    public void handleMessage(Context context, TaskRequest taskRequest, PipelineFunctionState state) {
 
         try {
 
@@ -81,9 +80,13 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             var pipelineProto = Pipeline.parseFrom(taskArgsAndKwargs.getArg(0).getValue());
 
             state.setIsInline(pipelineProto.getInline());
-            state.setInitialArgsAndKwargs(taskArgsAndKwargs.slice(1));
+
+            // set the args and kwargs for the initial tasks in the pipeline
+            var initialArgsAndKwargs = taskArgsAndKwargs.getInitialArgsAndKwargs(pipelineProto, 1);
+            state.setInitialArgsAndKwargs(initialArgsAndKwargs);
 
             if (pipelineProto.hasInitialState()) {
+                // if we have initial state then set it
                 state.setInitialState(pipelineProto.getInitialState());
             }
 

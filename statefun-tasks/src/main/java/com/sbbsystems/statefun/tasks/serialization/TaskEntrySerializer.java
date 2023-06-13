@@ -61,10 +61,12 @@ public class TaskEntrySerializer {
             var mergedArgs = TupleOfAny.newBuilder();
 
             if (args instanceof Any && ((Any) args).is(TupleOfAny.class)) {
-                mergedArgs.addAllItems(((Any) args).unpack(TupleOfAny.class).getItemsList());
+                var tupleArgs = ((Any) args).unpack(TupleOfAny.class);
+                mergedArgs.addAllItems(tupleArgs.getItemsList());
             }
             else if (args instanceof TupleOfAny) {
-                mergedArgs.addAllItems(((TupleOfAny) args).getItemsList());
+                var tupleArgs = (TupleOfAny) args;
+                mergedArgs.addAllItems(tupleArgs.getItemsList());
             } else {
                 mergedArgs.addItems(MessageTypes.packAny(args));
             }
