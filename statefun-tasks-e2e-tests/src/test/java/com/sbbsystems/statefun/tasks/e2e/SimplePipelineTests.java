@@ -7,7 +7,6 @@ import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
-import org.apache.flink.kinesis.shaded.org.apache.http.util.Args;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +33,7 @@ public class SimplePipelineTests {
         var taskResult = response.unpack(TaskResult.class);
         var result = asString(taskResult.getResult());
 
-        assertThat(result).isEqualTo("(1)");
+        assertThat(result).isEqualTo("1");
     }
 
     @Test
@@ -100,7 +99,7 @@ public class SimplePipelineTests {
         var result = asString(taskResult.getResult());
         var state = asString(taskResult.getState());
 
-        assertThat(result).isEqualTo("(3)");
+        assertThat(result).isEqualTo("3");
         assertThat(state).isEqualTo("3");
     }
 
@@ -116,7 +115,7 @@ public class SimplePipelineTests {
         var result = asString(taskResult.getResult());
         var state = asString(taskResult.getState());
 
-        assertThat(result).isEqualTo("(3)");
+        assertThat(result).isEqualTo("3");
         assertThat(state).isEqualTo("100");
     }
 
