@@ -228,4 +228,8 @@ public final class MessageTypes {
 
         return Any.pack(message);
     }
+
+    public static boolean isEmpty(Any any) {
+        return any.getTypeUrl().isEmpty();
+    }
 }

@@ -15,9 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.e2e;
 
-import com.google.protobuf.Int32Value;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
+import com.google.protobuf.*;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
@@ -25,7 +23,6 @@ import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
@@ -34,12 +31,13 @@ import java.text.MessageFormat;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 
-public class RemoteFunction implements StatefulFunction {
+public class EndToEndRemoteFunction implements StatefulFunction {
 
     public static final FunctionType FUNCTION_TYPE = new FunctionType("e2e", "RemoteFunction");
 
     @Override
     public void invoke(Context context, Object input) {
+
         try {
             if (MessageTypes.isType(input, TaskRequest.class)) {
                 var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
@@ -52,11 +50,11 @@ public class RemoteFunction implements StatefulFunction {
                             break;
 
                         case "updateAndGetState":
-                            output = getOutput(taskRequest, updateAndGetState(taskRequest));
+                            output = getOutput(taskRequest, updateAndGetStateTask(taskRequest));
                             break;
 
                         case "error":
-                            output = getOutput(taskRequest, error());
+                            output = getOutput(taskRequest, errorTask());
                             break;
 
                         default:
@@ -97,9 +95,13 @@ public class RemoteFunction implements StatefulFunction {
             return request.unpack(ArgsAndKwargs.class);
         }
 
+        var args = request.is(TupleOfAny.class)
+                ? request.unpack(TupleOfAny.class)
+                : TupleOfAny.newBuilder().addItems(request).build();
+
         return ArgsAndKwargs
                 .newBuilder()
-                .setArgs(TupleOfAny.newBuilder().addItems(request))
+                .setArgs(args)
                 .build();
     }
 
@@ -107,20 +109,25 @@ public class RemoteFunction implements StatefulFunction {
             throws InvalidProtocolBufferException {
 
         var request = getArgsAndKwargs(taskRequest);
+        var args = request.getArgs().toBuilder();
+
+        if (request.getKwargs().getItemsCount() > 0) {
+            args.addItems(packAny(request.getKwargs()));
+        }
 
         return TaskResult
                 .newBuilder()
-                .setResult(packAny(request.getArgs()))
+                .setResult(packAny(args.build()))
                 .setState(taskRequest.getState());
     }
 
-    private TaskResult.Builder error()
+    private TaskResult.Builder errorTask()
             throws StatefunTasksException {
 
         throw new StatefunTasksException("An error occurred");
     }
 
-    private TaskResult.Builder updateAndGetState(TaskRequest taskRequest)
+    private TaskResult.Builder updateAndGetStateTask(TaskRequest taskRequest)
             throws InvalidProtocolBufferException {
 
         var request = getArgsAndKwargs(taskRequest);

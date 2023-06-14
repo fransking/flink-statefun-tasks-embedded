@@ -117,7 +117,7 @@ public final class PipelineHandler {
         // get the initial tasks to call and the args and kwargs
         var skippedTasks = new LinkedList<Task>();
         var initialTasks = getInitialTasks(entry, false, skippedTasks);
-        var taskArgsAndKwargs = state.getInitialArgsAndKwargs();
+
 
         // we may have no initial tasks in the case of empty groups so continue to iterate over these
         while (initialTasks.isEmpty() && !isNull(entry)) {
@@ -134,6 +134,8 @@ public final class PipelineHandler {
         }
         else {
             LOG.info("Pipeline {} is starting with {} tasks to call", getPipelineAddress(), initialTasks.size());
+            var argsAndKwargs = state.getInitialArgsAndKwargs();
+
             // else call the initial tasks
             for (var task: initialTasks) {
 
@@ -143,13 +145,12 @@ public final class PipelineHandler {
                 // add task arguments - if we skipped any empty groups then we have to send [] to the next task
                 var mergedArgsAndKwargs = task.isPrecededByAnEmptyGroup()
                         ? TaskEntrySerializer.of(taskEntry).mergeWith(MessageTypes.argsOfEmptyArray())
-                        : TaskEntrySerializer.of(taskEntry).mergeWith(taskArgsAndKwargs);
+                        : TaskEntrySerializer.of(taskEntry).mergeWith(argsAndKwargs);
 
                 outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
 
                 // add initial state if present otherwise we start each pipeline with empty state
                 if (!isNull(state.getInitialState())) {
-                    var a = String.valueOf(state.getInitialState());
                     outgoingTaskRequest.setState(state.getInitialState());
                 }
 
@@ -177,7 +178,6 @@ public final class PipelineHandler {
 
         // N.B. that context.caller() will return callback function address not the task address
         var completedEntry = graph.getEntry(callerId);
-
 
         if (graph.isFinally(completedEntry)) {
             // if this task is the finally task then set message to saved result before finally

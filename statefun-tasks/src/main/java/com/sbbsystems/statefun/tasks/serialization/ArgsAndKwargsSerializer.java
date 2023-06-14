@@ -19,10 +19,12 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
+import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
-
-import java.util.Objects;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import org.apache.flink.api.java.tuple.Tuple;
 
 public final class ArgsAndKwargsSerializer {
     private final ArgsAndKwargs argsAndKwargs;
@@ -49,9 +51,22 @@ public final class ArgsAndKwargsSerializer {
                 return ArgsAndKwargsSerializer.of(any.unpack(ArgsAndKwargs.class));
             }
             else {
+
+                TupleOfAny args;
+
+                if (any.is(TupleOfAny.class)) {
+                    args = any.unpack(TupleOfAny.class);
+                }
+                else if (MessageTypes.isEmpty(any)) {
+                    args = TupleOfAny.getDefaultInstance();
+                }
+                else {
+                    args = TupleOfAny.newBuilder().addItems(any).build();
+                }
+
                 return ArgsAndKwargsSerializer.of(ArgsAndKwargs
                         .newBuilder()
-                        .setArgs(TupleOfAny.newBuilder().addItems(any).build())
+                        .setArgs(args)
                         .build());
             }
         } catch (InvalidProtocolBufferException e) {
@@ -77,5 +92,27 @@ public final class ArgsAndKwargsSerializer {
 
     public Any getArg(int index) {
         return this.argsAndKwargs.getArgs().getItems(index);
+    }
+
+    public ArgsAndKwargs getInitialArgsAndKwargs(Pipeline pipelineProto, int slice)
+            throws InvalidProtocolBufferException {
+
+        var taskArgs = slice(slice);
+
+        if (taskArgs.getArgs().getItemsCount() > 0) {
+            return taskArgs;
+        }
+
+        var argsAndKwargs = ArgsAndKwargs.newBuilder();
+
+        if (pipelineProto.hasInitialArgs()) {
+            var args = pipelineProto.getInitialArgs();
+
+            argsAndKwargs.setArgs(args.is(TupleOfAny.class)
+                    ? args.unpack(TupleOfAny.class)
+                    : TupleOfAny.newBuilder().addItems(args).build());
+        }
+
+        return argsAndKwargs.setKwargs(pipelineProto.getInitialKwargs()).build();
     }
 }
