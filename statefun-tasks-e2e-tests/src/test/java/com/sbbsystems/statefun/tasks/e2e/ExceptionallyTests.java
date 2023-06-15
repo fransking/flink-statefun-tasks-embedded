@@ -17,15 +17,16 @@ package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static com.sbbsystems.statefun.tasks.e2e.MoreStrings.asString;
+import static com.sbbsystems.statefun.tasks.e2e.TestMessageTypes.toArgsAndKwargs;
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,15 +65,8 @@ public class ExceptionallyTests {
 
     @Test
     void test_continuation_is_skipped_when_is_an_error() throws InvalidProtocolBufferException {
-        var kwargs = MapOfStringToAny
-                .newBuilder()
-                .putItems("message", packAny(StringValue.of("error 1")))
-                .build();
-
-        var arguments = ArgsAndKwargs.newBuilder().setKwargs(kwargs).build();
-
         var pipeline = PipelineBuilder
-                .beginWith("error", arguments)
+                .beginWith("error", toArgsAndKwargs(Map.of("message", StringValue.of("error 1"))))
                 .continueWith("echo", StringValue.of("task 1"))
                 .exceptionally("echo", StringValue.of("exceptionally 1"))
                 .continueWith("echo", StringValue.of("task 3"))

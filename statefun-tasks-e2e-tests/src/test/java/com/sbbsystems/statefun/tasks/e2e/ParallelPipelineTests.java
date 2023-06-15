@@ -19,15 +19,18 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.TaskException;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.sbbsystems.statefun.tasks.e2e.MoreStrings.asString;
 import static com.sbbsystems.statefun.tasks.e2e.PipelineBuilder.inParallel;
+import static com.sbbsystems.statefun.tasks.e2e.TestMessageTypes.toArgsAndKwargs;
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -164,5 +167,54 @@ public class ParallelPipelineTests {
         var result = asString(taskResult.getResult());
 
         assertThat(result).isEqualTo("[[], [a]]");
+    }
+
+    @Test
+    void test_parallel_pipeline_that_throws_errors_returns_errors_for_whole_group() throws InvalidProtocolBufferException {
+        var p1 = PipelineBuilder
+                .beginWith("setState", Int32Value.of(123))
+                .build();
+
+        var p2 = PipelineBuilder
+                .beginWith("error", toArgsAndKwargs(Map.of("message", StringValue.of("error p2"))))
+                .build();
+
+        var p3 = PipelineBuilder
+                .beginWith("error", toArgsAndKwargs(Map.of("message", StringValue.of("error p3"))))
+                .build();
+
+        var pipeline = inParallel(List.of(p1, p2, p3)).inline().build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskException = response.unpack(TaskException.class);
+        var state = asString(taskException.getState());
+
+        System.out.println(taskException.getExceptionMessage());
+
+        assertThat(taskException.getExceptionMessage()).contains("error p2").contains("error p3");
+        assertThat(state).isEqualTo("123");
+    }
+
+    @Test
+    void test_parallel_pipeline_that_throws_errors_returns_results_when_return_exceptions_is_true() throws InvalidProtocolBufferException {
+        var p1 = PipelineBuilder
+                .beginWith("echo", Int32Value.of(123))
+                .build();
+
+        var p2 = PipelineBuilder
+                .beginWith("error", toArgsAndKwargs(Map.of("message", StringValue.of("error p2"))))
+                .build();
+
+        var p3 = PipelineBuilder
+                .beginWith("error", toArgsAndKwargs(Map.of("message", StringValue.of("error p3"))))
+                .build();
+
+        var pipeline = inParallel(List.of(p1, p2, p3), true).build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+
+        assertThat(result).isEqualTo("[123, com.sbbsystems.statefun.tasks.core.StatefunTasksException: error p2, com.sbbsystems.statefun.tasks.core.StatefunTasksException: error p3]");
     }
 }
