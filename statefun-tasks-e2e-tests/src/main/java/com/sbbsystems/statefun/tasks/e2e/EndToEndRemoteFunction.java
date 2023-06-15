@@ -43,7 +43,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 try {
                     switch (taskRequest.getType()) {
                         case "echo":
-                            output = getOutput(taskRequest, echo(taskRequest));
+                            output = getOutput(taskRequest, echoTask(taskRequest));
                             break;
 
                         case "updateAndGetState":
@@ -51,11 +51,15 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                             break;
 
                         case "error":
-                            output = getOutput(taskRequest, errorTask());
+                            output = getOutput(taskRequest, errorTask(taskRequest));
                             break;
 
                         case "setState":
                             output = getOutput(taskRequest, setStateTask(taskRequest));
+                            break;
+
+                        case "cleanup":
+                            output = getOutput(taskRequest, cleanupTask(taskRequest));
                             break;
 
                         default:
@@ -114,7 +118,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 : packAny(result);
     }
 
-    private TaskResult.Builder echo(TaskRequest taskRequest)
+    private TaskResult.Builder echoTask(TaskRequest taskRequest)
             throws InvalidProtocolBufferException {
 
         var request = getArgsAndKwargs(taskRequest);
@@ -130,10 +134,13 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 .setState(taskRequest.getState());
     }
 
-    private TaskResult.Builder errorTask()
-            throws StatefunTasksException {
+    private TaskResult.Builder errorTask(TaskRequest taskRequest)
+            throws StatefunTasksException, InvalidProtocolBufferException {
 
-        throw new StatefunTasksException("An error occurred");
+        var request = getArgsAndKwargs(taskRequest);
+        var kwargs = request.getKwargs();
+        var message = kwargs.getItemsOrDefault("message", packAny(StringValue.of("")));
+        throw new StatefunTasksException(message.unpack(StringValue.class).getValue());
     }
 
     private TaskResult.Builder updateAndGetStateTask(TaskRequest taskRequest)
@@ -161,5 +168,17 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 .newBuilder()
                 .setResult(toResult(request.getArgs()))
                 .setState(toResult(request.getArgs()));
+    }
+
+    private TaskResult.Builder cleanupTask(TaskRequest taskRequest)
+            throws InvalidProtocolBufferException, StatefunTasksException {
+
+        var state = taskRequest.getState();
+
+        if (state.is(BoolValue.class) && state.unpack(BoolValue.class).getValue()) {
+            throw new StatefunTasksException("error in finally");
+        }
+
+        return TaskResult.newBuilder();
     }
 }

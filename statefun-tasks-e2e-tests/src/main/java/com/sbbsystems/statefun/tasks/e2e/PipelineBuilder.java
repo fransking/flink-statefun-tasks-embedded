@@ -32,7 +32,7 @@ public class PipelineBuilder {
     }
 
     public static PipelineBuilder beginWith(String taskType, Message request) {
-        return new PipelineBuilder().addTask(taskType, request);
+        return new PipelineBuilder().addTask(taskType, request, false, false);
     }
 
     private PipelineBuilder() {
@@ -68,16 +68,34 @@ public class PipelineBuilder {
     }
 
     public PipelineBuilder continueWith(String taskType, Message request) {
-        return this.addTask(taskType, request);
+        return this.addTask(taskType, request, false, false);
     }
 
-    private PipelineBuilder addTask(String taskType, Message request) {
+    public PipelineBuilder exceptionally(String taskType) {
+        return exceptionally(taskType, null);
+    }
+
+    public PipelineBuilder exceptionally(String taskType, Message request) {
+        return this.addTask(taskType, request, true, false);
+    }
+
+    public PipelineBuilder finally_do(String taskType) {
+        return finally_do(taskType, null);
+    }
+
+    public PipelineBuilder finally_do(String taskType, Message request) {
+        return this.addTask(taskType, request, false, true);
+    }
+
+    private PipelineBuilder addTask(String taskType, Message request, boolean isExceptionally, boolean isFinally) {
         var taskEntry = TaskEntry.newBuilder()
                 .setNamespace(EndToEndRemoteFunction.FUNCTION_TYPE.namespace())
                 .setWorkerName(EndToEndRemoteFunction.FUNCTION_TYPE.name())
                 .setTaskType(taskType)
                 .setTaskId(Id.generate())
-                .setUid(Id.generate());
+                .setUid(Id.generate())
+                .setIsExceptionally(isExceptionally)
+                .setIsFinally(isFinally);
 
         if (!Objects.isNull(request)) {
             taskEntry.setRequest(packAny(request));
