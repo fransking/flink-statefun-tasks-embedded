@@ -17,10 +17,7 @@ package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.*;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
@@ -41,7 +38,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         try {
             if (MessageTypes.isType(input, TaskRequest.class)) {
                 var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
-                Message output = null;
+                Message output;
 
                 try {
                     switch (taskRequest.getType()) {
@@ -55,6 +52,10 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
                         case "error":
                             output = getOutput(taskRequest, errorTask());
+                            break;
+
+                        case "setState":
+                            output = getOutput(taskRequest, setStateTask(taskRequest));
                             break;
 
                         default:
@@ -105,6 +106,14 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 .build();
     }
 
+    private Any toResult(TupleOfAny result) {
+        // if a single element tuple remains then unpack back to single value so (8,) becomes 8 but (8,9) remains a tuple
+        // consistent with Python API
+        return result.getItemsCount() == 1
+                ? packAny(result.getItems(0))
+                : packAny(result);
+    }
+
     private TaskResult.Builder echo(TaskRequest taskRequest)
             throws InvalidProtocolBufferException {
 
@@ -117,7 +126,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
         return TaskResult
                 .newBuilder()
-                .setResult(packAny(args.build()))
+                .setResult(toResult(args.build()))
                 .setState(taskRequest.getState());
     }
 
@@ -139,7 +148,18 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
         return TaskResult
                 .newBuilder()
-                .setResult(packAny(result))
+                .setResult(toResult(result))
                 .setState(packAny(updatedValue));
+    }
+
+    private TaskResult.Builder setStateTask(TaskRequest taskRequest)
+            throws InvalidProtocolBufferException {
+
+        var request = getArgsAndKwargs(taskRequest);
+
+        return TaskResult
+                .newBuilder()
+                .setResult(toResult(request.getArgs()))
+                .setState(toResult(request.getArgs()));
     }
 }
