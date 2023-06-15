@@ -15,12 +15,10 @@
  */
 package com.sbbsystems.statefun.tasks.e2e;
 
-import com.google.protobuf.Any;
-import com.google.protobuf.Int32Value;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.StringValue;
+import com.google.protobuf.*;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
 import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.TaskException;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 
 import java.util.List;
@@ -62,6 +60,14 @@ public class MoreStrings {
 
         else if (value.is(StringValue.class)) {
             builder.append(value.unpack(StringValue.class).getValue());
+        }
+
+        else if (value.is(BoolValue.class)) {
+            builder.append(value.unpack(BoolValue.class).getValue());
+        }
+
+        else if (value.is(TaskException.class)) {
+            builder.append(value.unpack(TaskException.class).getExceptionMessage());
         }
 
         return builder;

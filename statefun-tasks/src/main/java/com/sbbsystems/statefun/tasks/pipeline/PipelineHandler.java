@@ -179,7 +179,7 @@ public final class PipelineHandler {
         // N.B. that context.caller() will return callback function address not the task address
         var completedEntry = graph.getEntry(callerId);
 
-        if (graph.isFinally(completedEntry)) {
+        if (graph.isFinally(completedEntry) && message.hasTaskResult()) {
             // if this task is the finally task then set message to saved result before finally
             message = state.getResponseBeforeFinally();
         }
