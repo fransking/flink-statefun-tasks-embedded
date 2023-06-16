@@ -19,6 +19,7 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.Id;
 
+import java.util.List;
 import java.util.Objects;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
@@ -79,6 +80,10 @@ public class PipelineBuilder {
         return this.addTask(taskType, request, false, false);
     }
 
+    public PipelineBuilder continueWith(Pipeline pipeline) {
+        return addFrom(pipeline);
+    }
+
     public PipelineBuilder exceptionally(String taskType) {
         return exceptionally(taskType, null);
     }
@@ -132,6 +137,11 @@ public class PipelineBuilder {
                 .build();
         pipeline.addEntries(pipelineEntry);
 
+        return this;
+    }
+
+    private PipelineBuilder addFrom(Pipeline thisPipeline) {
+        pipeline.addAllEntries(thisPipeline.getEntriesList());
         return this;
     }
 }

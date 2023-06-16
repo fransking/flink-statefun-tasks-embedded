@@ -217,4 +217,43 @@ public class ParallelPipelineTests {
 
         assertThat(result).isEqualTo("[123, com.sbbsystems.statefun.tasks.core.StatefunTasksException: error p2, com.sbbsystems.statefun.tasks.core.StatefunTasksException: error p3]");
     }
+
+    @Test
+    void test_continuations_into_parallel_pipelines_send_correct_parameters() throws InvalidProtocolBufferException {
+        var p1 = PipelineBuilder
+                .beginWith("echo", StringValue.of("a"))
+                .build();
+
+        var p2 = PipelineBuilder
+                .beginWith("echo", StringValue.of("b"))
+                .build();
+
+        var pipeline = PipelineBuilder
+                .beginWith("echo", StringValue.of("1"))
+                .continueWith(inParallel(List.of(p1, p2)).build())
+                .build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+
+        assertThat(result).isEqualTo("[(1, a), (1, b)]");
+    }
+
+    @Test
+    void test_continuations_into_empty_parallel_pipelines_send_correct_parameters() throws InvalidProtocolBufferException {
+        var empty = inParallel(List.of()).build();
+
+        var pipeline = PipelineBuilder
+                .beginWith("echo", StringValue.of("1"))
+                .continueWith(empty)
+                .continueWith("echo", StringValue.of("2"))
+                .build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+
+        assertThat(result).isEqualTo("([], 2)");
+    }
 }
