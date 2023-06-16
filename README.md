@@ -36,7 +36,7 @@ Example module.yaml:
               spec: 
                 ...
 
-        piplines:
+        pipelines:
           - pipeline:
               meta:
                 id: example/embedded_pipeline               # function namespace/type
