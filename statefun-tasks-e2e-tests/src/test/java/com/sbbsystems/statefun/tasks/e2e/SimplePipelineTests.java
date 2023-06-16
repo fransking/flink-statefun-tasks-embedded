@@ -17,10 +17,7 @@ package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -180,5 +177,22 @@ public class SimplePipelineTests {
         var result = asString(taskResult.getResult());
 
         assertThat(result).isEqualTo("(1, 2)");
+    }
+
+    @Test
+    void test_pipeline_terminates_when_an_exception_is_thrown() throws InvalidProtocolBufferException {
+        var pipeline = PipelineBuilder
+                .beginWith("setState", Int32Value.of(1))
+                .continueWith("error")
+                .continueWith("setState", Int32Value.of(2))
+                .inline()
+                .build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskException = response.unpack(TaskException.class);
+        var state = asString(taskException.getState());
+
+        assertThat(taskException.getExceptionMessage()).isEqualTo("com.sbbsystems.statefun.tasks.core.StatefunTasksException: ");
+        assertThat(state).isEqualTo("1");  // 2 did not run
     }
 }

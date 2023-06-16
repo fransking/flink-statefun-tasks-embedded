@@ -19,6 +19,7 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.Id;
 
+import java.util.List;
 import java.util.Objects;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
@@ -28,7 +29,15 @@ public class PipelineBuilder {
     private final Pipeline.Builder pipeline;
 
     public static PipelineBuilder inParallel(Iterable<Pipeline> entries) {
-        return new PipelineBuilder().addGroup(entries);
+        return inParallel(entries, false);
+    }
+
+    public static PipelineBuilder inParallel(Iterable<Pipeline> entries, boolean returnExceptions) {
+        return new PipelineBuilder().addGroup(entries, returnExceptions);
+    }
+
+    public static PipelineBuilder beginWith(String taskType) {
+        return new PipelineBuilder().addTask(taskType, null, false, false);
     }
 
     public static PipelineBuilder beginWith(String taskType, Message request) {
@@ -71,6 +80,10 @@ public class PipelineBuilder {
         return this.addTask(taskType, request, false, false);
     }
 
+    public PipelineBuilder continueWith(Pipeline pipeline) {
+        return addFrom(pipeline);
+    }
+
     public PipelineBuilder exceptionally(String taskType) {
         return exceptionally(taskType, null);
     }
@@ -109,10 +122,11 @@ public class PipelineBuilder {
         return this;
     }
 
-    private PipelineBuilder addGroup(Iterable<Pipeline> entries) {
+    private PipelineBuilder addGroup(Iterable<Pipeline> entries, boolean returnExceptions) {
         var groupEntry = GroupEntry
                 .newBuilder()
-                .setGroupId(Id.generate());
+                .setGroupId(Id.generate())
+                .setReturnExceptions(returnExceptions);
 
         for (var entry: entries) {
             groupEntry.addGroup(entry);
@@ -123,6 +137,11 @@ public class PipelineBuilder {
                 .build();
         pipeline.addEntries(pipelineEntry);
 
+        return this;
+    }
+
+    private PipelineBuilder addFrom(Pipeline thisPipeline) {
+        pipeline.addAllEntries(thisPipeline.getEntriesList());
         return this;
     }
 }
