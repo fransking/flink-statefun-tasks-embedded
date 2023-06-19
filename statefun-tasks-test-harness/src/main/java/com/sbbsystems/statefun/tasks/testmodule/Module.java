@@ -24,11 +24,16 @@ import java.util.Map;
 public class Module implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
         var mainModule = new PipelineFunctionModule();
-        var configuration = PipelineConfiguration.of("example/embedded_pipeline", "example/kafka-generic-egress");
+
+        var configuration = PipelineConfiguration.of(
+                "example/embedded_pipeline",
+                "example/kafka-generic-egress",
+                "example/kafka-generic-egress",
+                "statefun-tasks.events",
+                null);
 
         mainModule.configure(configuration, binder);
         binder.bindFunctionProvider(IoIdentifiers.ECHO_FUNCTION_TYPE, unused -> new EchoFunction());
         binder.bindIngressRouter(IoIdentifiers.REQUEST_INGRESS, new TestPipelineRouter());
     }
 }
-

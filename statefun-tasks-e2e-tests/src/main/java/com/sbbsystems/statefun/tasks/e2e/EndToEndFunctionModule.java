@@ -24,7 +24,13 @@ import java.util.Map;
 public class EndToEndFunctionModule implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
         var mainModule = new PipelineFunctionModule();
-        var configuration = PipelineConfiguration.of("e2e/embedded_pipeline", "example/kafka-generic-egress");
+
+        var configuration = PipelineConfiguration.of(
+                "e2e/embedded_pipeline",
+                "example/kafka-generic-egress",
+                "example/kafka-generic-egress",
+                "statefun-tasks.events",
+                null);
 
         mainModule.configure(configuration, binder);
         binder.bindFunctionProvider(EndToEndRemoteFunction.FUNCTION_TYPE, unused -> new EndToEndRemoteFunction());

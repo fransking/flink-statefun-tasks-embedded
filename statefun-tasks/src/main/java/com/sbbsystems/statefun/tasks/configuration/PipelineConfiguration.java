@@ -21,35 +21,46 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.statefun.flink.common.json.Selectors;
 import org.apache.flink.statefun.sdk.state.Expiration;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public final class PipelineConfiguration {
-    private static final Logger LOG = LoggerFactory.getLogger(PipelineConfiguration.class);
+import static java.util.Objects.isNull;
 
+public final class PipelineConfiguration {
     private static final JsonPointer PIPELINES = JsonPointer.compile("/module/spec/pipelines");
     private static final JsonPointer PIPELINE_META_ID = JsonPointer.compile("/pipeline/meta/id");
     private static final JsonPointer PIPELINE_SPEC_STATE_EXPIRATION = JsonPointer.compile("/pipeline/spec/stateExpiration");
     private static final JsonPointer PIPELINE_SPEC_EGRESS = JsonPointer.compile("/pipeline/spec/egress");
+    private static final JsonPointer PIPELINE_SPEC_EVENTS_EGRESS = JsonPointer.compile("/pipeline/spec/eventsEgress");
+    private static final JsonPointer PIPELINE_SPEC_EVENTS_TOPIC = JsonPointer.compile("/pipeline/spec/eventsTopic");
 
     private final String pipelineId;
+    private final String eventsEgress;
+    private final String eventsTopic;
     private final String stateExpiration;
     private final String egress;
 
     public static Stream<PipelineConfiguration> fromModuleYaml(JsonNode node) {
         var pipelineNodes = Selectors.listAt(node, PIPELINES);
+
         return StreamSupport.stream(pipelineNodes.spliterator(), false).map(PipelineConfiguration::from);
     }
 
-    public static PipelineConfiguration of(@NotNull String pipelineId, @NotNull String egress, String stateExpiration) {
+    public static PipelineConfiguration of(
+            @NotNull String pipelineId,
+            @NotNull String egress,
+            String eventsEgress,
+            String eventsTopic,
+            String stateExpiration) {
+
         return new PipelineConfiguration(
                 Objects.requireNonNull(pipelineId),
                 Objects.requireNonNull(egress),
+                eventsEgress,
+                eventsTopic,
                 stateExpiration
         );
     }
@@ -58,6 +69,8 @@ public final class PipelineConfiguration {
         return new PipelineConfiguration(
                 Objects.requireNonNull(pipelineId),
                 Objects.requireNonNull(egress),
+                null,
+                null,
                 null
         );
     }
@@ -66,13 +79,22 @@ public final class PipelineConfiguration {
         return new PipelineConfiguration(
                 Selectors.textAt(pipelineNode, PIPELINE_META_ID),
                 Selectors.textAt(pipelineNode, PIPELINE_SPEC_EGRESS),
+                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EVENTS_EGRESS),
+                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EVENTS_TOPIC),
                 Selectors.textAt(pipelineNode, PIPELINE_SPEC_STATE_EXPIRATION)
         );
     }
 
-    private PipelineConfiguration(String pipelineId, String egress, String stateExpiration) {
+    private PipelineConfiguration(
+            String pipelineId,
+            String egress,
+            String eventsEgress,
+            String eventsTopic,
+            String stateExpiration) {
         this.pipelineId = pipelineId;
         this.egress = egress;
+        this.eventsEgress = eventsEgress;
+        this.eventsTopic = eventsTopic;
         this.stateExpiration = stateExpiration;
     }
 
@@ -102,5 +124,20 @@ public final class PipelineConfiguration {
 
     public String getEgressType() {
         return egress.split("/")[1];
+    }
+
+    public String getEventsEgressNamespace() {
+        return eventsEgress.split("/")[0];
+    }
+    public String getEventsEgressType() {
+        return eventsEgress.split("/")[1];
+    }
+
+    public String getEventsTopic() {
+        return eventsTopic;
+    }
+
+    public boolean hasEventsEgress() {
+        return !isNull(eventsEgress) && eventsEgress.contains("/") && !isNull(eventsTopic);
     }
 }

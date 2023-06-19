@@ -191,7 +191,7 @@ public final class MessageTypes {
     public static Address toAddress(org.apache.flink.statefun.sdk.Address sdkAddress) {
         return Address.newBuilder()
                 .setNamespace(sdkAddress.type().namespace())
-                .setType(sdkAddress.type().namespace())
+                .setType(sdkAddress.type().name())
                 .setId(sdkAddress.id())
                 .build();
     }
