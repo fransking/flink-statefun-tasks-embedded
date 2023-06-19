@@ -228,7 +228,7 @@ public final class PipelineFunctionState {
     }
 
     public void setRootPipelineAddress(Address rootPipelineAddress) {
-        this.pipelineAddress.set(rootPipelineAddress);
+        this.rootPipelineAddress.set(rootPipelineAddress);
     }
 
     public TaskStatus.Status getStatus() {

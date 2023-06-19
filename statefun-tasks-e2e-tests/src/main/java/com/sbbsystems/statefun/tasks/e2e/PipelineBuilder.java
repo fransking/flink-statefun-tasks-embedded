@@ -19,7 +19,6 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.util.Id;
 
-import java.util.List;
 import java.util.Objects;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
