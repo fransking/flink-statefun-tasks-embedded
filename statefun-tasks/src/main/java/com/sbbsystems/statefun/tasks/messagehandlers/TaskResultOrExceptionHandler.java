@@ -19,10 +19,10 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
+import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
-import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -60,9 +60,11 @@ public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResul
             // create the graph
             var graph = PipelineGraphBuilder.from(state).build();
 
+            // create events
+            var events = PipelineEvents.from(configuration, state, graph);
+
             // continue pipeline
-            PipelineHandler.from(configuration, state, graph, GroupResultAggregator.newInstance())
-                    .continuePipeline(context, message);
+            PipelineHandler.from(configuration, state, graph, events).continuePipeline(context, message);
 
             // save updated graph state
             graph.saveUpdatedState();

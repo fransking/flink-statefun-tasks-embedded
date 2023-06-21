@@ -22,6 +22,7 @@ import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.Entry;
 import com.sbbsystems.statefun.tasks.graph.Group;
@@ -38,7 +39,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.MessageFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -52,38 +52,40 @@ import static java.util.Objects.requireNonNull;
 public final class PipelineHandler {
     private static final Logger LOG = LoggerFactory.getLogger(PipelineHandler.class);
 
+    private final GroupResultAggregator groupResultAggregator = GroupResultAggregator.newInstance();
     private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
     private final PipelineGraph graph;
-    private final GroupResultAggregator groupResultAggregator;
+    private final PipelineEvents events;
 
     public static PipelineHandler from(@NotNull PipelineConfiguration configuration,
                                        @NotNull PipelineFunctionState state,
                                        @NotNull PipelineGraph graph,
-                                       @NotNull GroupResultAggregator groupResultAggregator) {
+                                       @NotNull PipelineEvents events) {
 
         return new PipelineHandler(
                 requireNonNull(configuration),
                 requireNonNull(state),
                 requireNonNull(graph),
-                requireNonNull(groupResultAggregator));
+                requireNonNull(events));
     }
 
     private PipelineHandler(PipelineConfiguration configuration,
                             PipelineFunctionState state,
                             PipelineGraph graph,
-                            GroupResultAggregator groupResultAggregator) {
+                            PipelineEvents events) {
 
         this.configuration = configuration;
         this.state = state;
         this.graph = graph;
-        this.groupResultAggregator = groupResultAggregator;
+        this.events = events;
     }
 
     public void beginPipeline(Context context, TaskRequest incomingTaskRequest)
             throws StatefunTasksException {
 
         var taskRequest = TaskRequestSerializer.of(incomingTaskRequest);
+        var pipelineAddress = MessageTypes.asString(context.self());
 
         state.setPipelineAddress(MessageTypes.toAddress(context.self()));
         state.setRootPipelineAddress(taskRequest.getRootPipelineAddress(context));
@@ -108,6 +110,9 @@ public final class PipelineHandler {
         // set latest state of pipeline equal to initial state
         state.setCurrentTaskState(state.getInitialState());
 
+        // notify pipeline created (events + root pipeline)
+        events.notifyPipelineCreated(context);
+
         var entry = graph.getHead();
 
         if (isNull(entry)) {
@@ -118,7 +123,6 @@ public final class PipelineHandler {
         var skippedTasks = new LinkedList<Task>();
         var initialTasks = getInitialTasks(entry, false, skippedTasks);
 
-
         // we may have no initial tasks in the case of empty groups so continue to iterate over these
         while (initialTasks.isEmpty() && !isNull(entry)) {
             graph.markComplete(entry);
@@ -128,12 +132,12 @@ public final class PipelineHandler {
 
         if (initialTasks.isEmpty()) {
             // if we have a completely empty pipeline after iterating over empty groups then return empty result
-            LOG.info("Pipeline {} is empty, returning []", getPipelineAddress());
+            LOG.info("Pipeline {} is empty, returning []", pipelineAddress);
             var taskResult = MessageTypes.toOutgoingTaskResult(incomingTaskRequest, ArrayOfAny.getDefaultInstance());
             respondWithResult(context, incomingTaskRequest, taskResult);
         }
         else {
-            LOG.info("Pipeline {} is starting with {} tasks to call", getPipelineAddress(), initialTasks.size());
+            LOG.info("Pipeline {} is starting with {} tasks to call", pipelineAddress, initialTasks.size());
             var argsAndKwargs = state.getInitialArgsAndKwargs();
 
             // else call the initial tasks
@@ -160,14 +164,14 @@ public final class PipelineHandler {
                 // send message
                 context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
-            LOG.info("Pipeline {} started", getPipelineAddress());
+            LOG.info("Pipeline {} started", pipelineAddress);
         }
     }
 
     public void continuePipeline(Context context, TaskResultOrException message)
         throws StatefunTasksException {
 
-        var pipelineAddress = getPipelineAddress();
+        var pipelineAddress = MessageTypes.asString(context.self());
         var callerId = message.hasTaskResult() ? message.getTaskResult().getUid() : message.getTaskException().getUid();
 
         if (!isInThisInvocation(message)) {
@@ -292,13 +296,6 @@ public final class PipelineHandler {
         } else {
             return taskEntry.mergeWith(taskResult.getResult());
         }
-    }
-
-    private String getPipelineAddress() {
-        var address = state.getPipelineAddress();
-        return isNull(address)
-                ? ""
-                : MessageFormat.format("{0}/{1}/{2}", address.getNamespace(), address.getType(), address.getId());
     }
 
     private boolean isInThisInvocation(TaskResultOrException message) {

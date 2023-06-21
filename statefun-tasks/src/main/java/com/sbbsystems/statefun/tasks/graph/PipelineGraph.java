@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
@@ -73,6 +74,10 @@ public final class PipelineGraph {
 
     public Iterable<Task> getTasks(Entry from) {
         return () -> TasksIterator.from(from);
+    }
+
+    public Stream<TaskEntry> getTaskEntries() {
+        return StreamSupport.stream(getTasks().spliterator(), false).map(t -> getTaskEntry(t.getId()));
     }
 
     public @Nullable Entry getHead() {

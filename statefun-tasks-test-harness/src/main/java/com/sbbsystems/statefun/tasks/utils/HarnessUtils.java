@@ -30,7 +30,8 @@ public class HarnessUtils {
             var harness = new Harness()
                     .withParallelism(1)
                     .withSupplyingIngress(IoIdentifiers.REQUEST_INGRESS, TestIngress.get())
-                    .withConsumingEgress(IoIdentifiers.RESULT_EGRESS, TestEgress::addMessage);
+                    .withConsumingEgress(IoIdentifiers.RESULT_EGRESS, TestEgress::addMessage)
+                    .withConsumingEgress(IoIdentifiers.EVENTS_EGRESS, TestEgress::addEventMessage);
             harnessThread =
                     new Thread(
                             () -> {

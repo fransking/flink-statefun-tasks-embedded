@@ -18,17 +18,23 @@ package com.sbbsystems.statefun.tasks.utils;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.sbbsystems.statefun.tasks.generated.Event;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.testmodule.IoIdentifiers;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
 
 public class NamespacedTestHarness {
     private final String namespace;
@@ -51,6 +57,11 @@ public class NamespacedTestHarness {
         var replyTopic = taskRequest.getReplyTopic();
         var prefixedReplyTopic = namespace + replyTopic;
         TestEgress.initialiseTopic(prefixedReplyTopic);
+
+        var pipelineId = taskRequest.getId();
+        var prefixedEventsTopic = pipelineId + "_" + IoIdentifiers.EVENTS_TOPIC;
+        TestEgress.initialiseTopic(prefixedEventsTopic);
+
         var updatedRequest = taskRequest.toBuilder()
                 .setReplyTopic(prefixedReplyTopic)
                 .build();
@@ -60,6 +71,15 @@ public class NamespacedTestHarness {
     public TypedValue getMessage(String topic) {
         var topicWithPrefix = namespace + topic;
         return TestEgress.getMessage(topicWithPrefix);
+    }
+
+    public List<Event> getEvents(String pipelineId) {
+        var topicWithPrefix = pipelineId + "_" + IoIdentifiers.EVENTS_TOPIC;
+
+        return TestEgress.getMessages(topicWithPrefix).stream().map(unchecked(message -> {
+            var kafkaProducerRecord = KafkaProducerRecord.parseFrom(message.getValue());
+            return Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(Event.class);
+        })).collect(Collectors.toUnmodifiableList());
     }
 
     public TypedValue runPipeline(Pipeline pipeline) {

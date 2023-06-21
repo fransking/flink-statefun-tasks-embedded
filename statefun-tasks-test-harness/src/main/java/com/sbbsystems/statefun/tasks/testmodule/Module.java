@@ -19,6 +19,7 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionModule;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
 
+import java.text.MessageFormat;
 import java.util.Map;
 
 public class Module implements StatefulFunctionModule {
@@ -28,8 +29,8 @@ public class Module implements StatefulFunctionModule {
         var configuration = PipelineConfiguration.of(
                 "example/embedded_pipeline",
                 "example/kafka-generic-egress",
-                "example/kafka-generic-egress",
-                "statefun-tasks.events",
+                MessageFormat.format("{0}/{1}", IoIdentifiers.EVENTS_EGRESS.namespace(), IoIdentifiers.EVENTS_EGRESS.name()),
+                IoIdentifiers.EVENTS_TOPIC,
                 null);
 
         mainModule.configure(configuration, binder);
