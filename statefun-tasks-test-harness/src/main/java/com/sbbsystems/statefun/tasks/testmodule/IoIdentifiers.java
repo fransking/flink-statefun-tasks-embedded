@@ -21,9 +21,10 @@ import org.apache.flink.statefun.sdk.io.IngressIdentifier;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
 public final class IoIdentifiers {
-
     public static final String NAMESPACE = "test-harness";
     public static final IngressIdentifier<TypedValue> REQUEST_INGRESS = new IngressIdentifier<>(TypedValue.class, NAMESPACE, "in");
     public static final EgressIdentifier<TypedValue> RESULT_EGRESS = new EgressIdentifier<>("example", "kafka-generic-egress", TypedValue.class);
     public static final FunctionType ECHO_FUNCTION_TYPE = new FunctionType(NAMESPACE, "remote_function");
+    public static final EgressIdentifier<TypedValue> EVENTS_EGRESS = new EgressIdentifier<>("example", "kafka-events-egress", TypedValue.class);
+    public static final String EVENTS_TOPIC = "statefun-tasks.events";
 }

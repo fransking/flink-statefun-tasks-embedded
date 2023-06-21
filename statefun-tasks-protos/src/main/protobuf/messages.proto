@@ -221,6 +221,7 @@ message TaskInfo {
     string namespace = 3;
     string worker_name = 4;
     string task_uid = 5;
+    string display_name = 6;
 }
 
 message TaskResults {
@@ -287,4 +288,21 @@ message CallbackSignal {
 
 message ResultsBatch {
     repeated TaskResultOrException results = 1;
+}
+
+message PipelineCreated {
+    string caller_id = 1;
+    string caller_address = 2;
+    repeated TaskInfo tasks = 3;
+}
+
+message Event {
+    string pipeline_id = 1;
+    string pipeline_address = 2;
+    string root_pipeline_id = 3;
+    string root_pipeline_address = 4;
+
+    oneof event {
+        PipelineCreated pipeline_created = 5;
+    }
 }

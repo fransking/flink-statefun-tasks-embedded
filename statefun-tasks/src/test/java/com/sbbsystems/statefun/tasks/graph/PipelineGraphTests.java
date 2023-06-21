@@ -200,7 +200,6 @@ public final class PipelineGraphTests {
         var template = List.of(emptyGroup, emptyGroup, "a", "b", "c");
 
         var graph = fromTemplate(template);
-        var entry = Objects.requireNonNull(graph.getHead());
         var skippedTasks = new LinkedList<Task>();
         var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
 
@@ -212,6 +211,72 @@ public final class PipelineGraphTests {
     @Test
     public void can_return_all_tasks() {
         var template = List.of("a", "b", "c");
+        var graph = fromTemplate(template);
+
+        var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("a", "b", "c"));
+    }
+
+    @Test
+    public void can_return_all_tasks_including_from_groups() {
+        var group = List.of(
+                List.of("1", "2", "3")
+        );
+
+        var template = List.of("a", "b", group, "c");
+        var graph = fromTemplate(template);
+
+        var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("a", "b", "1", "2", "3", "c"));
+    }
+
+    @Test
+    public void can_return_all_tasks_including_from_nested_groups() {
+        var nested = List.of(
+                List.of("x", "y", "z")
+        );
+
+        var group2 = List.of(
+                List.of("q")
+        );
+
+        var group = List.of(
+                List.of("1", "2", nested, "3")
+        );
+
+        var template = List.of("a", "b", group, "c", group2);
+        var graph = fromTemplate(template);
+
+        var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("a", "b", "1", "2", "x", "y", "z", "3", "c", "q"));
+    }
+
+    @Test
+    public void can_return_all_tasks_including_from_empty_groups() {
+        var emptyGroup = List.of(
+        );
+
+        var group = List.of(
+                List.of("1", "2", "3")
+        );
+
+        var template = List.of("a", "b", emptyGroup, emptyGroup, group, "c");
+        var graph = fromTemplate(template);
+
+        var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        assertThat(taskIds.collect(Collectors.toList())).isEqualTo(List.of("a", "b", "1", "2", "3", "c"));
+    }
+
+    @Test
+    public void can_return_all_tasks_including_from_nested_empty_groups() {
+        var emptyGroup = List.of(
+        );
+
+        var group = List.of(
+                List.of(emptyGroup)
+        );
+
+        var template = List.of("a", "b", group, "c");
         var graph = fromTemplate(template);
 
         var taskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);

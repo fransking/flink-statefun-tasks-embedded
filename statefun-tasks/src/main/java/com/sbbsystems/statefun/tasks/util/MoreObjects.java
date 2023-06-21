@@ -25,4 +25,12 @@ public class MoreObjects {
 
         return Objects.equals(a, b);
     }
+
+    public static boolean notEqualsAndNotNull(Object a, Object b) {
+        if (a == null || b == null) {
+            return false;
+        }
+
+        return !Objects.equals(a, b);
+    }
 }

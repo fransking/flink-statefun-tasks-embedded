@@ -16,6 +16,9 @@
 
 package com.sbbsystems.statefun.tasks.utils;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.sbbsystems.statefun.tasks.generated.Event;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
@@ -23,6 +26,8 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -56,14 +61,25 @@ public class TestEgress {
         }
     }
 
+    public static void addEventMessage(TypedValue message) {
+        try {
+            var kafkaRecord = MessageTypes.asType(message, KafkaProducerRecord::parseFrom);
+            var event = Any.parseFrom(kafkaRecord.getValueBytes()).unpack(Event.class);
+            var topic = event.getPipelineId() + "_" + kafkaRecord.getTopic();
+
+            var topicQueue = egressMap.get(topic);
+            if (topicQueue == null) {
+                throw new RuntimeException(MessageFormat.format("Topic {0} has not been initialised", topic));
+            }
+            topicQueue.put(message);
+        } catch (InvalidMessageTypeException | InterruptedException | InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static TypedValue getMessage(String topic) {
-        if (harnessThread == null) {
-            throw new RuntimeException("TestEgress had not been initialised");
-        }
-        var topicQueue = egressMap.get(topic);
-        if (topicQueue == null) {
-            throw new RuntimeException(MessageFormat.format("Topic {0} has not been initialised", topic));
-        }
+        var topicQueue = getTopicQueue(topic);
+
         try {
             TypedValue result = null;
             while (result == null) {
@@ -76,5 +92,26 @@ public class TestEgress {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static List<TypedValue> getMessages(String topic) {
+        var events = new LinkedList<TypedValue>();
+        var topicQueue = getTopicQueue(topic);
+        topicQueue.drainTo(events);
+        return events;
+    }
+
+    private static BlockingQueue<TypedValue> getTopicQueue(String topic) {
+        if (harnessThread == null) {
+            throw new RuntimeException("TestEgress had not been initialised");
+        }
+
+        var topicQueue = egressMap.get(topic);
+
+        if (topicQueue == null) {
+            throw new RuntimeException(MessageFormat.format("Topic {0} has not been initialised", topic));
+        }
+
+        return topicQueue;
     }
 }

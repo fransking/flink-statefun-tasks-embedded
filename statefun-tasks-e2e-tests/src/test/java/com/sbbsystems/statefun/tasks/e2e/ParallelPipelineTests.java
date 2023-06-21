@@ -189,8 +189,6 @@ public class ParallelPipelineTests {
         var taskException = response.unpack(TaskException.class);
         var state = asString(taskException.getState());
 
-        System.out.println(taskException.getExceptionMessage());
-
         assertThat(taskException.getExceptionMessage()).contains("error p2").contains("error p3");
         assertThat(state).isEqualTo("123");
     }

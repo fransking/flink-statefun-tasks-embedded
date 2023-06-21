@@ -20,11 +20,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
-import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
@@ -99,9 +99,11 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             // save graph structure to state
             graph.saveState();
 
+            // create events
+            var events = PipelineEvents.from(configuration, state, graph);
+
             // create and start pipeline
-            PipelineHandler.from(configuration, state, graph, GroupResultAggregator.newInstance())
-                    .beginPipeline(context, taskRequest);
+            PipelineHandler.from(configuration, state, graph, events).beginPipeline(context, taskRequest);
 
         } catch (InvalidProtocolBufferException e) {
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);

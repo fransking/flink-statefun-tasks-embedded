@@ -17,11 +17,14 @@ package com.sbbsystems.statefun.tasks.graph;
 
 import com.google.common.collect.Iterators;
 
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Objects;
+import java.util.NoSuchElementException;
+
+import static java.util.Objects.isNull;
 
 public final class TasksIterator implements Iterator<Task> {
-    Iterator<Task> groupIterator = null;
+    private Iterator<Task> iterators = Collections.emptyIterator();
     private Entry current;
 
     public static TasksIterator from(Entry entry) {
@@ -32,42 +35,38 @@ public final class TasksIterator implements Iterator<Task> {
         this.current = entry;
     }
 
-    public boolean childHasNext() {
-        return !Objects.isNull(groupIterator) && groupIterator.hasNext();
-    }
-
     @Override
     public boolean hasNext() {
-        return childHasNext() || !Objects.isNull(current);
+        if (iterators.hasNext()) {
+            return true;
+        }
+        else {
+            return !isNull(current) && (!isNull(current.getNext()) || !current.isEmpty());
+        }
     }
 
     @Override
     public Task next() {
-        var value = current;
-
-        if (value instanceof Group) {
-            var group = (Group) value;
+        while (current instanceof Group) {
+            var group = (Group) current;
 
             for (var head : group.getItems()) {
-                if (Objects.isNull(groupIterator)) {
-                    groupIterator = TasksIterator.from(head);
-                } else {
-                    groupIterator = Iterators.concat(groupIterator, TasksIterator.from(head));
-                }
+                iterators = Iterators.concat(iterators, TasksIterator.from(head));
             }
 
-            current = value.getNext();
+            current = current.getNext();
         }
 
-        if (childHasNext()) {
-            return groupIterator.next();
+        if (iterators.hasNext()) {
+            return iterators.next();
         }
 
-        if (hasNext()) {
-            current = value.getNext();
+        if (isNull(current)) {
+            throw new NoSuchElementException();
         }
 
-        assert value instanceof Task;
+        var value = current;
+        current = current.getNext();
         return (Task) value;
     }
 }
