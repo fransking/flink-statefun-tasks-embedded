@@ -138,6 +138,8 @@ public final class PipelineHandler {
         }
         else {
             LOG.info("Pipeline {} is starting with {} tasks to call", pipelineAddress, initialTasks.size());
+            events.notifyPipelineStatusChanged(context, TaskStatus.Status.RUNNING);
+
             var argsAndKwargs = state.getInitialArgsAndKwargs();
 
             // else call the initial tasks
@@ -345,6 +347,7 @@ public final class PipelineHandler {
 
         state.setTaskResult(outgoingTaskResult);
         state.setStatus(TaskStatus.Status.COMPLETED);
+        events.notifyPipelineStatusChanged(context, TaskStatus.Status.COMPLETED);
         respond(context, taskRequest, outgoingTaskResult);
     }
 
@@ -355,6 +358,7 @@ public final class PipelineHandler {
 
         state.setTaskException(outgoingTaskException);
         state.setStatus(TaskStatus.Status.FAILED);
+        events.notifyPipelineStatusChanged(context, TaskStatus.Status.FAILED);
         respond(context, taskRequest, outgoingTaskException);
     }
 
