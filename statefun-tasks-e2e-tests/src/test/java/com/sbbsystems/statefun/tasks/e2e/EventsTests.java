@@ -19,9 +19,12 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.Event;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,7 +47,24 @@ public class EventsTests {
         var response = harness.runPipelineAndGetResponse(pipeline);
         var taskResult = response.unpack(TaskResult.class);
 
-        var pipelineCreated = harness.getEvents(taskResult.getId());
-        assertThat(pipelineCreated.stream().filter(Event::hasPipelineCreated)).hasSize(1);
+        var events = harness.getEvents(taskResult.getId());
+        assertThat(events.stream().filter(Event::hasPipelineCreated)).hasSize(1);
+    }
+
+    @Test
+    void test_pipeline_status_changed_events_are_sent() throws InvalidProtocolBufferException {
+        var pipeline = PipelineBuilder
+                .beginWith("echo", Int32Value.of(1))
+                .continueWith("echo")
+                .build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+
+        var events = harness.getEvents(taskResult.getId());
+        var statusEvents = events.stream().filter(Event::hasPipelineStatusChanged).collect(Collectors.toUnmodifiableList());
+        assertThat(statusEvents).hasSize(2);
+        assertThat(statusEvents.get(0).getPipelineStatusChanged().getStatus().getValue()).isEqualTo(TaskStatus.Status.RUNNING);
+        assertThat(statusEvents.get(1).getPipelineStatusChanged().getStatus().getValue()).isEqualTo(TaskStatus.Status.COMPLETED);
     }
 }

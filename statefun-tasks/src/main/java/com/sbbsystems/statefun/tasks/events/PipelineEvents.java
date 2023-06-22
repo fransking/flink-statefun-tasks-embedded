@@ -4,6 +4,8 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.ChildPipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineCreated;
+import com.sbbsystems.statefun.tasks.generated.PipelineStatusChanged;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
@@ -49,11 +51,11 @@ public class PipelineEvents {
         var callerAddress = state.getCallerAddress();
 
         try (var ignored = TimedBlock.of(LOG::info, "Notifying new pipeline {0} created", MessageTypes.asString(pipelineAddress))) {
-            var taskInfos = graph.getTaskEntries().map(MessageTypes::toTaskInfo).collect(Collectors.toUnmodifiableList());
+            var tasks = graph.getTaskEntries().map(MessageTypes::toTaskInfo).collect(Collectors.toUnmodifiableList());
 
             if (configuration.hasEventsEgress()) {
                 // if we have events egress then publish PipelineCreated message
-                var pipelineCreated = PipelineCreated.newBuilder().addAllTasks(taskInfos);
+                var pipelineCreated = PipelineCreated.newBuilder().addAllTasks(tasks);
 
                 if (!isNull(callerAddress)) {
                     pipelineCreated.setCallerId(callerAddress.getId()).setCallerAddress(MessageTypes.toTypeName(callerAddress));
@@ -71,7 +73,7 @@ public class PipelineEvents {
                         .setAddress(MessageTypes.toTypeName(pipelineAddress))
                         .setRootId(rootPipelineAddress.getId())
                         .setRootAddress(MessageTypes.toTypeName(rootPipelineAddress))
-                        .addAllTasks(taskInfos);
+                        .addAllTasks(tasks);
 
                 if (!isNull(callerAddress)) {
                     childPipeline.setCallerId(callerAddress.getId()).setCallerAddress(MessageTypes.toTypeName(callerAddress));
@@ -80,5 +82,16 @@ public class PipelineEvents {
                 context.send(MessageTypes.toSdkAddress(rootPipelineAddress), MessageTypes.wrap(childPipeline.build()));
             }
         }
+    }
+
+    public void notifyPipelineStatusChanged(Context context, TaskStatus.Status status) {
+        if (!configuration.hasEventsEgress()) {
+            return;
+        }
+
+        var taskStatus = TaskStatus.newBuilder().setValue(status);
+        var pipelineStatusChanged = PipelineStatusChanged.newBuilder().setStatus(taskStatus);
+        var event = MessageTypes.buildEventFor(state).setPipelineStatusChanged(pipelineStatusChanged);
+        context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
     }
 }

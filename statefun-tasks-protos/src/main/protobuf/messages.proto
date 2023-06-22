@@ -296,6 +296,10 @@ message PipelineCreated {
     repeated TaskInfo tasks = 3;
 }
 
+message PipelineStatusChanged {
+    TaskStatus status = 1;
+}
+
 message Event {
     string pipeline_id = 1;
     string pipeline_address = 2;
@@ -304,5 +308,6 @@ message Event {
 
     oneof event {
         PipelineCreated pipeline_created = 5;
+        PipelineStatusChanged pipeline_status_changed = 6;
     }
 }
