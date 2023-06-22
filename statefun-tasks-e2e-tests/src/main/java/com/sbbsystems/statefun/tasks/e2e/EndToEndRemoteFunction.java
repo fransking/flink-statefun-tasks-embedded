@@ -23,6 +23,7 @@ import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
+import org.joda.time.DateTime;
 
 import java.text.MessageFormat;
 
@@ -62,12 +63,15 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                             output = getOutput(taskRequest, cleanupTask(taskRequest));
                             break;
 
+                        case "sleep":
+                            output = getOutput(taskRequest, sleepTask(taskRequest));
+                            break;
+
                         default:
                             var error = MessageFormat.format("Unknown task type {0}", taskRequest.getType());
                             output = MessageTypes.toTaskException(taskRequest, new StatefunTasksException(error));
                     }
-                }
-                catch (StatefunTasksException e) {
+                } catch (StatefunTasksException e) {
                     output = MessageTypes.toTaskException(taskRequest, e);
                 }
 
@@ -180,5 +184,26 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         }
 
         return TaskResult.newBuilder();
+    }
+
+    private TaskResult.Builder sleepTask(TaskRequest taskRequest)
+            throws InvalidProtocolBufferException, StatefunTasksException {
+
+        var request = getArgsAndKwargs(taskRequest);
+        var sleepDurationMs = request.getArgs().getItems(0).unpack(Int32Value.class).getValue();
+
+        var startTime = DateTime.now();
+        try {
+            Thread.sleep(sleepDurationMs);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        var endTime = DateTime.now();
+
+        var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);
+
+        return TaskResult.newBuilder()
+                .setResult(Any.pack(StringValue.of(stringResult)));
     }
 }

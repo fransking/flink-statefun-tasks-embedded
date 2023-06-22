@@ -32,7 +32,11 @@ public class PipelineBuilder {
     }
 
     public static PipelineBuilder inParallel(Iterable<Pipeline> entries, boolean returnExceptions) {
-        return new PipelineBuilder().addGroup(entries, returnExceptions);
+        return new PipelineBuilder().addGroup(entries, returnExceptions, 0);
+    }
+
+    public static PipelineBuilder inParallel(Iterable<Pipeline> entries, int maxParallelism) {
+        return new PipelineBuilder().addGroup(entries, false, maxParallelism);
     }
 
     public static PipelineBuilder beginWith(String taskType) {
@@ -121,11 +125,12 @@ public class PipelineBuilder {
         return this;
     }
 
-    private PipelineBuilder addGroup(Iterable<Pipeline> entries, boolean returnExceptions) {
+    private PipelineBuilder addGroup(Iterable<Pipeline> entries, boolean returnExceptions, int maxParallelism) {
         var groupEntry = GroupEntry
                 .newBuilder()
                 .setGroupId(Id.generate())
-                .setReturnExceptions(returnExceptions);
+                .setReturnExceptions(returnExceptions)
+                .setMaxParallelism(maxParallelism);
 
         for (var entry: entries) {
             groupEntry.addGroup(entry);

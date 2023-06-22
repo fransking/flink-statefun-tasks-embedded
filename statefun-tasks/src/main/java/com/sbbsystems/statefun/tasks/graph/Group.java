@@ -26,10 +26,12 @@ import java.util.Objects;
 @TypeInfo(GroupTypeInfoFactory.class)
 public final class Group extends EntryBase implements Entry {
     private List<Entry> items;
+    private int maxParallelism;
 
-    public static Group of(@NotNull String id) {
+    public static Group of(@NotNull String id, int maxParallelism) {
         var group = new Group();
         group.setId(id);
+        group.setMaxParallelism(maxParallelism);
         return group;
     }
 
@@ -50,6 +52,14 @@ public final class Group extends EntryBase implements Entry {
 
     public void addEntry(@NotNull Entry entry) {
         items.add(entry);
+    }
+
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
+
+    public void setMaxParallelism(int maxParallelism) {
+        this.maxParallelism = maxParallelism;
     }
 
     @Override

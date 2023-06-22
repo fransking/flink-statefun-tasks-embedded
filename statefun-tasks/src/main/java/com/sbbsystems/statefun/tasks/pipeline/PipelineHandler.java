@@ -39,9 +39,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.equalsAndNotNull;
@@ -140,38 +138,40 @@ public final class PipelineHandler {
             LOG.info("Pipeline {} is starting with {} tasks to call", pipelineAddress, initialTasks.size());
             events.notifyPipelineStatusChanged(context, TaskStatus.Status.RUNNING);
 
-            var argsAndKwargs = state.getInitialArgsAndKwargs();
+            try (var taskSubmitter = TaskSubmitter.of(state, context)) {
+                var argsAndKwargs = state.getInitialArgsAndKwargs();
 
-            // else call the initial tasks
-            for (var task: initialTasks) {
+                // else call the initial tasks
+                for (var task : initialTasks) {
 
-                var taskEntry = graph.getTaskEntry(task.getId());
-                var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
+                    var taskEntry = graph.getTaskEntry(task.getId());
+                    var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
 
-                // add task arguments - if we skipped any empty groups then we have to send [] to the next task
-                var mergedArgsAndKwargs = task.isPrecededByAnEmptyGroup()
-                        ? TaskEntrySerializer.of(taskEntry).mergeWith(MessageTypes.argsOfEmptyArray())
-                        : TaskEntrySerializer.of(taskEntry).mergeWith(argsAndKwargs);
+                    // add task arguments - if we skipped any empty groups then we have to send [] to the next task
+                    var mergedArgsAndKwargs = task.isPrecededByAnEmptyGroup()
+                            ? TaskEntrySerializer.of(taskEntry).mergeWith(MessageTypes.argsOfEmptyArray())
+                            : TaskEntrySerializer.of(taskEntry).mergeWith(argsAndKwargs);
 
-                outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
+                    outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
 
-                // add initial state if present otherwise we start each pipeline with empty state
-                if (!isNull(state.getInitialState())) {
-                    outgoingTaskRequest.setState(state.getInitialState());
+                    // add initial state if present otherwise we start each pipeline with empty state
+                    if (!isNull(state.getInitialState())) {
+                        outgoingTaskRequest.setState(state.getInitialState());
+                    }
+
+                    // set the reply address to be the callback function
+                    outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+
+                    // send message
+                    taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
                 }
-
-                // set the reply address to be the callback function
-                outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
-
-                // send message
-                context.send(MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
             }
             LOG.info("Pipeline {} started", pipelineAddress);
         }
     }
 
     public void continuePipeline(Context context, TaskResultOrException message)
-        throws StatefunTasksException {
+            throws StatefunTasksException {
 
         var pipelineAddress = MessageTypes.asString(context.self());
         var callerId = message.hasTaskResult() ? message.getTaskResult().getUid() : message.getTaskException().getUid();
@@ -234,6 +234,8 @@ public final class PipelineHandler {
             if (graph.isComplete(parentGroup.getId())) {
                 LOG.info("{} is complete", parentGroup);
                 continuePipeline(context, aggregateGroupResults(parentGroup));
+            } else {
+                TaskSubmitter.submitNextDeferredTask(state, context, parentGroup);
             }
         } else {
 
@@ -242,28 +244,31 @@ public final class PipelineHandler {
             if (!isNull(nextEntry)) {
                 LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, initialTasks.size());
 
-                var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
-                var taskResult = TaskResultSerializer.of(message);
+                try (var taskSubmitter = TaskSubmitter.of(state, context)) {
 
-                for (var task: initialTasks) {
-                    var entry = graph.getTaskEntry(task.getId());
-                    var taskEntry = TaskEntrySerializer.of(entry);
+                    var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
+                    var taskResult = TaskResultSerializer.of(message);
 
-                    var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
+                    for (var task : initialTasks) {
+                        var entry = graph.getTaskEntry(task.getId());
+                        var taskEntry = TaskEntrySerializer.of(entry);
 
-                    // add task arguments
-                    var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
+                        var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
 
-                    outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
+                        // add task arguments
+                        var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
 
-                    // set the state
-                    outgoingTaskRequest.setState(taskResult.getState());
+                        outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
 
-                    // set the reply address to be the callback function
-                    outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+                        // set the state
+                        outgoingTaskRequest.setState(taskResult.getState());
 
-                    // send message
-                    context.send(MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
+                        // set the reply address to be the callback function
+                        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+
+                        // send message
+                        taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
+                    }
                 }
             }
             else {
