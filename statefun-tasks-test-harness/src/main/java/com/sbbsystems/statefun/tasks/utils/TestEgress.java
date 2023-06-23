@@ -65,7 +65,7 @@ public class TestEgress {
         try {
             var kafkaRecord = MessageTypes.asType(message, KafkaProducerRecord::parseFrom);
             var event = Any.parseFrom(kafkaRecord.getValueBytes()).unpack(Event.class);
-            var topic = event.getPipelineId() + "_" + kafkaRecord.getTopic();
+            var topic = event.getRootPipelineId() + "_" + kafkaRecord.getTopic();
 
             var topicQueue = egressMap.get(topic);
             if (topicQueue == null) {
