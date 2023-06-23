@@ -25,7 +25,6 @@ import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import org.apache.flink.statefun.sdk.Address;
 import org.apache.flink.statefun.sdk.Context;
-import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,23 +33,53 @@ import java.util.HashMap;
 import java.util.LinkedList;
 
 public class TaskSubmitter implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(TaskSubmitter.class);
+
     private final PipelineFunctionState state;
     private final Context context;
     private final HashMap<String, LinkedList<String>> deferredTaskIds = new HashMap<>();
     private final HashMap<String, Integer> taskCounts = new HashMap<>();
-    private static final Logger LOG = LoggerFactory.getLogger(TaskSubmitter.class);
+
+
+    public static TaskSubmitter of(PipelineFunctionState state, Context context) {
+        return new TaskSubmitter(state, context);
+    }
+
+    public static void submitNextDeferredTask(PipelineFunctionState state, Context context, Group parentGroup)
+            throws StatefunTasksException {
+
+        var groupDeferredTasks = state.getDeferredTaskIds().get(parentGroup.getId());
+        if (groupDeferredTasks != null && groupDeferredTasks.getTaskIds().size() > 0) {
+            var nextTaskId = groupDeferredTasks.getTaskIds().remove();
+            var nextTask = state.getDeferredTasks().get(nextTaskId);
+
+            // remove from state
+            state.getDeferredTasks().remove(nextTaskId);
+            int nRemaining = groupDeferredTasks.getTaskIds().size();
+            if (nRemaining == 0) {
+                state.getDeferredTaskIds().remove(parentGroup.getId());
+            } else {
+                state.getDeferredTaskIds().set(parentGroup.getId(), groupDeferredTasks);
+            }
+
+            // submit task
+            LOG.info("Submitting deferred task {} from group {} ({} remaining)", nextTaskId, parentGroup.getId(), nRemaining);
+            try {
+                context.send(nextTask.getAddress(), nextTask.getMessage());
+            } catch (InvalidProtocolBufferException e) {
+                throw new StatefunTasksException("Invalid TypedValue stored in state", e);
+            }
+        }
+    }
 
     private TaskSubmitter(PipelineFunctionState state, Context context) {
         this.state = state;
         this.context = context;
     }
 
-    public static TaskSubmitter of(PipelineFunctionState state, Context context) {
-        return new TaskSubmitter(state, context);
-    }
-
     public void submitOrDefer(Task task, Address address, TypedValue message)
             throws StatefunTasksException {
+
         var shouldDefer = false;
         var parentGroup = task.getParentGroup();
         if (parentGroup != null) {
@@ -73,6 +102,7 @@ public class TaskSubmitter implements AutoCloseable {
 
     private void deferTask(Task task, Address address, TypedValue message, Group parentGroup)
             throws StatefunTasksException {
+
         if (parentGroup == null) {
             throw new StatefunTasksException("Deferred tasks must have a parent group");
         }
@@ -83,35 +113,6 @@ public class TaskSubmitter implements AutoCloseable {
         deferredTaskIds.get(parentGroupId).add(task.getId());  // written to state on close
         var deferredTask = DeferredTask.of(address.type().namespace(), address.type().name(), address.id(), message);
         state.getDeferredTasks().set(task.getId(), deferredTask);
-    }
-
-    public static void submitNextDeferredTask(PipelineFunctionState state, Context context, Group parentGroup)
-            throws StatefunTasksException {
-        var groupDeferredTasks = state.getDeferredTaskIds().get(parentGroup.getId());
-        if (groupDeferredTasks != null && groupDeferredTasks.getTaskIds().size() > 0) {
-            var nextTaskId = groupDeferredTasks.getTaskIds().remove();
-            var nextTask = state.getDeferredTasks().get(nextTaskId);
-
-            // remove from state
-            state.getDeferredTasks().remove(nextTaskId);
-            int nRemaining = groupDeferredTasks.getTaskIds().size();
-            if (nRemaining == 0) {
-                state.getDeferredTaskIds().remove(parentGroup.getId());
-            } else {
-                state.getDeferredTaskIds().set(parentGroup.getId(), groupDeferredTasks);
-            }
-
-            // submit task
-            LOG.info("Submitting deferred task {} from group {} ({} remaining)", nextTaskId, parentGroup.getId(), nRemaining);
-            var address = new Address(new FunctionType(nextTask.addressNamespace, nextTask.addressType), nextTask.addressId);
-            try {
-                var message = TypedValue.parseFrom(nextTask.messageBytes);
-                context.send(address, message);
-            } catch (InvalidProtocolBufferException e) {
-                throw new StatefunTasksException("Invalid TypedValue stored in state", e);
-            }
-
-        }
     }
 
     private void persistState() {
