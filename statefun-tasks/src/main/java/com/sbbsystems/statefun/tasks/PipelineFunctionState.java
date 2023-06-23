@@ -73,6 +73,8 @@ public final class PipelineFunctionState {
     private final PersistedTable<String, DeferredTaskIds> deferredTaskIds;
     @Persisted
     private final PersistedTable<String, DeferredTask> deferredTasks;
+    @Persisted
+    private final PersistedAppendingBuffer<ChildPipeline> childPipelines;
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -105,6 +107,7 @@ public final class PipelineFunctionState {
         responseBeforeFinally = PersistedValue.of("responseBeforeFinally", TaskResultOrException.class, expiration);
         deferredTaskIds = PersistedTable.of("deferredTaskIds", String.class, DeferredTaskIds.class, expiration);
         deferredTasks = PersistedTable.of("deferredTasks", String.class, DeferredTask.class, expiration);
+        childPipelines = PersistedAppendingBuffer.of("childPipelines", ChildPipeline.class, expiration);
     }
 
     public PersistedTable<String, TaskEntry> getTaskEntries() {
@@ -262,6 +265,10 @@ public final class PipelineFunctionState {
 
     public PersistedTable<String, DeferredTask> getDeferredTasks() {
         return deferredTasks;
+    }
+
+    public PersistedAppendingBuffer<ChildPipeline> getChildPipelines() {
+        return childPipelines;
     }
 
     public void reset()
