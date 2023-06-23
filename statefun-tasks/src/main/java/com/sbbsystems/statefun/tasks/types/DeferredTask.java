@@ -16,6 +16,9 @@
 
 package com.sbbsystems.statefun.tasks.types;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.flink.statefun.sdk.Address;
+import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
 public final class DeferredTask {
@@ -31,5 +34,15 @@ public final class DeferredTask {
         deferredTask.addressId = addressId;
         deferredTask.messageBytes = message.toByteArray();
         return deferredTask;
+    }
+
+    public Address getAddress() {
+        return new Address(new FunctionType(addressNamespace, addressType), addressId);
+    }
+
+    public TypedValue getMessage()
+            throws InvalidProtocolBufferException {
+
+        return TypedValue.parseFrom(messageBytes);
     }
 }
