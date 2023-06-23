@@ -18,7 +18,9 @@ package com.sbbsystems.statefun.tasks;
 import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.*;
+import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
 import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
+import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
@@ -67,6 +69,10 @@ public final class PipelineFunctionState {
     private final PersistedTable<String, TaskResultOrException> intermediateGroupResults;
     @Persisted
     private final PersistedValue<TaskResultOrException> responseBeforeFinally;
+    @Persisted
+    private final PersistedTable<String, DeferredTaskIds> deferredTaskIds;
+    @Persisted
+    private final PersistedTable<String, DeferredTask> deferredTasks;
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -97,6 +103,8 @@ public final class PipelineFunctionState {
         status = PersistedValue.of("status", Integer.class, expiration);
         intermediateGroupResults = PersistedTable.of("intermediateGroupResults", String.class, TaskResultOrException.class, expiration);
         responseBeforeFinally = PersistedValue.of("responseBeforeFinally", TaskResultOrException.class, expiration);
+        deferredTaskIds = PersistedTable.of("deferredTaskIds", String.class, DeferredTaskIds.class, expiration);
+        deferredTasks = PersistedTable.of("deferredTasks", String.class, DeferredTask.class, expiration);
     }
 
     public PersistedTable<String, TaskEntry> getTaskEntries() {
@@ -246,6 +254,14 @@ public final class PipelineFunctionState {
 
     public void setResponseBeforeFinally(TaskResultOrException response) {
         responseBeforeFinally.set(response);
+    }
+
+    public PersistedTable<String, DeferredTaskIds> getDeferredTaskIds() {
+        return deferredTaskIds;
+    }
+
+    public PersistedTable<String, DeferredTask> getDeferredTasks() {
+        return deferredTasks;
     }
 
     public void reset()

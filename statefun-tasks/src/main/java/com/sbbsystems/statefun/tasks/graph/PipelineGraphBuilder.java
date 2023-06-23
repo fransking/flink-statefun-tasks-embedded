@@ -124,7 +124,7 @@ public final class PipelineGraphBuilder {
             } else if (entry.hasGroupEntry()) {
                 var groupEntryProto = entry.getGroupEntry();
                 var groupEntry = GroupEntryBuilder.fromProto(groupEntryProto);
-                next = Group.of(groupEntryProto.getGroupId());
+                next = Group.of(groupEntryProto.getGroupId(), groupEntryProto.getMaxParallelism());
                 next.setPrecededByAnEmptyGroup(isPrecededByAnEmptyGroup);
 
                 if (entries.getItems().containsKey(next.getId())) {

@@ -28,7 +28,7 @@ public class HarnessUtils {
         if (harnessThread == null || !harnessThread.isAlive()) {
             LOG.info("Starting test harness");
             var harness = new Harness()
-                    .withParallelism(1)
+                    .withParallelism(5)
                     .withSupplyingIngress(IoIdentifiers.REQUEST_INGRESS, TestIngress.get())
                     .withConsumingEgress(IoIdentifiers.RESULT_EGRESS, TestEgress::addMessage)
                     .withConsumingEgress(IoIdentifiers.EVENTS_EGRESS, TestEgress::addEventMessage);

@@ -17,16 +17,21 @@ package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.*;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.generated.*;
+import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
+import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
+import org.joda.time.DateTime;
 
 import java.text.MessageFormat;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
+import static java.util.Objects.isNull;
 
 public class EndToEndRemoteFunction implements StatefulFunction {
 
@@ -38,7 +43,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         try {
             if (MessageTypes.isType(input, TaskRequest.class)) {
                 var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
-                Message output;
+                Message output = null;
 
                 try {
                     switch (taskRequest.getType()) {
@@ -62,18 +67,27 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                             output = getOutput(taskRequest, cleanupTask(taskRequest));
                             break;
 
+                        case "newPipeline":
+                            newPipelineTask(context, taskRequest);
+                            break;
+
+                        case "sleep":
+                            output = getOutput(taskRequest, sleepTask(taskRequest));
+                            break;
+
                         default:
                             var error = MessageFormat.format("Unknown task type {0}", taskRequest.getType());
                             output = MessageTypes.toTaskException(taskRequest, new StatefunTasksException(error));
                     }
-                }
-                catch (StatefunTasksException e) {
+                } catch (StatefunTasksException e) {
                     output = MessageTypes.toTaskException(taskRequest, e);
                 }
 
-                var wrappedResult = MessageTypes.wrap(output);
-                var replyAddress = taskRequest.getReplyAddress();
-                context.send(new FunctionType(replyAddress.getNamespace(), replyAddress.getType()), replyAddress.getId(), wrappedResult);
+                if (!isNull(output)) {
+                    var wrappedResult = MessageTypes.wrap(output);
+                    var replyAddress = taskRequest.getReplyAddress();
+                    context.send(new FunctionType(replyAddress.getNamespace(), replyAddress.getType()), replyAddress.getId(), wrappedResult);
+                }
             }
 
 
@@ -180,5 +194,45 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         }
 
         return TaskResult.newBuilder();
+    }
+
+    private TaskResult.Builder sleepTask(TaskRequest taskRequest)
+            throws InvalidProtocolBufferException, StatefunTasksException {
+
+        var request = getArgsAndKwargs(taskRequest);
+        var sleepDurationMs = request.getArgs().getItems(0).unpack(Int32Value.class).getValue();
+
+        var startTime = DateTime.now();
+        try {
+            Thread.sleep(sleepDurationMs);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        var endTime = DateTime.now();
+
+        var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);
+
+        return TaskResult.newBuilder()
+                .setResult(Any.pack(StringValue.of(stringResult)));
+    }
+
+    private void newPipelineTask(Context context, TaskRequest taskRequest)
+            throws InvalidProtocolBufferException {
+
+        var request = getArgsAndKwargs(taskRequest);
+        var builder = PipelineBuilder.beginWith("echo", request);
+
+        var output = TaskRequest.newBuilder()
+                .setUid(taskRequest.getUid())
+                .setId(taskRequest.getId())
+                .setInvocationId(taskRequest.getInvocationId())  // this is important to match invocation id of the calling pipeline
+                .setRequest(packAny(builder.build()))
+                .setState(taskRequest.getState())
+                .putAllMeta(taskRequest.getMetaMap())
+                .setReplyAddress(taskRequest.getReplyAddress())
+                .build();
+
+        context.send(context.caller().type(), output.getUid(), MessageTypes.wrap(output));
     }
 }
