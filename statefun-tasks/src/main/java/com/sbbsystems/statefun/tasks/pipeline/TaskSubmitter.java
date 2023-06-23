@@ -50,6 +50,7 @@ public class TaskSubmitter implements AutoCloseable {
 
         var groupDeferredTasks = state.getDeferredTaskIds().get(parentGroup.getId());
         if (groupDeferredTasks != null && groupDeferredTasks.getTaskIds().size() > 0) {
+            // deferred tasks exist for this group - submit the next one from the list
             var nextTaskId = groupDeferredTasks.getTaskIds().remove();
             var nextTask = state.getDeferredTasks().get(nextTaskId);
 
@@ -124,6 +125,7 @@ public class TaskSubmitter implements AutoCloseable {
 
     @Override
     public void close() {
+        // task ID lists are persisted to state once on close rather than each time an element is added
         persistState();
     }
 }
