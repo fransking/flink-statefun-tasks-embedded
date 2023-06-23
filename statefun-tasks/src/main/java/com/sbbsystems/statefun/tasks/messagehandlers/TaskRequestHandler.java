@@ -105,9 +105,8 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             // create and start pipeline
             PipelineHandler.from(configuration, state, graph, events).beginPipeline(context, taskRequest);
 
-        } catch (InvalidProtocolBufferException e) {
+        } catch (IndexOutOfBoundsException | InvalidProtocolBufferException e) {
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);
-            LOG.error(ex.getMessage(), ex);
             state.setStatus(TaskStatus.Status.FAILED);
             respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, ex));
         } catch (Exception e) {
