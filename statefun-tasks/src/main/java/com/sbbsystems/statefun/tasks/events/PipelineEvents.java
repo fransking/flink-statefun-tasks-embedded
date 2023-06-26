@@ -25,27 +25,22 @@ public class PipelineEvents {
 
     private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
-    private final PipelineGraph graph;
 
     public static PipelineEvents from(@NotNull PipelineConfiguration configuration,
-                                       @NotNull PipelineFunctionState state,
-                                       @NotNull PipelineGraph graph) {
+                                      @NotNull PipelineFunctionState state) {
 
         return new PipelineEvents(
                 requireNonNull(configuration),
-                requireNonNull(state),
-                requireNonNull(graph));
+                requireNonNull(state));
     }
 
     private PipelineEvents(PipelineConfiguration configuration,
-                           PipelineFunctionState state,
-                           PipelineGraph graph) {
+                           PipelineFunctionState state) {
         this.configuration = configuration;
         this.state = state;
-        this.graph = graph;
     }
     
-    public void notifyPipelineCreated(Context context) {
+    public void notifyPipelineCreated(Context context, PipelineGraph graph) {
         var pipelineAddress = state.getPipelineAddress();
         var rootPipelineAddress = state.getRootPipelineAddress();
         var callerAddress = state.getCallerAddress();

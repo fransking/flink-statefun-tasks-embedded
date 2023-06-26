@@ -21,6 +21,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.generated.Address;
+import com.sbbsystems.statefun.tasks.generated.TaskActionRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
@@ -58,15 +60,21 @@ public abstract class MessageHandler<TMessage, TState> {
     }
 
     public final void respond(@NotNull Context context, TaskRequest taskRequest, Message message) {
-        if (!Strings.isNullOrEmpty(taskRequest.getReplyTopic())) {
+        respond(context, taskRequest.getReplyTopic(), taskRequest.getReplyAddress(), message);
+    }
+
+    public final void respond(@NotNull Context context, TaskActionRequest taskActionRequest, Message message) {
+        respond(context, taskActionRequest.getReplyTopic(), taskActionRequest.getReplyAddress(), message);
+    }
+
+    private void respond(@NotNull Context context, String replyTopic, Address replyAddress, Message message) {
+        if (!Strings.isNullOrEmpty(replyTopic)) {
             // send a message to egress if reply_topic was specified
-            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, taskRequest.getReplyTopic()));
-        }
-        else if (taskRequest.hasReplyAddress()) {
+            context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, replyTopic));
+        } else if (replyAddress != null) {
             // else call back to a particular flink function if reply_address was specified
-            context.send(MessageTypes.toSdkAddress(taskRequest.getReplyAddress()), MessageTypes.wrap(message));
-        }
-        else if (!Objects.isNull(context.caller())) {
+            context.send(MessageTypes.toSdkAddress(replyAddress), MessageTypes.wrap(message));
+        } else if (!Objects.isNull(context.caller())) {
             // else call back to the caller of this function (if there is one)
             context.send(context.caller(), MessageTypes.wrap(message));
         }

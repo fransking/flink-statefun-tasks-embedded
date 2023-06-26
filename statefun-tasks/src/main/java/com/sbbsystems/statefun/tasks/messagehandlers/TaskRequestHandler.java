@@ -100,7 +100,7 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             graph.saveState();
 
             // create events
-            var events = PipelineEvents.from(configuration, state, graph);
+            var events = PipelineEvents.from(configuration, state);
 
             // create and start pipeline
             PipelineHandler.from(configuration, state, graph, events).beginPipeline(context, taskRequest);

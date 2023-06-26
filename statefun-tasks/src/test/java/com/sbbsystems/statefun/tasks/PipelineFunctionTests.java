@@ -43,8 +43,8 @@ public class PipelineFunctionTests {
     @BeforeEach
     public void setup() {
         var configuration = PipelineConfiguration.of("example/embedded_pipeline", "example/kafka-generic-egress");
-        this.pipelineFunction = PipelineFunction.of(configuration, CALLBACK_FUNCTION_TYPE);
-        this.context = mock(Context.class);
+        pipelineFunction = PipelineFunction.of(configuration, CALLBACK_FUNCTION_TYPE);
+        context = mock(Context.class);
         when(context.self()).thenReturn(new Address(CALLBACK_FUNCTION_TYPE, "pipeline-id"));
     }
 
@@ -52,9 +52,9 @@ public class PipelineFunctionTests {
     public void invoking_with_task_request_sends_pipeline_started_signal() {
         var taskRequest = MessageTypes.wrap(TaskRequest.newBuilder().setId("pipeline-id").build());
 
-        this.pipelineFunction.invoke(context, taskRequest);
+        pipelineFunction.invoke(context, taskRequest);
 
-        verify(this.context).send(
+        verify(context).send(
                 eq(CALLBACK_FUNCTION_TYPE),
                 eq("pipeline-id"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.PIPELINE_STARTING));
@@ -66,11 +66,41 @@ public class PipelineFunctionTests {
                 .addResults(TaskResultOrException.newBuilder().setTaskResult(TaskResult.newBuilder().build()))
                 .build();
 
-        this.pipelineFunction.invoke(context, MessageTypes.wrap(batchRequest));
+        pipelineFunction.invoke(context, MessageTypes.wrap(batchRequest));
 
-        verify(this.context).send(
+        verify(context).send(
                 eq(CALLBACK_FUNCTION_TYPE),
                 eq("pipeline-id"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.BATCH_PROCESSED));
+    }
+
+    @Test
+    public void invoking_with_pause_action_sends_signal_to_callback_function() {
+        var pauseRequest = MessageTypes.wrap(TaskActionRequest.newBuilder()
+                .setId("pipeline-id")
+                .setAction(TaskAction.PAUSE_PIPELINE)
+                .build());
+
+        pipelineFunction.invoke(context, pauseRequest);
+
+        verify(context).send(
+                eq(CALLBACK_FUNCTION_TYPE),
+                eq("pipeline-id"),
+                argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.PAUSE_PIPELINE));
+    }
+
+    @Test
+    public void invoking_with_resume_action_sends_signal_to_callback_function() {
+        var pauseRequest = MessageTypes.wrap(TaskActionRequest.newBuilder()
+                .setId("pipeline-id")
+                .setAction(TaskAction.UNPAUSE_PIPELINE)
+                .build());
+
+        pipelineFunction.invoke(context, pauseRequest);
+
+        verify(context).send(
+                eq(CALLBACK_FUNCTION_TYPE),
+                eq("pipeline-id"),
+                argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.RESUME_PIPELINE));
     }
 }

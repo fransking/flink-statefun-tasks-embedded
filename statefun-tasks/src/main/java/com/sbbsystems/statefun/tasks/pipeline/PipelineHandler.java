@@ -109,7 +109,7 @@ public final class PipelineHandler {
         state.setCurrentTaskState(state.getInitialState());
 
         // notify pipeline created (events + root pipeline)
-        events.notifyPipelineCreated(context);
+        events.notifyPipelineCreated(context, graph);
 
         var entry = graph.getHead();
 

@@ -73,9 +73,11 @@ public class CallbackSignalHandler extends MessageHandler<CallbackSignal, Callba
                 this.batchSubmitter.trySubmitBatch(context, state);
                 break;
             case PAUSE_PIPELINE:
+                LOG.info("{} - pausing pipeline", context.self().id());
                 state.getPaused().set(true);
                 break;
             case RESUME_PIPELINE:
+                LOG.info("{} - resuming pipeline", context.self().id());
                 state.getPaused().set(false);
                 this.batchSubmitter.trySubmitBatch(context, state);
                 break;

@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.testmodule;
 
+import com.sbbsystems.statefun.tasks.generated.TaskActionRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -26,13 +27,21 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 public class TestPipelineRouter implements Router<TypedValue> {
     @Override
     public void route(TypedValue request, Downstream<TypedValue> downstream) {
-        TaskRequest taskRequest;
+        String requestId;
         try {
-            taskRequest = MessageTypes.asType(request, TaskRequest::parseFrom);
+            if (MessageTypes.isType(request, TaskRequest.class)) {
+                var taskRequest = MessageTypes.asType(request, TaskRequest::parseFrom);
+                requestId = taskRequest.getId();
+            } else if (MessageTypes.isType(request, TaskActionRequest.class)) {
+                var actionRequest = MessageTypes.asType(request, TaskActionRequest::parseFrom);
+                requestId = actionRequest.getId();
+            } else {
+                throw new RuntimeException("Unexpected message type: " + request.getTypename());
+            }
         } catch (InvalidMessageTypeException e) {
             throw new RuntimeException(e);
         }
         var embeddedPipelineFunctionType = new FunctionType("example", "embedded_pipeline");
-        downstream.forward(new Address(embeddedPipelineFunctionType, taskRequest.getId()), request);
+        downstream.forward(new Address(embeddedPipelineFunctionType, requestId), request);
     }
 }
