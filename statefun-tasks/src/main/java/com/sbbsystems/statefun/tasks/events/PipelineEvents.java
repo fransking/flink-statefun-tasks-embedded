@@ -2,11 +2,9 @@ package com.sbbsystems.statefun.tasks.events;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
-import com.sbbsystems.statefun.tasks.generated.ChildPipeline;
-import com.sbbsystems.statefun.tasks.generated.PipelineCreated;
-import com.sbbsystems.statefun.tasks.generated.PipelineStatusChanged;
-import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
@@ -14,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.notEqualsAndNotNull;
@@ -26,16 +25,11 @@ public class PipelineEvents {
     private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
 
-    public static PipelineEvents from(@NotNull PipelineConfiguration configuration,
-                                      @NotNull PipelineFunctionState state) {
-
-        return new PipelineEvents(
-                requireNonNull(configuration),
-                requireNonNull(state));
+    public static PipelineEvents from(@NotNull PipelineConfiguration configuration, @NotNull PipelineFunctionState state) {
+        return new PipelineEvents(requireNonNull(configuration), requireNonNull(state));
     }
 
-    private PipelineEvents(PipelineConfiguration configuration,
-                           PipelineFunctionState state) {
+    private PipelineEvents(PipelineConfiguration configuration, PipelineFunctionState state) {
         this.configuration = configuration;
         this.state = state;
     }
@@ -87,6 +81,21 @@ public class PipelineEvents {
         var taskStatus = TaskStatus.newBuilder().setValue(status);
         var pipelineStatusChanged = PipelineStatusChanged.newBuilder().setStatus(taskStatus);
         var event = MessageTypes.buildEventFor(state).setPipelineStatusChanged(pipelineStatusChanged);
+        context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
+    }
+
+    public void notifyPipelineTasksSkipped(Context context, PipelineGraph graph, List<Task> skippedTasks) {
+        if (!configuration.hasEventsEgress() || skippedTasks.isEmpty()) {
+            return;
+        }
+
+        var tasks = skippedTasks.stream()
+                .map(t -> graph.getTaskEntry(t.getId()))
+                .map(MessageTypes::toTaskInfo)
+                .collect(Collectors.toUnmodifiableList());
+
+        var tasksSkipped = PipelineTasksSkipped.newBuilder().addAllTasks(tasks);
+        var event = MessageTypes.buildEventFor(state).setPipelineTasksSkipped(tasksSkipped);
         context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
     }
 }

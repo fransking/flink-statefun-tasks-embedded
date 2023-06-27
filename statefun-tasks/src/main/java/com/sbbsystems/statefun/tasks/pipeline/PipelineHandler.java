@@ -128,6 +128,9 @@ public final class PipelineHandler {
             initialTasks = getInitialTasks(entry, false, skippedTasks);
         }
 
+        // notify of any skipped tasks
+        events.notifyPipelineTasksSkipped(context, graph, skippedTasks);
+
         if (initialTasks.isEmpty()) {
             // if we have a completely empty pipeline after iterating over empty groups then return empty result
             LOG.info("Pipeline {} is empty, returning []", pipelineAddress);
@@ -219,6 +222,9 @@ public final class PipelineHandler {
             nextEntry = graph.getNextEntry(nextEntry);
             initialTasks = getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
         }
+
+        // notify of any skipped tasks
+        events.notifyPipelineTasksSkipped(context, graph, skippedTasks);
 
         if (equalsAndNotNull(parentGroup, nextEntry)) {
             // if the next step is the parent group this task was the end of a chain
