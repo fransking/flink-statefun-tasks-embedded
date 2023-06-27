@@ -106,6 +106,11 @@ public class NamespacedTestHarness {
     }
 
     public TypedValue runPipeline(Pipeline pipeline, Any state, String uid) {
+        startPipeline(pipeline, state, uid);
+        return getMessage(uid);
+    }
+
+    public void startPipeline(Pipeline pipeline, Any state, String uid) {
         var taskRequest = TaskRequest.newBuilder()
                 .setId(uid)
                 .setUid(uid)
@@ -117,7 +122,6 @@ public class NamespacedTestHarness {
         }
 
         addIngressTaskRequest(taskRequest.build());
-        return getMessage(uid);
     }
 
     public TypedValue sendAction(TaskAction action, String uid) {
