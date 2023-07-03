@@ -29,6 +29,7 @@ abstract class EntryBase implements Entry {
     private Group parentGroup;
     private Entry chainHead;
     private boolean precededByAnEmptyGroup;
+    private boolean isWait;
 
     @SuppressWarnings("unused")  // POJO serialisation
     public EntryBase() {
@@ -99,6 +100,17 @@ abstract class EntryBase implements Entry {
     @Override
     public void setPrecededByAnEmptyGroup(boolean precededByAnEmptyGroup) {
         this.precededByAnEmptyGroup = precededByAnEmptyGroup;
+    }
+
+    @Override
+    public boolean isWait() {
+        return isWait;
+    }
+
+    @SuppressWarnings("unused")  // POJO serialisation
+    @Override
+    public void setIsWait(boolean isWait) {
+        this.isWait = isWait;
     }
 
     @Override

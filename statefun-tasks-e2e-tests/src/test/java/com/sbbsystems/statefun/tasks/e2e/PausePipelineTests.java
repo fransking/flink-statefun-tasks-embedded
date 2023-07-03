@@ -16,24 +16,23 @@
 
 package com.sbbsystems.statefun.tasks.e2e;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.*;
+import com.sbbsystems.statefun.tasks.util.Id;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
-import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.LinkedList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 public class PausePipelineTests {
+    private final Int32Value SLEEP_TIME_MILLIS = Int32Value.of(1_000);
+    private final long POLL_WAIT_MILLIS = 10_000;
     private NamespacedTestHarness harness;
 
     @BeforeEach
@@ -42,44 +41,40 @@ public class PausePipelineTests {
     }
 
     @Test
-    public void test_pausing_and_resuming_pipeline() throws InvalidProtocolBufferException, InterruptedException {
-        var taskWaitTime = 1_000;
+        public void test_pausing_and_resuming_a_pipeline()
+            throws InvalidProtocolBufferException, InterruptedException {
+
         var pipeline = PipelineBuilder
-                .beginWith("sleep", Int32Value.of(taskWaitTime))
+                .beginWith("sleep", SLEEP_TIME_MILLIS)
+                .continueWith("echo")
                 .build();
 
-        var uid = UUID.randomUUID().toString();
+        var uid = Id.generate();
         harness.startPipeline(pipeline, null, uid);
-        List<Event> initialEvents = null;
-        for (int i = 0; i < 200; i++) {
-            Thread.sleep(50);
-            initialEvents = harness.getEvents(uid);
-            if (initialEvents.size() > 0) {
-                break;
-            }
-        }
 
-        assertThat(initialEvents).isNotEmpty();
-        assertThat(initialEvents.get(0).hasPipelineCreated()).isTrue();
+        var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        assertThat(event.hasPipelineCreated()).isTrue();
 
         var pauseResult = harness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
-        // sleep for longer than task takes to run before resuming
-        Thread.sleep(taskWaitTime + 100);
+        assertThat(pauseResult.is(TaskActionResult.class)).isTrue();
+
+        // wait for sleep task to complete
+        var events = new LinkedList<Event>();
+        do {
+            event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);
+            events.add(event);
+        } while (!event.hasPipelineTaskFinished());
+
+        // now un-pause
         var resumeResult = harness.sendActionAndGetResponse(TaskAction.UNPAUSE_PIPELINE, uid);
+        assertThat(resumeResult.is(TaskActionResult.class)).isTrue();
 
-        var pipelineResult = KafkaProducerRecord.parseFrom(harness.getMessage(uid).getValue());
+        harness.getMessage(uid);  // task result
+        events.addAll(harness.getEvents(uid));
 
-        assertThat(Any.parseFrom(pipelineResult.getValueBytes()).is(TaskResult.class)).isTrue();
-        if (!pauseResult.is(TaskActionResult.class)) {
-            fail("Pause task failed: " + pauseResult.unpack(TaskActionException.class).getExceptionMessage());
-        }
-        if (!resumeResult.is(TaskActionResult.class)) {
-            fail("Resume task failed: " + resumeResult.unpack(TaskActionException.class).getExceptionMessage());
-        }
-
-        var pipelineStatuses = Stream.concat(initialEvents.stream(), harness.getEvents(uid).stream())
+        var pipelineStatuses = Stream.concat(events.stream(), harness.getEvents(uid).stream())
                 .filter(Event::hasPipelineStatusChanged)
-                .map(event -> event.getPipelineStatusChanged().getStatus().getValue())
+                .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
                 .collect(Collectors.toList());
         assertThat(pipelineStatuses).containsExactly(
                 TaskStatus.Status.RUNNING,
@@ -90,7 +85,7 @@ public class PausePipelineTests {
 
     @Test
     public void test_pausing_completed_pipeline() throws InvalidProtocolBufferException {
-        var uid = UUID.randomUUID().toString();
+        var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(0))
                 .build();

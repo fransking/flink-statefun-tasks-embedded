@@ -23,11 +23,12 @@ public final class Task extends EntryBase implements Entry {
     private boolean isExceptionally;
     private boolean isFinally;
 
-    public static Task of(@NotNull String id, boolean isExceptionally, boolean isFinally) {
+    public static Task of(@NotNull String id, boolean isExceptionally, boolean isFinally, boolean isWait) {
         var task = new Task();
         task.setId(id);
         task.setExceptionally(isExceptionally);
         task.setFinally(isFinally);
+        task.setIsWait(isWait);
         return task;
     }
 

@@ -28,10 +28,11 @@ public final class Group extends EntryBase implements Entry {
     private List<Entry> items;
     private int maxParallelism;
 
-    public static Group of(@NotNull String id, int maxParallelism) {
+    public static Group of(@NotNull String id, int maxParallelism, boolean isWait) {
         var group = new Group();
         group.setId(id);
         group.setMaxParallelism(maxParallelism);
+        group.setIsWait(isWait);
         return group;
     }
 

@@ -17,15 +17,10 @@ package com.sbbsystems.statefun.tasks.types;
 
 public final class GroupEntry {
     public String groupId;
-
     public int maxParallelism;
-
     public boolean isWait;
-
     public boolean returnExceptions;
-
     public int size;
-
     public int remaining;
     public boolean hasException;
 }

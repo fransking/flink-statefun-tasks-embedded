@@ -41,7 +41,7 @@ public class SimpleBatchSubmitter implements BatchSubmitter {
 
     @Override
     public void trySubmitBatch(Context context, CallbackFunctionState state) {
-        if (state.getPipelineRequestInProgress().getOrDefault(false) || state.getPaused().getOrDefault(false)) {
+        if (state.getPipelineRequestInProgress().getOrDefault(false)) {
             return;
         }
         var batchList = StreamSupport.stream(state.getBatch().view().spliterator(), false)

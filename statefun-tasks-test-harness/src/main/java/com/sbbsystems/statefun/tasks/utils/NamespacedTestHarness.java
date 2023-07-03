@@ -27,12 +27,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
+import static java.util.Objects.isNull;
 
 public class NamespacedTestHarness {
     private final String namespace;
@@ -96,6 +97,21 @@ public class NamespacedTestHarness {
         })).collect(Collectors.toUnmodifiableList());
     }
 
+    public Event pollForEvent(String pipelineId, long timeoutMillis)
+            throws InterruptedException, InvalidProtocolBufferException {
+
+        var topicWithPrefix = pipelineId + "_" + IoIdentifiers.EVENTS_TOPIC;
+
+        var typedValue = TestEgress.pollMessage(topicWithPrefix, timeoutMillis);
+
+        if (isNull(typedValue)) {
+            throw new NoSuchElementException("Timed out polling for event");
+        }
+
+        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(typedValue.getValue());
+        return Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(Event.class);
+    }
+
     public TypedValue runPipeline(Pipeline pipeline) {
         return runPipeline(pipeline, null);
     }
@@ -117,7 +133,7 @@ public class NamespacedTestHarness {
                 .setReplyTopic(uid)
                 .setRequest(Any.pack(pipeline));
 
-        if (!Objects.isNull(state)) {
+        if (!isNull(state)) {
             taskRequest.setState(state);
         }
 

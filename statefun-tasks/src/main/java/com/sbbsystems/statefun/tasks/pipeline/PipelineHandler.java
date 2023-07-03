@@ -39,7 +39,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.equalsAndNotNull;
@@ -185,6 +187,8 @@ public final class PipelineHandler {
             return;
         }
 
+        events.notifyPipelineTaskFinished(context, message);
+
         // N.B. that context.caller() will return callback function address not the task address
         var completedEntry = graph.getEntry(callerId);
 
@@ -195,12 +199,17 @@ public final class PipelineHandler {
 
         if (message.hasTaskResult()) {
             LOG.info("Got a task result from {} for pipeline {}", callerId, pipelineAddress);
-            state.setCurrentTaskState(message.getTaskException().getState());
+            state.setCurrentTaskState(message.getTaskResult().getState());
         }
 
         if (message.hasTaskException()) {
             LOG.info("Got a task exception from {} for pipeline {}", callerId, pipelineAddress);
             state.setCurrentTaskState(message.getTaskException().getState());
+        }
+
+        if (completedEntry.isWait() || (message.hasTaskResult() && message.getTaskResult().getIsWait())) {
+            LOG.info("Pipeline pause requested");
+            pause(context);
         }
 
         // mark task complete
@@ -295,6 +304,47 @@ public final class PipelineHandler {
                     }
                 }
             }
+        }
+    }
+
+    public void pause(Context context)
+        throws StatefunTasksException {
+
+        pauseOrResume(context, true);
+    }
+
+    public void resume(Context context)
+        throws StatefunTasksException {
+
+        pauseOrResume(context, false);
+
+        TaskSubmitter.unpauseTasks(context, state);
+    }
+
+    private void pauseOrResume(Context context, boolean pause)
+            throws StatefunTasksException {
+
+        var status = state.getStatus();
+        var newStatus = pause ? TaskStatus.Status.PAUSED : TaskStatus.Status.RUNNING;
+
+        var validState = status == TaskStatus.Status.RUNNING || status == TaskStatus.Status.PENDING || status == TaskStatus.Status.PAUSED;
+
+        if (!validState) {
+            throw new StatefunTasksException("Pipeline is not in a state that can be paused / un-paused");
+        }
+
+        state.setStatus(newStatus);
+        events.notifyPipelineStatusChanged(context, newStatus);
+
+        //  request child pipelines to pause / un-pause
+        for (var pipeline : state.getChildPipelines().view()) {
+            var pauseRequest = TaskActionRequest.newBuilder()
+                    .setId(Id.generate())
+                    .setUid(Id.generate())
+                    .setAction(pause ? TaskAction.PAUSE_PIPELINE: TaskAction.UNPAUSE_PIPELINE);
+
+            var functionType = MessageTypes.toFunctionType(pipeline.getAddress());
+            context.send(functionType, pipeline.getId(), MessageTypes.wrap(pauseRequest.build()));
         }
     }
 

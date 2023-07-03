@@ -166,6 +166,16 @@ public final class MessageTypes {
                 .build();
     }
 
+    public static TaskActionException toTaskActionException(TaskActionRequest incomingTaskActionRequest, Exception e) {
+        return TaskActionException
+                .newBuilder()
+                .setId(incomingTaskActionRequest.getId())
+                .setUid(incomingTaskActionRequest.getUid())
+                .setAction(incomingTaskActionRequest.getAction())
+                .setExceptionMessage(String.valueOf(e))
+                .build();
+    }
+
     public static TaskException toOutgoingTaskException(TaskRequest incomingTaskRequest, TaskException e) {
         return MessageTypes.toOutgoingTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
     }
@@ -216,6 +226,11 @@ public final class MessageTypes {
                 .setType(split[1])
                 .setId(id)
                 .build();
+    }
+
+    public static FunctionType toFunctionType(String namespaceAndType) {
+        var split = namespaceAndType.split("/");
+        return new FunctionType(split[0], split[1]);
     }
 
     public static Address getCallbackFunctionAddress(PipelineConfiguration configuration, String id) {

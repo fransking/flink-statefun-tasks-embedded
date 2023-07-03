@@ -73,34 +73,4 @@ public class PipelineFunctionTests {
                 eq("pipeline-id"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.BATCH_PROCESSED));
     }
-
-    @Test
-    public void invoking_with_pause_action_sends_signal_to_callback_function() {
-        var pauseRequest = MessageTypes.wrap(TaskActionRequest.newBuilder()
-                .setId("pipeline-id")
-                .setAction(TaskAction.PAUSE_PIPELINE)
-                .build());
-
-        pipelineFunction.invoke(context, pauseRequest);
-
-        verify(context).send(
-                eq(CALLBACK_FUNCTION_TYPE),
-                eq("pipeline-id"),
-                argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.PAUSE_PIPELINE));
-    }
-
-    @Test
-    public void invoking_with_resume_action_sends_signal_to_callback_function() {
-        var pauseRequest = MessageTypes.wrap(TaskActionRequest.newBuilder()
-                .setId("pipeline-id")
-                .setAction(TaskAction.UNPAUSE_PIPELINE)
-                .build());
-
-        pipelineFunction.invoke(context, pauseRequest);
-
-        verify(context).send(
-                eq(CALLBACK_FUNCTION_TYPE),
-                eq("pipeline-id"),
-                argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.RESUME_PIPELINE));
-    }
 }
