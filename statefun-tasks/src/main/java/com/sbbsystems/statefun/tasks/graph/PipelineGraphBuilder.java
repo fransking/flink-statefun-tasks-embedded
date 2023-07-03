@@ -104,7 +104,7 @@ public final class PipelineGraphBuilder {
 
             if (entry.hasTaskEntry()) {
                 var taskEntry = entry.getTaskEntry();
-                next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally(), taskEntry.getIsFinally());
+                next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally(), taskEntry.getIsFinally(), taskEntry.getIsWait());
                 next.setPrecededByAnEmptyGroup(isPrecededByAnEmptyGroup);
 
                 if (entries.getItems().containsKey(next.getId())) {
@@ -124,7 +124,7 @@ public final class PipelineGraphBuilder {
             } else if (entry.hasGroupEntry()) {
                 var groupEntryProto = entry.getGroupEntry();
                 var groupEntry = GroupEntryBuilder.fromProto(groupEntryProto);
-                next = Group.of(groupEntryProto.getGroupId(), groupEntryProto.getMaxParallelism());
+                next = Group.of(groupEntryProto.getGroupId(), groupEntryProto.getMaxParallelism(), groupEntryProto.getIsWait());
                 next.setPrecededByAnEmptyGroup(isPrecededByAnEmptyGroup);
 
                 if (entries.getItems().containsKey(next.getId())) {

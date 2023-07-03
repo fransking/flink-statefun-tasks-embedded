@@ -101,6 +101,10 @@ public class TestEgress {
         return events;
     }
 
+    public static TypedValue pollMessage(String topic, long timeoutMillis) throws InterruptedException {
+        return getTopicQueue(topic).poll(timeoutMillis, TimeUnit.MILLISECONDS);
+    }
+
     private static BlockingQueue<TypedValue> getTopicQueue(String topic) {
         if (harnessThread == null) {
             throw new RuntimeException("TestEgress had not been initialised");

@@ -45,7 +45,8 @@ public class PipelineFunction implements StatefulFunction {
                         ResultsBatchHandler.withResultHandler(
                                 callbackFunctionType, TaskResultOrExceptionHandler.from(configuration)
                         ),
-                        ChildPipelineHandler.from(configuration)
+                        ChildPipelineHandler.from(configuration),
+                        TaskActionRequestHandler.of(configuration)
                 )
         );
     }

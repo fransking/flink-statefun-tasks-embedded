@@ -18,9 +18,7 @@ package com.sbbsystems.statefun.tasks.utils;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.sbbsystems.statefun.tasks.generated.Event;
-import com.sbbsystems.statefun.tasks.generated.Pipeline;
-import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.testmodule.IoIdentifiers;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.egress.generated.KafkaProducerRecord;
@@ -29,12 +27,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
+import static java.util.Objects.isNull;
 
 public class NamespacedTestHarness {
     private final String namespace;
@@ -68,8 +67,24 @@ public class NamespacedTestHarness {
         TestIngress.addMessage(MessageTypes.wrap(updatedRequest));
     }
 
+    public void addIngressTaskActionRequest(TaskActionRequest action) {
+        var replyTopic = action.getReplyTopic();
+        var prefixedReplyTopic = namespace + "-action-" + replyTopic;
+        TestEgress.initialiseTopic(prefixedReplyTopic);
+
+        var updatedRequest = action.toBuilder()
+                .setReplyTopic(prefixedReplyTopic)
+                .build();
+        TestIngress.addMessage(MessageTypes.wrap(updatedRequest));
+    }
+
     public TypedValue getMessage(String topic) {
         var topicWithPrefix = namespace + topic;
+        return TestEgress.getMessage(topicWithPrefix);
+    }
+
+    public TypedValue getActionMessage(String topic) {
+        var topicWithPrefix = namespace + "-action-" + topic;
         return TestEgress.getMessage(topicWithPrefix);
     }
 
@@ -82,36 +97,81 @@ public class NamespacedTestHarness {
         })).collect(Collectors.toUnmodifiableList());
     }
 
+    public Event pollForEvent(String pipelineId, long timeoutMillis)
+            throws InterruptedException, InvalidProtocolBufferException {
+
+        var topicWithPrefix = pipelineId + "_" + IoIdentifiers.EVENTS_TOPIC;
+
+        var typedValue = TestEgress.pollMessage(topicWithPrefix, timeoutMillis);
+
+        if (isNull(typedValue)) {
+            throw new NoSuchElementException("Timed out polling for event");
+        }
+
+        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(typedValue.getValue());
+        return Any.parseFrom(kafkaProducerRecord.getValueBytes()).unpack(Event.class);
+    }
+
     public TypedValue runPipeline(Pipeline pipeline) {
         return runPipeline(pipeline, null);
     }
 
     public TypedValue runPipeline(Pipeline pipeline, Any state) {
         var uid = UUID.randomUUID().toString();
+        return runPipeline(pipeline, state, uid);
+    }
+
+    public TypedValue runPipeline(Pipeline pipeline, Any state, String uid) {
+        startPipeline(pipeline, state, uid);
+        return getMessage(uid);
+    }
+
+    public void startPipeline(Pipeline pipeline, Any state, String uid) {
         var taskRequest = TaskRequest.newBuilder()
                 .setId(uid)
                 .setUid(uid)
                 .setReplyTopic(uid)
                 .setRequest(Any.pack(pipeline));
 
-        if (!Objects.isNull(state)) {
+        if (!isNull(state)) {
             taskRequest.setState(state);
         }
 
         addIngressTaskRequest(taskRequest.build());
-        return getMessage(uid);
+    }
+
+    public TypedValue sendAction(TaskAction action, String uid) {
+        var taskActionRequest = TaskActionRequest.newBuilder()
+                .setId(uid)
+                .setUid(uid)
+                .setAction(action)
+                .setReplyTopic(uid);
+
+        addIngressTaskActionRequest(taskActionRequest.build());
+        return getActionMessage(uid);
     }
 
     public Any runPipelineAndGetResponse(Pipeline pipeline)
-            throws InvalidProtocolBufferException
-    {
+            throws InvalidProtocolBufferException {
         return runPipelineAndGetResponse(pipeline, null);
     }
 
     public Any runPipelineAndGetResponse(Pipeline pipeline, Any state)
-            throws InvalidProtocolBufferException
-    {
-        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(runPipeline(pipeline, state).getValue());
+            throws InvalidProtocolBufferException {
+        return runPipelineAndGetResponse(pipeline, state, UUID.randomUUID().toString());
+    }
+
+    public Any runPipelineAndGetResponse(Pipeline pipeline, Any state, String uid)
+            throws InvalidProtocolBufferException {
+        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(runPipeline(pipeline, state, uid).getValue());
+        return Any.parseFrom(kafkaProducerRecord.getValueBytes());
+    }
+
+
+    public Any sendActionAndGetResponse(TaskAction action, String uid)
+            throws InvalidProtocolBufferException {
+        var actionResult = sendAction(action, uid);
+        var kafkaProducerRecord = KafkaProducerRecord.parseFrom(actionResult.getValue());
         return Any.parseFrom(kafkaProducerRecord.getValueBytes());
     }
 }

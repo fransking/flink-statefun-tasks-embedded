@@ -23,7 +23,6 @@ import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.joda.time.DateTime;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -42,8 +41,6 @@ public class MaxParallelismTests {
         harness = NamespacedTestHarness.newInstance();
     }
 
-
-//    @Disabled("Potentially flaky - relies on tasks running in parallel")
     @Test
     public void test_max_parallelism() throws InvalidProtocolBufferException {
         var pipeline = createParallelPipeline(3, 0);
@@ -56,7 +53,6 @@ public class MaxParallelismTests {
         assertThat(maxConcurrentTasks).isGreaterThan(1);
     }
 
-//    @Disabled("Potentially flaky - relies on tasks running in parallel")
     @Test
     public void test_max_parallelism_one() throws InvalidProtocolBufferException {
         var pipeline = createParallelPipeline(3, 1);
@@ -69,7 +65,6 @@ public class MaxParallelismTests {
         assertThat(maxConcurrentTasks).isEqualTo(1);
     }
 
-//    @Disabled("Potentially flaky - relies on tasks running in parallel")
     @Test
     public void test_max_parallelism_one_on_continuation() throws InvalidProtocolBufferException {
         var pipeline = PipelineBuilder.beginWith("echo", Int32Value.of(100))

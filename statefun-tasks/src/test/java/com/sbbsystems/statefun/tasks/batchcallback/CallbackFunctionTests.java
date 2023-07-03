@@ -109,39 +109,4 @@ public class CallbackFunctionTests {
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 1));
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 4));
     }
-
-    @Test
-    public void pausing_prevents_batch_from_being_sent() {
-        var taskResult = TaskResult.newBuilder().setId("result").build();
-
-        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
-        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
-        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
-
-        verify(context, times(0)).send(any(), anyString(), any());
-    }
-
-    @Test
-    public void pausing_then_resuming_causes_batch_to_be_sent() {
-        var taskResult = TaskResult.newBuilder().setId("result").build();
-
-        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
-        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
-        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
-        this.callbackFunction.invoke(context, buildSignalMessage(RESUME_PIPELINE));
-
-        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
-    }
-
-    @Test
-    public void pausing_then_resuming_then_sending_task_causes_batch_to_be_sent() {
-        var taskResult = TaskResult.newBuilder().setId("result").build();
-
-        this.callbackFunction.invoke(context, buildSignalMessage(PIPELINE_STARTING));
-        this.callbackFunction.invoke(context, buildSignalMessage(PAUSE_PIPELINE));
-        this.callbackFunction.invoke(context, buildSignalMessage(RESUME_PIPELINE));
-        this.callbackFunction.invoke(context, MessageTypes.wrap(taskResult));
-
-        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
-    }
 }

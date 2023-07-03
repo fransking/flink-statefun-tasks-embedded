@@ -26,8 +26,6 @@ public class CallbackFunctionState {
     private final PersistedAppendingBuffer<TaskResultOrException> batch = PersistedAppendingBuffer.of("batch", TaskResultOrException.class);
     @Persisted
     private final PersistedValue<Boolean> pipelineRequestInProgress = PersistedValue.of("pipelineRequestInProgress", Boolean.class);
-    @Persisted
-    private final PersistedValue<Boolean> paused = PersistedValue.of("paused", Boolean.class);
 
     private CallbackFunctionState() {
     }
@@ -42,9 +40,5 @@ public class CallbackFunctionState {
 
     public PersistedValue<Boolean> getPipelineRequestInProgress() {
         return pipelineRequestInProgress;
-    }
-
-    public PersistedValue<Boolean> getPaused() {
-        return paused;
     }
 }

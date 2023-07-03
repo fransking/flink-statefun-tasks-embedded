@@ -50,10 +50,10 @@ public class TaskSubmitterTests {
 
     @Test
     public void submits_two_tasks_when_max_parallelism_is_zero() throws StatefunTasksException {
-        var group = Group.of("group-id", 0);
+        var group = Group.of("group-id", 0, false);
 
-        var task1 = Task.of("task-1", false, false);
-        var task2 = Task.of("task-2", false, false);
+        var task1 = Task.of("task-1", false, false, false);
+        var task2 = Task.of("task-2", false, false, false);
         task1.setParentGroup(group);
         task2.setParentGroup(group);
 
@@ -79,10 +79,10 @@ public class TaskSubmitterTests {
     @Test
     public void delays_second_task_when_max_parallelism_one()
             throws StatefunTasksException, InvalidProtocolBufferException {
-        var group = Group.of("group-id", 1);
+        var group = Group.of("group-id", 1, false);
 
-        var task1 = Task.of("task-1", false, false);
-        var task2 = Task.of("task-2", false, false);
+        var task1 = Task.of("task-1", false, false, false);
+        var task2 = Task.of("task-2", false, false, false);
         task1.setParentGroup(group);
         task2.setParentGroup(group);
 
@@ -111,16 +111,16 @@ public class TaskSubmitterTests {
 
     @Test
     public void submits_tasks_across_multiple_groups() throws StatefunTasksException {
-        var group1 = Group.of("group-id-1", 1);
+        var group1 = Group.of("group-id-1", 1, false);
 
-        var task1 = Task.of("task-1", false, false);
-        var task2 = Task.of("task-2", false, false);
+        var task1 = Task.of("task-1", false, false, false);
+        var task2 = Task.of("task-2", false, false, false);
         task1.setParentGroup(group1);
         task2.setParentGroup(group1);
 
-        var group2 = Group.of("group-id-2", 1);
-        var task3 = Task.of("task-3", false, false);
-        var task4 = Task.of("task-4", false, false);
+        var group2 = Group.of("group-id-2", 1, false);
+        var task3 = Task.of("task-3", false, false, false);
+        var task4 = Task.of("task-4", false, false, false);
         task3.setParentGroup(group2);
         task4.setParentGroup(group2);
 
@@ -149,7 +149,7 @@ public class TaskSubmitterTests {
     
     @Test
     public void submits_next_deferred_task() throws StatefunTasksException {
-        var group = Group.of("group-id", 1);
+        var group = Group.of("group-id", 1, false);
         var message = TypedValue.newBuilder().setTypename("request-type").build();
         var deferredTask = DeferredTask.of("namespace", "func", "id", message);
         state.getDeferredTasks().set("task-id", deferredTask);
@@ -166,7 +166,7 @@ public class TaskSubmitterTests {
 
     @Test
     public void does_nothing_when_submitting_next_deferred_task_with_no_tasks_in_state() throws StatefunTasksException {
-        var group = Group.of("group-id", 1);
+        var group = Group.of("group-id", 1, false);
 
         TaskSubmitter.submitNextDeferredTask(state, context, group);
 

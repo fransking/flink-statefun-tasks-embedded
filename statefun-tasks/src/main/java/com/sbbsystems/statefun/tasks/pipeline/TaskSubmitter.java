@@ -19,10 +19,13 @@ package com.sbbsystems.statefun.tasks.pipeline;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.generated.PausedTask;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
 import com.sbbsystems.statefun.tasks.graph.Group;
 import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.DeferredTask;
+import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Address;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
@@ -66,10 +69,40 @@ public class TaskSubmitter implements AutoCloseable {
             // submit task
             LOG.info("Submitting deferred task {} from group {} ({} remaining)", nextTaskId, parentGroup.getId(), nRemaining);
             try {
-                context.send(nextTask.getAddress(), nextTask.getMessage());
+                submitTask(context, state, nextTask.getAddress(), nextTask.getMessage());
             } catch (InvalidProtocolBufferException e) {
                 throw new StatefunTasksException("Invalid TypedValue stored in state", e);
             }
+        }
+    }
+
+    public static void unpauseTasks(Context context, PipelineFunctionState state) {
+        for (var pausedTask: state.getPausedTasks().view()) {
+            try {
+                var address = MessageTypes.toSdkAddress(pausedTask.getDestination());
+                var message = TypedValue.parseFrom(pausedTask.getTypedValueBytes());
+                context.send(address, message);
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Error parsing PausedTask", e);
+            }
+        }
+
+        state.getPausedTasks().clear();
+    }
+
+    private static void submitTask(Context context, PipelineFunctionState state, Address address, TypedValue message) {
+        var status = state.getStatus();
+
+        if (status == TaskStatus.Status.PAUSED) {
+            var pausedTask = PausedTask.newBuilder()
+                    .setDestination(MessageTypes.toAddress(address))
+                    .setTypedValueBytes(message.toByteString())
+                    .build();
+
+            state.getPausedTasks().append(pausedTask);
+        }
+        else {
+            context.send(address, message);
         }
     }
 
@@ -97,7 +130,7 @@ public class TaskSubmitter implements AutoCloseable {
         if (shouldDefer) {
             deferTask(task, address, message, parentGroup);
         } else {
-            context.send(address, message);
+            submitTask(context, state, address, message);
         }
     }
 

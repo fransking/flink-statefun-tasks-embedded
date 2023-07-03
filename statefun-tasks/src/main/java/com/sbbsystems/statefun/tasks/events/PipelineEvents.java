@@ -2,11 +2,9 @@ package com.sbbsystems.statefun.tasks.events;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
-import com.sbbsystems.statefun.tasks.generated.ChildPipeline;
-import com.sbbsystems.statefun.tasks.generated.PipelineCreated;
-import com.sbbsystems.statefun.tasks.generated.PipelineStatusChanged;
-import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
@@ -14,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.notEqualsAndNotNull;
@@ -25,27 +24,17 @@ public class PipelineEvents {
 
     private final PipelineConfiguration configuration;
     private final PipelineFunctionState state;
-    private final PipelineGraph graph;
 
-    public static PipelineEvents from(@NotNull PipelineConfiguration configuration,
-                                       @NotNull PipelineFunctionState state,
-                                       @NotNull PipelineGraph graph) {
-
-        return new PipelineEvents(
-                requireNonNull(configuration),
-                requireNonNull(state),
-                requireNonNull(graph));
+    public static PipelineEvents from(@NotNull PipelineConfiguration configuration, @NotNull PipelineFunctionState state) {
+        return new PipelineEvents(requireNonNull(configuration), requireNonNull(state));
     }
 
-    private PipelineEvents(PipelineConfiguration configuration,
-                           PipelineFunctionState state,
-                           PipelineGraph graph) {
+    private PipelineEvents(PipelineConfiguration configuration, PipelineFunctionState state) {
         this.configuration = configuration;
         this.state = state;
-        this.graph = graph;
     }
     
-    public void notifyPipelineCreated(Context context) {
+    public void notifyPipelineCreated(Context context, PipelineGraph graph) {
         var pipelineAddress = state.getPipelineAddress();
         var rootPipelineAddress = state.getRootPipelineAddress();
         var callerAddress = state.getCallerAddress();
@@ -92,6 +81,48 @@ public class PipelineEvents {
         var taskStatus = TaskStatus.newBuilder().setValue(status);
         var pipelineStatusChanged = PipelineStatusChanged.newBuilder().setStatus(taskStatus);
         var event = MessageTypes.buildEventFor(state).setPipelineStatusChanged(pipelineStatusChanged);
+        context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
+    }
+
+    public void notifyPipelineTasksSkipped(Context context, PipelineGraph graph, List<Task> skippedTasks) {
+        if (!configuration.hasEventsEgress() || skippedTasks.isEmpty()) {
+            return;
+        }
+
+        var tasks = skippedTasks.stream()
+                .map(t -> graph.getTaskEntry(t.getId()))
+                .map(MessageTypes::toTaskInfo)
+                .collect(Collectors.toUnmodifiableList());
+
+        var tasksSkipped = PipelineTasksSkipped.newBuilder().addAllTasks(tasks);
+        var event = MessageTypes.buildEventFor(state).setPipelineTasksSkipped(tasksSkipped);
+        context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
+    }
+
+    public void notifyPipelineTaskFinished(Context context, TaskResultOrException message) {
+        if (!configuration.hasEventsEgress()) {
+            return;
+        }
+
+        var taskFinished = PipelineTaskFinished.newBuilder()
+                .setSizeInBytes(message.getSerializedSize());
+
+        if (message.hasTaskResult()) {
+            var taskResult = message.getTaskResult();
+
+            taskFinished.setId(taskResult.getId())
+                    .setUid(taskResult.getUid())
+                    .setStatus(TaskStatus.newBuilder().setValue(TaskStatus.Status.COMPLETED));
+
+        } else if (message.hasTaskException()) {
+            var taskException = message.getTaskException();
+
+            taskFinished.setId(taskException.getId())
+                    .setUid(taskException.getUid())
+                    .setStatus(TaskStatus.newBuilder().setValue(TaskStatus.Status.FAILED));
+        }
+
+        var event = MessageTypes.buildEventFor(state).setPipelineTaskFinished(taskFinished);
         context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
     }
 }

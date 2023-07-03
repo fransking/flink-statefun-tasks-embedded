@@ -40,5 +40,8 @@ public interface Entry {
 
     void setPrecededByAnEmptyGroup(boolean precededByAnEmptyGroup);
 
+    boolean isWait();
+    void setIsWait(boolean isWait);
+
     boolean isEmpty();
 }

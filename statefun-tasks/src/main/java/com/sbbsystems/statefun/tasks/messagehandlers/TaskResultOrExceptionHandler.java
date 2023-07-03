@@ -61,7 +61,7 @@ public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResul
             var graph = PipelineGraphBuilder.from(state).build();
 
             // create events
-            var events = PipelineEvents.from(configuration, state, graph);
+            var events = PipelineEvents.from(configuration, state);
 
             // continue pipeline
             PipelineHandler.from(configuration, state, graph, events).continuePipeline(context, message);

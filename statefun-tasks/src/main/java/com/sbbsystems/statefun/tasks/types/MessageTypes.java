@@ -43,13 +43,17 @@ public final class MessageTypes {
     public static final TypeName CALLBACK_SIGNAL_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.CallbackSignal");
     public static final TypeName RESULTS_BATCH_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.ResultsBatch");
     public static final TypeName CHILD_PIPELINE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.ChildPipeline");
+    public static final TypeName TASK_ACTION_REQUEST_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskActionRequest");
+    public static final TypeName TASK_ACTION_RESULT_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskActionRequest");
     public static final Map<Class<? extends Message>, TypeName> TYPES = Map.of(
             TaskRequest.class, TASK_REQUEST_TYPE,
             TaskResult.class, TASK_RESULT_TYPE,
             TaskException.class, TASK_EXCEPTION_TYPE,
             CallbackSignal.class, CALLBACK_SIGNAL_TYPE,
             ResultsBatch.class, RESULTS_BATCH_TYPE,
-            ChildPipeline.class, CHILD_PIPELINE
+            ChildPipeline.class, CHILD_PIPELINE,
+            TaskActionRequest.class, TASK_ACTION_REQUEST_TYPE,
+            TaskActionResult.class, TASK_ACTION_RESULT_TYPE
     );
 
     public static <T extends Message> boolean isType(Object input, Class<T> type) {
@@ -162,6 +166,16 @@ public final class MessageTypes {
                 .build();
     }
 
+    public static TaskActionException toTaskActionException(TaskActionRequest incomingTaskActionRequest, Exception e) {
+        return TaskActionException
+                .newBuilder()
+                .setId(incomingTaskActionRequest.getId())
+                .setUid(incomingTaskActionRequest.getUid())
+                .setAction(incomingTaskActionRequest.getAction())
+                .setExceptionMessage(String.valueOf(e))
+                .build();
+    }
+
     public static TaskException toOutgoingTaskException(TaskRequest incomingTaskRequest, TaskException e) {
         return MessageTypes.toOutgoingTaskException(incomingTaskRequest, e, incomingTaskRequest.getState());
     }
@@ -212,6 +226,11 @@ public final class MessageTypes {
                 .setType(split[1])
                 .setId(id)
                 .build();
+    }
+
+    public static FunctionType toFunctionType(String namespaceAndType) {
+        var split = namespaceAndType.split("/");
+        return new FunctionType(split[0], split[1]);
     }
 
     public static Address getCallbackFunctionAddress(PipelineConfiguration configuration, String id) {
