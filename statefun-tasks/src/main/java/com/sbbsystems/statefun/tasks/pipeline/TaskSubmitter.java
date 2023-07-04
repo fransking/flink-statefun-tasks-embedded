@@ -90,22 +90,6 @@ public class TaskSubmitter implements AutoCloseable {
         state.getPausedTasks().clear();
     }
 
-    private static void submitTask(Context context, PipelineFunctionState state, Address address, TypedValue message) {
-        var status = state.getStatus();
-
-        if (status == TaskStatus.Status.PAUSED) {
-            var pausedTask = PausedTask.newBuilder()
-                    .setDestination(MessageTypes.toAddress(address))
-                    .setTypedValueBytes(message.toByteString())
-                    .build();
-
-            state.getPausedTasks().append(pausedTask);
-        }
-        else {
-            context.send(address, message);
-        }
-    }
-
     private TaskSubmitter(PipelineFunctionState state, Context context) {
         this.state = state;
         this.context = context;
@@ -147,6 +131,22 @@ public class TaskSubmitter implements AutoCloseable {
         deferredTaskIds.get(parentGroupId).add(task.getId());  // written to state on close
         var deferredTask = DeferredTask.of(address.type().namespace(), address.type().name(), address.id(), message);
         state.getDeferredTasks().set(task.getId(), deferredTask);
+    }
+
+    private static void submitTask(Context context, PipelineFunctionState state, Address address, TypedValue message) {
+        var status = state.getStatus();
+
+        if (status == TaskStatus.Status.PAUSED) {
+            var pausedTask = PausedTask.newBuilder()
+                    .setDestination(MessageTypes.toAddress(address))
+                    .setTypedValueBytes(message.toByteString())
+                    .build();
+
+            state.getPausedTasks().append(pausedTask);
+        }
+        else {
+            context.send(address, message);
+        }
     }
 
     private void persistState() {

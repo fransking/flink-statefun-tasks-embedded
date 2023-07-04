@@ -83,6 +83,11 @@ public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, 
                     respond(context, taskActionRequest, result);
                     break;
 
+                case CANCEL_PIPELINE:
+                    pipeline.cancel(context);
+                    respond(context, taskActionRequest, result);
+                    break;
+
                 default:
                     throw new StatefunTasksException("Unknown action: " + taskActionRequest.getAction().name());
             }
