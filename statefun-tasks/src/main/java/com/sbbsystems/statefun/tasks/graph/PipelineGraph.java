@@ -88,6 +88,14 @@ public final class PipelineGraph {
         return getEntry(state.getTail());
     }
 
+    public @Nullable Task getFinally() {
+        var tail = getTail();
+
+        return (tail instanceof Task && ((Task) tail).isFinally())
+                ? (Task) tail
+                : null;
+    }
+
     public Stream<Task> getInitialTasks(Entry entry, boolean exceptionally, List<Task> skippedTasks) {
         // deal with empty groups
         while (entry instanceof Group && entry.isEmpty()) {

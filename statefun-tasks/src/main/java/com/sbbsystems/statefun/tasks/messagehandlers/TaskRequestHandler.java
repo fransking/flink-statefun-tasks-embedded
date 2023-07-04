@@ -25,7 +25,7 @@ import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
-import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
+import com.sbbsystems.statefun.tasks.pipeline.BeginPipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -103,7 +103,7 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             var events = PipelineEvents.from(configuration, state);
 
             // create and start pipeline
-            PipelineHandler.from(configuration, state, graph, events).beginPipeline(context, taskRequest);
+            BeginPipelineHandler.from(configuration, state, graph, events).beginPipeline(context, taskRequest);
 
         } catch (IndexOutOfBoundsException | InvalidProtocolBufferException e) {
             var ex = new InvalidMessageTypeException("Expected a TaskRequest containing a Pipeline", e);

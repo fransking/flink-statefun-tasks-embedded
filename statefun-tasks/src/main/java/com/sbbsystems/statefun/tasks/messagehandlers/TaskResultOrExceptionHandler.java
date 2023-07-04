@@ -23,7 +23,8 @@ import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
-import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
+import com.sbbsystems.statefun.tasks.pipeline.CancelPipelineHandler;
+import com.sbbsystems.statefun.tasks.pipeline.ContinuePipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
 import org.apache.flink.statefun.sdk.Context;
@@ -63,8 +64,20 @@ public final class TaskResultOrExceptionHandler extends MessageHandler<TaskResul
             // create events
             var events = PipelineEvents.from(configuration, state);
 
-            // continue pipeline
-            PipelineHandler.from(configuration, state, graph, events).continuePipeline(context, message);
+            // handle message
+            switch (state.getStatus().getNumber()) {
+                case TaskStatus.Status.RUNNING_VALUE:
+                case TaskStatus.Status.PAUSED_VALUE:
+                    // continue pipeline onto continuations
+                    ContinuePipelineHandler.from(configuration, state, graph, events).continuePipeline(context, message);
+                    break;
+
+                case TaskStatus.Status.CANCELLING_VALUE:
+                case TaskStatus.Status.CANCELLED_VALUE:
+                    // cancel pipeline dealing after any finally task is complete
+                    CancelPipelineHandler.from(configuration, state, graph, events).cancelPipeline(context, message);
+                    break;
+            }
 
             // save updated graph state
             graph.saveUpdatedState();
