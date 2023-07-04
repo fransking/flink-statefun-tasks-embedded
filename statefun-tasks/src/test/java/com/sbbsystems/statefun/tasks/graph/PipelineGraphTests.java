@@ -109,7 +109,7 @@ public final class PipelineGraphTests {
         var graph = fromTemplate(template);
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(initialTasks).hasSize(1);
@@ -128,7 +128,7 @@ public final class PipelineGraphTests {
         var graph = fromTemplate(template);
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(initialTasks).hasSize(2);
@@ -156,13 +156,13 @@ public final class PipelineGraphTests {
         var graph = fromTemplate(template);
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(initialTasks).hasSize(2);
 
-        var group1InitialTasks = graph.getInitialTasks(initialTasks.get(0), false, skippedTasks).collect(Collectors.toList());
-        var group2InitialTasks = graph.getInitialTasks(initialTasks.get(1), false, skippedTasks).collect(Collectors.toList());
+        var group1InitialTasks = graph.getInitialTasks(initialTasks.get(0), skippedTasks).collect(Collectors.toList());
+        var group2InitialTasks = graph.getInitialTasks(initialTasks.get(1), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(group1InitialTasks.get(0).getId()).isEqualTo("a");
@@ -185,7 +185,7 @@ public final class PipelineGraphTests {
 
         var graph = fromTemplate(template);
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(initialTasks).hasSize(2); // nested group
@@ -201,7 +201,7 @@ public final class PipelineGraphTests {
 
         var graph = fromTemplate(template);
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
 
         assertThat(skippedTasks).isEmpty();
         assertThat(initialTasks).hasSize(1);
@@ -354,7 +354,7 @@ public final class PipelineGraphTests {
 
         // get initial tasks of group
         var skippedTasks = new LinkedList<Task>();
-        var initial = graph.getInitialTasks(g, false, skippedTasks).collect(Collectors.toList());
+        var initial = graph.getInitialTasks(g, skippedTasks).collect(Collectors.toList());
 
         // next is x
         var x = initial.get(0);
@@ -412,7 +412,7 @@ public final class PipelineGraphTests {
 
         // get initial tasks of nested group
         var skippedTasks = new LinkedList<Task>();
-        var initial = graph.getInitialTasks(g, false, skippedTasks).collect(Collectors.toList());
+        var initial = graph.getInitialTasks(g, skippedTasks).collect(Collectors.toList());
 
         // next is x
         var x = initial.get(0);
@@ -460,7 +460,7 @@ public final class PipelineGraphTests {
         assertThat(graph.getHead()).isNotNull();
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), false, skippedTasks).collect(Collectors.toUnmodifiableList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toUnmodifiableList());
         assertThat(initialTasks).containsExactly(graph.getTask("a"));
 
         var previousTask = graph.getTask("a").getPrevious();
@@ -477,7 +477,7 @@ public final class PipelineGraphTests {
         graph.markComplete(graph.getHead());
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead().getNext(), false, skippedTasks).collect(Collectors.toUnmodifiableList());
+        var initialTasks = graph.getInitialTasks(graph.getHead().getNext(), skippedTasks).collect(Collectors.toUnmodifiableList());
         assertThat(skippedTasks).contains(graph.getTask("ex1"));
         assertThat(skippedTasks).contains(graph.getTask("ex2"));
         assertThat(initialTasks).containsExactly(graph.getTask("b"));
@@ -495,7 +495,7 @@ public final class PipelineGraphTests {
         assertThat(graph.getHead()).isNotNull();
 
         var skippedTasks = new LinkedList<Task>();
-        var initialTasks = graph.getInitialTasks(graph.getHead(), true, skippedTasks).collect(Collectors.toUnmodifiableList());
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks, true).collect(Collectors.toUnmodifiableList());
         assertThat(skippedTasks).contains(graph.getTask("a"));
         assertThat(skippedTasks).contains(graph.getTask("x"));
         assertThat(skippedTasks).contains(graph.getTask("y"));
