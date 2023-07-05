@@ -23,10 +23,12 @@ import com.sbbsystems.statefun.tasks.util.Id;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 public class CancelPipelineTests {
     private final long POLL_WAIT_MILLIS = 10_000;
@@ -38,7 +40,8 @@ public class CancelPipelineTests {
     }
 
     @Test
-        public void test_cancelling_a_pipeline()
+    @Execution(SAME_THREAD)
+    public void test_cancelling_a_pipeline()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
@@ -96,6 +99,7 @@ public class CancelPipelineTests {
     }
 
     @Test
+    @Execution(SAME_THREAD)
     public void test_cancelling_a_pipeline_with_a_finally()
             throws InvalidProtocolBufferException, InterruptedException {
 
