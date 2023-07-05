@@ -23,15 +23,14 @@ import static java.util.Objects.isNull;
 public class WaitHandles {
     public static ConcurrentHashMap<String, Semaphore> semaphores = new ConcurrentHashMap<>();
 
-    public static void wait(String id) {
-        try {
-            var semaphore = semaphores.get(id);
-            if (!isNull(semaphore)) {
-                semaphore.acquire();
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+    public static boolean isReady(String id) {
+        var semaphore = semaphores.get(id);
+
+        if (!isNull(semaphore)) {
+            return semaphore.tryAcquire();
         }
+
+        return true;
     }
 
     public static void create(String id) {

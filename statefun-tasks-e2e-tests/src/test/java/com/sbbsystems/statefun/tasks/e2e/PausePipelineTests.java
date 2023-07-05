@@ -40,11 +40,11 @@ public class PausePipelineTests {
     }
 
     @Test
-        public void test_pausing_and_resuming_a_pipeline()
+    public void test_pausing_and_resuming_a_pipeline()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep")
+                .beginWith("delay")
                 .continueWith("echo")
                 .build();
 

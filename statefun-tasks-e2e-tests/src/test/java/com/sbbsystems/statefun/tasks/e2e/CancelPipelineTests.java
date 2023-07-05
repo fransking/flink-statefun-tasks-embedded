@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+
 public class CancelPipelineTests {
     private final long POLL_WAIT_MILLIS = 10_000;
     private NamespacedTestHarness harness;
@@ -38,11 +39,11 @@ public class CancelPipelineTests {
     }
 
     @Test
-        public void test_cancelling_a_pipeline()
+    public void test_cancelling_a_pipeline()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep")
+                .beginWith("delay")
                 .continueWith("echo")
                 .build();
 
@@ -100,7 +101,7 @@ public class CancelPipelineTests {
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep")
+                .beginWith("delay")
                 .continueWith("echo")
                 .finally_do("cleanup")
                 .build();
