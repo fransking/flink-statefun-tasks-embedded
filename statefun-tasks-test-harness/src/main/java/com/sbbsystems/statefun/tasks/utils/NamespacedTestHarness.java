@@ -153,7 +153,7 @@ public class NamespacedTestHarness {
 
     public Any runPipelineAndGetResponse(Pipeline pipeline)
             throws InvalidProtocolBufferException {
-        return runPipelineAndGetResponse(pipeline, null);
+        return runPipelineAndGetResponse(pipeline, null, UUID.randomUUID().toString());
     }
 
     public Any runPipelineAndGetResponse(Pipeline pipeline, Any state)

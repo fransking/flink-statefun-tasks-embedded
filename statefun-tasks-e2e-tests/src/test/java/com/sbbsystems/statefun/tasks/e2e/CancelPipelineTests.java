@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CancelPipelineTests {
-    private final Int32Value SLEEP_TIME_MILLIS = Int32Value.of(1_000);
     private final long POLL_WAIT_MILLIS = 10_000;
     private NamespacedTestHarness harness;
 
@@ -43,11 +42,12 @@ public class CancelPipelineTests {
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep", SLEEP_TIME_MILLIS)
+                .beginWith("sleep")
                 .continueWith("echo")
                 .build();
 
         var uid = Id.generate();
+        WaitHandles.create(uid);
         harness.startPipeline(pipeline, null, uid);
 
         var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
@@ -55,6 +55,8 @@ public class CancelPipelineTests {
 
         var cancelResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
         assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
 
         var result = harness.getMessage(uid);  // task exception (cancelled)
         assertThat(result.toString()).contains("PipelineCancelledException");
@@ -98,12 +100,14 @@ public class CancelPipelineTests {
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep", SLEEP_TIME_MILLIS)
+                .beginWith("sleep")
                 .continueWith("echo")
                 .finally_do("cleanup")
                 .build();
 
         var uid = Id.generate();
+        WaitHandles.create(uid);
+
         harness.startPipeline(pipeline, null, uid);
 
         var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
@@ -111,6 +115,8 @@ public class CancelPipelineTests {
 
         var cancelResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
         assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
 
         var result = harness.getMessage(uid);  // task exception (cancelled)
         assertThat(result.toString()).contains("PipelineCancelledException");
