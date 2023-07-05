@@ -23,7 +23,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
 import java.util.List;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.equalsAndNotNull;
@@ -96,23 +95,12 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         var parentGroup = completedEntry.getParentGroup();
 
         // get next entry skipping over exceptionally tasks as required
-        var skippedTasks = new LinkedList<Task>();
-        var nextEntry = graph.getNextEntry(completedEntry);
-
-        var initialTasks = nextEntry == parentGroup
-                ? List.<Task>of()
-                : getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
-
-        while (nextEntry != parentGroup && initialTasks.isEmpty()) {
-            graph.markComplete(nextEntry);
-            nextEntry = graph.getNextEntry(nextEntry);
-            initialTasks = getInitialTasks(nextEntry, message.hasTaskException(), skippedTasks);
-        }
+        var nextStep = PipelineStep.next(graph, completedEntry, message.hasTaskException());
 
         // notify of any skipped tasks
-        events.notifyPipelineTasksSkipped(context, graph, skippedTasks);
+        events.notifyPipelineTasksSkipped(context, graph, nextStep.getSkippedTasks());
 
-        if (equalsAndNotNull(parentGroup, nextEntry)) {
+        if (equalsAndNotNull(parentGroup, nextStep.getEntry())) {
             // if the next step is the parent group this task was the end of a chain
             // save the result so that we can aggregate later
             LOG.info("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
@@ -131,40 +119,23 @@ public final class ContinuePipelineHandler extends PipelineHandler {
             }
         } else {
 
-            LOG.info("The next entry is {} for pipeline {}", nextEntry, pipelineAddress);
+            LOG.info("The next entry is {} for pipeline {}", nextStep.getEntry(), pipelineAddress);
 
-            if (!isNull(nextEntry)) {
-                LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, initialTasks.size());
+            if (!isNull(nextStep.getEntry())) {
+                LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, nextStep.numTasksToCall());
 
                 try (var taskSubmitter = TaskSubmitter.of(state, context)) {
 
                     var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
                     var taskResult = TaskResultSerializer.of(message);
 
-                    for (var task : initialTasks) {
-                        var entry = graph.getTaskEntry(task.getId());
-                        var taskEntry = TaskEntrySerializer.of(entry);
-
-                        var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
-
-                        // add task arguments
-                        var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
-
-                        outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
-
-                        // set the state
-                        outgoingTaskRequest.setState(taskResult.getState());
-
-                        // set the reply address to be the callback function
-                        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
-
-                        // send message
-                        taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
+                    for (var task : nextStep.getTasksToCall()) {
+                        submitTask(context, taskSubmitter, task, message, taskRequest, taskResult);
                     }
                 }
             }
             else {
-                if (lastTaskIsCompleteOrSkipped(skippedTasks, completedEntry)) {
+                if (lastTaskIsCompleteOrSkipped(nextStep.getSkippedTasks(), completedEntry)) {
                     if (message.hasTaskResult()) {
                         LOG.info("Pipeline {} completed successfully", pipelineAddress);
                         respondWithResult(context, state.getTaskRequest(), message.getTaskResult());
@@ -182,6 +153,27 @@ public final class ContinuePipelineHandler extends PipelineHandler {
                 }
             }
         }
+    }
+
+    private void submitTask(Context context, TaskSubmitter taskSubmitter, Task task, TaskResultOrException message, TaskRequestSerializer taskRequest, TaskResultSerializer taskResult) throws StatefunTasksException {
+        var entry = graph.getTaskEntry(task.getId());
+        var taskEntry = TaskEntrySerializer.of(entry);
+
+        var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
+
+        // add task arguments
+        var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
+
+        outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
+
+        // set the state
+        outgoingTaskRequest.setState(taskResult.getState());
+
+        // set the reply address to be the callback function
+        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+
+        // send message
+        taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
     }
 
     private Any mergeArgsAndKwargs(Task task, TaskEntrySerializer taskEntry, TaskResultSerializer taskResult, TaskResultOrException message)

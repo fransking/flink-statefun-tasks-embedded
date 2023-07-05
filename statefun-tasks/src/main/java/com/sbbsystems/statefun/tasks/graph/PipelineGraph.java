@@ -96,7 +96,11 @@ public final class PipelineGraph {
                 : null;
     }
 
-    public Stream<Task> getInitialTasks(Entry entry, boolean exceptionally, List<Task> skippedTasks) {
+    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks) {
+        return getInitialTasks(entry, skippedTasks, false);
+    }
+
+    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
         // deal with empty groups
         while (entry instanceof Group && entry.isEmpty()) {
             entry = entry.getNext();
@@ -109,7 +113,7 @@ public final class PipelineGraph {
             if (!task.isFinally() && task.isExceptionally() != exceptionally) {
                 markComplete(task);
                 skippedTasks.add(task);
-                return getInitialTasks(task.getNext(), exceptionally, skippedTasks);
+                return getInitialTasks(task.getNext(), skippedTasks, exceptionally);
             }
 
             return Stream.of(task);
@@ -120,7 +124,7 @@ public final class PipelineGraph {
             var stream = Stream.<Task>of();
 
             for (var groupEntry: group.getItems()) {
-                stream = Stream.concat(stream, getInitialTasks(groupEntry, exceptionally, skippedTasks));
+                stream = Stream.concat(stream, getInitialTasks(groupEntry, skippedTasks, exceptionally));
             }
 
             return stream;

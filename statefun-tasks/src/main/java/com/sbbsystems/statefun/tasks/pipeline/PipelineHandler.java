@@ -22,9 +22,7 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.graph.Entry;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -33,9 +31,7 @@ import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
@@ -194,10 +190,6 @@ public class PipelineHandler {
         }
 
         return true;
-    }
-
-    protected List<Task> getInitialTasks(Entry entry, boolean exceptionally, List<Task> skippedTasks) {
-        return graph.getInitialTasks(entry, exceptionally, skippedTasks).collect(Collectors.toUnmodifiableList());
     }
 
     protected void respondWithResult(@NotNull Context context, TaskRequest taskRequest, TaskResult taskResult) {
