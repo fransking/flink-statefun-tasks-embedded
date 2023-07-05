@@ -23,14 +23,12 @@ import com.sbbsystems.statefun.tasks.util.Id;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 public class PausePipelineTests {
     private final long POLL_WAIT_MILLIS = 10_000;
@@ -42,12 +40,11 @@ public class PausePipelineTests {
     }
 
     @Test
-    @Execution(SAME_THREAD)
     public void test_pausing_and_resuming_a_pipeline()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep")
+                .beginWith("delay")
                 .continueWith("echo")
                 .build();
 

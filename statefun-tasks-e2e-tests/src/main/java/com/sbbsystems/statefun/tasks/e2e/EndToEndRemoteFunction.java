@@ -26,9 +26,13 @@ import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
+import org.apache.flink.statefun.sdk.annotations.Persisted;
+import org.apache.flink.statefun.sdk.state.PersistedValue;
 import org.joda.time.DateTime;
 
 import java.text.MessageFormat;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 import static java.util.Objects.isNull;
@@ -37,12 +41,18 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
     public static final FunctionType FUNCTION_TYPE = new FunctionType("e2e", "RemoteFunction");
 
+    @Persisted
+    private final PersistedValue<TaskRequest> originalTaskRequest = PersistedValue.of("originalTaskRequest", TaskRequest.class);
+
     @Override
     public void invoke(Context context, Object input) {
 
         try {
             if (MessageTypes.isType(input, TaskRequest.class)) {
                 var taskRequest = MessageTypes.asType(input, TaskRequest::parseFrom);
+                taskRequest = originalTaskRequest.getOrDefault(taskRequest);
+                originalTaskRequest.set(taskRequest);
+
                 Message output = null;
 
                 try {
@@ -71,8 +81,8 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                             newPipelineTask(context, taskRequest);
                             break;
 
-                        case "sleep":
-                            output = getOutput(taskRequest, sleepTask(taskRequest));
+                        case "delay":
+                            output = getOutput(taskRequest, delayTask(context, taskRequest));
                             break;
 
                         default:
@@ -90,13 +100,16 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                 }
             }
 
-
         } catch (InvalidMessageTypeException | InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
     }
 
     private Message getOutput(TaskRequest taskRequest, TaskResult.Builder taskResult) {
+        if (isNull(taskResult)) {
+            return null;
+        }
+
         return taskResult
                 .setId(taskRequest.getId())
                 .setUid(taskRequest.getUid())
@@ -196,13 +209,18 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         return TaskResult.newBuilder();
     }
 
-    private TaskResult.Builder sleepTask(TaskRequest taskRequest)
+    private TaskResult.Builder delayTask(Context context, TaskRequest taskRequest)
             throws InvalidProtocolBufferException, StatefunTasksException {
 
         var pipelineId = taskRequest.getMetaMap().get("root_pipeline_id");
 
         var startTime = DateTime.now();
-        WaitHandles.wait(pipelineId);
+
+        if (!WaitHandles.isReady(pipelineId)) {
+            context.sendAfter(Duration.of(500, ChronoUnit.MILLIS), context.self(), MessageTypes.wrap(originalTaskRequest.get()));
+            return null;
+        }
+
         var endTime = DateTime.now();
 
         var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);
