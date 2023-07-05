@@ -82,7 +82,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                             break;
 
                         case "delay":
-                            output = getOutput(taskRequest, delayTask(context, taskRequest));
+                            output = getOutput(taskRequest, sleepTask(context, taskRequest));
                             break;
 
                         default:
@@ -209,7 +209,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         return TaskResult.newBuilder();
     }
 
-    private TaskResult.Builder delayTask(Context context, TaskRequest taskRequest)
+    private TaskResult.Builder sleepTask(Context context, TaskRequest taskRequest)
             throws InvalidProtocolBufferException, StatefunTasksException {
 
         var pipelineId = taskRequest.getMetaMap().get("root_pipeline_id");
