@@ -67,6 +67,10 @@ public class PipelineHandler {
         this.events = events;
     }
 
+    public TaskStatus.Status getStatus() {
+        return state.getStatus();
+    }
+
     public void cancel(Context context)
         throws StatefunTasksException {
 

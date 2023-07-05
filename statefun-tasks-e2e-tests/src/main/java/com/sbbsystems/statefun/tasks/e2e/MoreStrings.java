@@ -16,10 +16,7 @@
 package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.*;
-import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
-import com.sbbsystems.statefun.tasks.generated.TaskException;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 
 import java.util.List;
 import java.util.Map;
@@ -46,9 +43,8 @@ public class MoreStrings {
             builder.append("[");
             appendTo(builder, value.unpack(ArrayOfAny.class).getItemsList());
             builder.append("]");
-        }
 
-        else if (value.is(MapOfStringToAny.class)) {
+        } else if (value.is(MapOfStringToAny.class)) {
             var map = value.unpack(MapOfStringToAny.class).getItemsMap();
             builder.append("{");
             appendTo(builder, map);
@@ -56,18 +52,20 @@ public class MoreStrings {
 
         } else if (value.is(Int32Value.class)) {
             builder.append(value.unpack(Int32Value.class).getValue());
-        }
-
-        else if (value.is(StringValue.class)) {
+        } else if (value.is(StringValue.class)) {
             builder.append(value.unpack(StringValue.class).getValue());
-        }
-
-        else if (value.is(BoolValue.class)) {
+        } else if (value.is(BoolValue.class)) {
             builder.append(value.unpack(BoolValue.class).getValue());
-        }
-
-        else if (value.is(TaskException.class)) {
+        } else if (value.is(TaskException.class)) {
             builder.append(value.unpack(TaskException.class).getExceptionMessage());
+        } else if (value.is(TaskStatus.class)) {
+            builder.append(value.unpack(TaskStatus.class).getValue());
+        } else if (value.is(TaskResult.class)) {
+            builder.append(buildString(value.unpack(TaskResult.class).getResult()));
+        } else if (value.is(TaskRequest.class)) {
+            builder.append(buildString(value.unpack(TaskRequest.class).getRequest()));
+        } else if (value.is(Pipeline.class)) {
+            builder.append(value.unpack(Pipeline.class));
         }
 
         return builder;

@@ -262,6 +262,10 @@ public final class MessageTypes {
                 : MessageFormat.format("{0}/{1}/{2}", address.getNamespace(), address.getType(), address.getId());
     }
 
+    public static Any packAny(Message.Builder builder) {
+        return packAny(builder.build());
+    }
+
     public static Any packAny(Message message) {
         if (message instanceof Any) {
             return (Any) message;

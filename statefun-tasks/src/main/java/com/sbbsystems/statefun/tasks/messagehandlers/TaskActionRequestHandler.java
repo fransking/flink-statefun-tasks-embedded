@@ -24,6 +24,7 @@ import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.TaskActionRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskActionResult;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -33,6 +34,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.MessageFormat;
+
+import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
+import static java.util.Objects.isNull;
 
 public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskActionRequestHandler.class);
@@ -64,8 +68,7 @@ public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, 
         var result = TaskActionResult.newBuilder()
                 .setId(taskActionRequest.getId())
                 .setUid(taskActionRequest.getUid())
-                .setAction(taskActionRequest.getAction())
-                .build();
+                .setAction(taskActionRequest.getAction());
 
         try {
             var graph = PipelineGraphBuilder.from(state).build();
@@ -75,17 +78,41 @@ public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, 
             switch (taskActionRequest.getAction()) {
                 case PAUSE_PIPELINE:
                     pipeline.pause(context);
-                    respond(context, taskActionRequest, result);
+                    respond(context, taskActionRequest, result.build());
                     break;
 
                 case UNPAUSE_PIPELINE:
                     pipeline.resume(context);
-                    respond(context, taskActionRequest, result);
+                    respond(context, taskActionRequest, result.build());
                     break;
 
                 case CANCEL_PIPELINE:
                     pipeline.cancel(context);
-                    respond(context, taskActionRequest, result);
+                    respond(context, taskActionRequest, result.build());
+                    break;
+
+                case GET_STATUS:
+                    result.setResult(packAny(TaskStatus.newBuilder().setValue(pipeline.getStatus())));
+                    respond(context, taskActionRequest, result.build());
+                    break;
+
+                case GET_REQUEST:
+                    if (isNull(state.getTaskRequest())) {
+                        throw new StatefunTasksException("Task request not found");
+                    }
+                    result.setResult(packAny(state.getTaskRequest()));
+                    respond(context, taskActionRequest, result.build());
+                    break;
+
+                case GET_RESULT:
+                    if (!isNull(state.getTaskResult())) {
+                        result.setResult(packAny(state.getTaskResult()));
+                    } else if (!isNull(state.getTaskException())) {
+                        result.setResult(packAny(state.getTaskException()));
+                    } else {
+                        throw new StatefunTasksException("Task result not found");
+                    }
+                    respond(context, taskActionRequest, result.build());
                     break;
 
                 default:
