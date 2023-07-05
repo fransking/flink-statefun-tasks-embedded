@@ -199,16 +199,10 @@ public class EndToEndRemoteFunction implements StatefulFunction {
     private TaskResult.Builder sleepTask(TaskRequest taskRequest)
             throws InvalidProtocolBufferException, StatefunTasksException {
 
-        var request = getArgsAndKwargs(taskRequest);
-        var sleepDurationMs = request.getArgs().getItems(0).unpack(Int32Value.class).getValue();
+        var pipelineId = taskRequest.getMetaMap().get("root_pipeline_id");
 
         var startTime = DateTime.now();
-        try {
-            Thread.sleep(sleepDurationMs);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
+        WaitHandles.wait(pipelineId);
         var endTime = DateTime.now();
 
         var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);

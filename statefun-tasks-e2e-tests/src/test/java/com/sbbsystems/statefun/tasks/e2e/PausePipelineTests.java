@@ -31,7 +31,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class PausePipelineTests {
-    private final Int32Value SLEEP_TIME_MILLIS = Int32Value.of(5_000);
     private final long POLL_WAIT_MILLIS = 10_000;
     private NamespacedTestHarness harness;
 
@@ -45,11 +44,12 @@ public class PausePipelineTests {
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
-                .beginWith("sleep", SLEEP_TIME_MILLIS)
+                .beginWith("sleep")
                 .continueWith("echo")
                 .build();
 
         var uid = Id.generate();
+        WaitHandles.create(uid);
         harness.startPipeline(pipeline, null, uid);
 
         var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
@@ -57,6 +57,8 @@ public class PausePipelineTests {
 
         var pauseResult = harness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
         assertThat(pauseResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
 
         // wait for sleep task to complete
         var events = new LinkedList<Event>();

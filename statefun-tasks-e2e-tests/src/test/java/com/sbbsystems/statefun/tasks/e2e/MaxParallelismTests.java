@@ -83,7 +83,7 @@ public class MaxParallelismTests {
         var tasks = IntStream.range(0, nTasks)
                 .boxed()
                 .map(i -> PipelineBuilder
-                        .beginWith("sleep", Int32Value.of(100))
+                        .beginWith("sleep")
                         .build())
                 .collect(Collectors.toList());
 
