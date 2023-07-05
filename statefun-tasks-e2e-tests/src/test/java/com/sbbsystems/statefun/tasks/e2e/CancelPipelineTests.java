@@ -59,7 +59,9 @@ public class CancelPipelineTests {
         var result = harness.getMessage(uid);  // task exception (cancelled)
         assertThat(result.toString()).contains("PipelineCancelledException");
 
-        var pipelineStatuses = harness.getEvents(uid).stream()
+        var events = harness.getEvents(uid);
+
+        var pipelineStatuses = events.stream()
                 .filter(Event::hasPipelineStatusChanged)
                 .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
                 .collect(Collectors.toList());
@@ -67,10 +69,18 @@ public class CancelPipelineTests {
                 TaskStatus.Status.RUNNING,
                 TaskStatus.Status.CANCELLING,
                 TaskStatus.Status.CANCELLED);
+
+        var tasksCompleted = events.stream()
+                .filter(Event::hasPipelineTaskFinished)
+                .map(e -> e.getPipelineTaskFinished().getUid())
+                .collect(Collectors.toUnmodifiableList());
+
+        var echoUid = pipeline.getEntries(1).getTaskEntry().getUid();
+        assertThat(tasksCompleted).doesNotContain(echoUid);
     }
 
     @Test
-    public void test_cancelling_completed_pipeline() throws InvalidProtocolBufferException {
+    public void test_cancelling_a_completed_pipeline() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(0))
@@ -81,5 +91,47 @@ public class CancelPipelineTests {
         var pauseResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
 
         assertThat(pauseResult.is(TaskActionException.class)).isTrue();
+    }
+
+    @Test
+    public void test_cancelling_a_pipeline_with_a_finally()
+            throws InvalidProtocolBufferException, InterruptedException {
+
+        var pipeline = PipelineBuilder
+                .beginWith("sleep", SLEEP_TIME_MILLIS)
+                .continueWith("echo")
+                .finally_do("cleanup")
+                .build();
+
+        var uid = Id.generate();
+        harness.startPipeline(pipeline, null, uid);
+
+        var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        assertThat(event.hasPipelineCreated()).isTrue();
+
+        var cancelResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
+
+        var result = harness.getMessage(uid);  // task exception (cancelled)
+        assertThat(result.toString()).contains("PipelineCancelledException");
+
+        var events = harness.getEvents(uid);
+
+        var pipelineStatuses = events.stream()
+                .filter(Event::hasPipelineStatusChanged)
+                .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
+                .collect(Collectors.toList());
+        assertThat(pipelineStatuses).containsExactly(
+                TaskStatus.Status.RUNNING,
+                TaskStatus.Status.CANCELLING,
+                TaskStatus.Status.CANCELLED);
+
+        var tasksCompleted = events.stream()
+                .filter(Event::hasPipelineTaskFinished)
+                .map(e -> e.getPipelineTaskFinished().getUid())
+                .collect(Collectors.toUnmodifiableList());
+
+        var finallyUid = pipeline.getEntries(2).getTaskEntry().getUid();
+        assertThat(tasksCompleted).contains(finallyUid);
     }
 }
