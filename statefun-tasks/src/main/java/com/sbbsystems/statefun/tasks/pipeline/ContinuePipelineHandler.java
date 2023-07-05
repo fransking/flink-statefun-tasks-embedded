@@ -161,16 +161,10 @@ public final class ContinuePipelineHandler extends PipelineHandler {
 
         var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
 
-        // add task arguments
-        var mergedArgsAndKwargs = mergeArgsAndKwargs(task, taskEntry, taskResult, message);
-
-        outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
-
-        // set the state
-        outgoingTaskRequest.setState(taskResult.getState());
-
-        // set the reply address to be the callback function
-        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+        outgoingTaskRequest
+                .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
+                .setRequest(mergeArgsAndKwargs(task, taskEntry, taskResult, message))
+                .setState(taskResult.getState());
 
         // send message
         taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));

@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.requireNonNullElse;
 
 public final class MessageTypes {
     public static final TypeName TASK_REQUEST_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskRequest");
@@ -154,20 +155,16 @@ public final class MessageTypes {
     }
 
     public static TaskException toTaskException(TaskRequest incomingTaskRequest, Exception e, Any state) {
-        var taskException = TaskException.newBuilder()
+        return TaskException.newBuilder()
                 .setId(incomingTaskRequest.getId())
                 .setUid(incomingTaskRequest.getUid())
                 .setInvocationId(incomingTaskRequest.getInvocationId())
                 .setType(incomingTaskRequest.getType() + ".error")
                 .setExceptionType(e.getClass().getTypeName())
                 .setExceptionMessage(String.valueOf(e))
-                .setStacktrace(Arrays.toString(e.getStackTrace()));
-
-        if (!isNull(state)) {
-            taskException.setState(state);
-        }
-
-        return taskException.build();
+                .setStacktrace(Arrays.toString(e.getStackTrace()))
+                .setState(requireNonNullElse(state, Any.getDefaultInstance()))
+                .build();
     }
 
     public static TaskActionException toTaskActionException(TaskActionRequest incomingTaskActionRequest, Exception e) {

@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.google.common.base.Strings;
+import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
@@ -33,8 +34,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
-import static java.util.Objects.isNull;
-import static java.util.Objects.requireNonNull;
+import static java.util.Objects.*;
 
 
 public class PipelineHandler {
@@ -104,14 +104,10 @@ public class PipelineHandler {
                 var taskRequest = TaskRequestSerializer.of(state.getTaskRequest());
                 var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
 
-                // send args from task entry
-                outgoingTaskRequest.setRequest(taskEntry.mergeWith(MessageTypes.argsOfEmptyArray()));
-
-                // set state to latest known pipeline state
-                outgoingTaskRequest.setState(state.getCurrentTaskState());
-
-                // set the reply address to be the callback function
-                outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+                outgoingTaskRequest
+                        .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
+                        .setRequest(taskEntry.mergeWith(MessageTypes.argsOfEmptyArray()))
+                        .setState(requireNonNullElse(state.getCurrentTaskState(), Any.getDefaultInstance()));
 
                 // submit the task
                 context.send(MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
