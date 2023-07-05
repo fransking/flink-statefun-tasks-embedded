@@ -31,7 +31,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class PausePipelineTests {
-    private final Int32Value SLEEP_TIME_MILLIS = Int32Value.of(1_000);
+    private final Int32Value SLEEP_TIME_MILLIS = Int32Value.of(2_000);
     private final long POLL_WAIT_MILLIS = 10_000;
     private NamespacedTestHarness harness;
 
