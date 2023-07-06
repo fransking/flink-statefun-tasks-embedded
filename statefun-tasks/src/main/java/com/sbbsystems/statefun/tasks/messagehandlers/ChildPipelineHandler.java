@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 public final class ChildPipelineHandler extends MessageHandler<ChildPipeline, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(ChildPipelineHandler.class);
 
-    public static ChildPipelineHandler from(PipelineConfiguration configuration) {
+    public static ChildPipelineHandler with(PipelineConfiguration configuration) {
         return new ChildPipelineHandler(configuration);
     }
 

@@ -34,6 +34,7 @@ import java.text.MessageFormat;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
+import static com.sbbsystems.statefun.tasks.types.MessageTypes.RUN_PIPELINE_TASK_TYPE;
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
 import static java.util.Objects.isNull;
 
@@ -238,6 +239,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         var output = TaskRequest.newBuilder()
                 .setUid(taskRequest.getUid())
                 .setId(taskRequest.getId())
+                .setType(RUN_PIPELINE_TASK_TYPE)
                 .setInvocationId(taskRequest.getInvocationId())  // this is important to match invocation id of the calling pipeline
                 .setRequest(packAny(builder.build()))
                 .setState(taskRequest.getState())

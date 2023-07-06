@@ -100,6 +100,45 @@ public final class PipelineGraphBuilderTests {
     }
 
     @Test
+    public void graph_defaults_missing_namespace_and_worker_name()
+            throws InvalidGraphException {
+
+        var template = List.of("1", "2");
+
+        var entryThree = TaskEntry.newBuilder()
+                .setTaskId("3")
+                .setUid("3")
+                .setNamespace("namespace")
+                .setWorkerName("worker")
+                .build();
+
+        var pipeline = buildPipelineFromTemplate(template)
+                .toBuilder()
+                .addEntries(PipelineEntry.newBuilder().setTaskEntry(entryThree))
+                .build();
+
+        var builder = PipelineGraphBuilder.newInstance()
+                .withDefaultNamespace("defaultNamespace")
+                .withDefaultWorkerName("defaultWorkerName")
+                .fromProto(pipeline);
+
+        PipelineGraph graph = builder.build();
+
+        var taskEntries = StreamSupport.stream(graph.getTasks().spliterator(), false)
+                .map(entry -> graph.getTaskEntry(entry.getId()))
+                .collect(Collectors.toUnmodifiableList());
+
+        assertThat(taskEntries.get(0).namespace).isEqualTo("defaultNamespace");
+        assertThat(taskEntries.get(0).workerName).isEqualTo("defaultWorkerName");
+
+        assertThat(taskEntries.get(1).namespace).isEqualTo("defaultNamespace");
+        assertThat(taskEntries.get(1).workerName).isEqualTo("defaultWorkerName");
+
+        assertThat(taskEntries.get(2).namespace).isEqualTo("namespace");
+        assertThat(taskEntries.get(2).workerName).isEqualTo("worker");
+    }
+
+    @Test
     public void graph_can_be_recreated_from_state()
             throws InvalidGraphException {
         var group = List.of(

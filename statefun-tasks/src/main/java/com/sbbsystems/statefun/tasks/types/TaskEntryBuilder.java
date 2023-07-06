@@ -15,16 +15,22 @@
  */
 package com.sbbsystems.statefun.tasks.types;
 
+import com.google.common.base.Strings;
+
 public final class TaskEntryBuilder {
-    public static TaskEntry fromProto(com.sbbsystems.statefun.tasks.generated.TaskEntry taskEntry) {
+    public static TaskEntry fromProto(
+            com.sbbsystems.statefun.tasks.generated.TaskEntry taskEntry,
+            String defaultNamespace,
+            String defaultWorkerName) {
+
         var task = new TaskEntry();
 
         task.taskId = taskEntry.getTaskId();
         task.taskType = taskEntry.getTaskType();
         task.request = taskEntry.getRequest().toByteArray();
         task.isFinally = taskEntry.getIsFinally();
-        task.namespace = taskEntry.getNamespace();
-        task.workerName = taskEntry.getWorkerName();
+        task.namespace = Strings.isNullOrEmpty(taskEntry.getNamespace()) ? defaultNamespace : taskEntry.getNamespace();
+        task.workerName = Strings.isNullOrEmpty(taskEntry.getWorkerName()) ? defaultWorkerName : taskEntry.getWorkerName();
         task.isFruitful = taskEntry.getIsFruitful();
 
         if (taskEntry.hasRetryPolicy()) {

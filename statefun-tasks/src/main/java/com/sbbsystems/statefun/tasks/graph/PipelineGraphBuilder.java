@@ -41,6 +41,8 @@ public final class PipelineGraphBuilder {
     private final MapOfEntries entries;
     private Pipeline pipelineProto;
     private String tail;
+    private String defaultNamespace;
+    private String defaultWorkerName;
 
     private PipelineGraphBuilder(PipelineFunctionState state) {
         this.state = state;
@@ -53,6 +55,16 @@ public final class PipelineGraphBuilder {
 
     public static PipelineGraphBuilder from(PipelineFunctionState state) {
         return new PipelineGraphBuilder(state);
+    }
+
+    public PipelineGraphBuilder withDefaultNamespace(String defaultNamespace) {
+        this.defaultNamespace = defaultNamespace;
+        return this;
+    }
+
+    public PipelineGraphBuilder withDefaultWorkerName(String defaultWorkerName) {
+        this.defaultWorkerName = defaultWorkerName;
+        return this;
     }
 
     public PipelineGraphBuilder fromProto(@NotNull Pipeline pipelineProto) {
@@ -117,7 +129,7 @@ public final class PipelineGraphBuilder {
                 }
 
                 entries.getItems().put(next.getId(), next);
-                taskEntries.add(TaskEntryBuilder.fromProto(taskEntry));
+                taskEntries.add(TaskEntryBuilder.fromProto(taskEntry, defaultNamespace, defaultWorkerName));
                 chainTaskSize.increment();
                 isPrecededByAnEmptyGroup = false;
 

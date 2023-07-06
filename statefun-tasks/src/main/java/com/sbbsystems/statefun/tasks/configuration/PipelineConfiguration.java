@@ -27,8 +27,6 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.util.Objects.isNull;
-
 public final class PipelineConfiguration {
     private static final JsonPointer PIPELINES = JsonPointer.compile("/module/spec/pipelines");
     private static final JsonPointer PIPELINE_META_ID = JsonPointer.compile("/pipeline/meta/id");
@@ -79,9 +77,9 @@ public final class PipelineConfiguration {
         return new PipelineConfiguration(
                 Selectors.textAt(pipelineNode, PIPELINE_META_ID),
                 Selectors.textAt(pipelineNode, PIPELINE_SPEC_EGRESS),
-                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EVENTS_EGRESS),
-                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EVENTS_TOPIC),
-                Selectors.textAt(pipelineNode, PIPELINE_SPEC_STATE_EXPIRATION)
+                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_EVENTS_EGRESS).orElse(null),
+                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_EVENTS_TOPIC).orElse(null),
+                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_STATE_EXPIRATION).orElse(null)
         );
     }
 
@@ -138,6 +136,6 @@ public final class PipelineConfiguration {
     }
 
     public boolean hasEventsEgress() {
-        return !isNull(eventsEgress) && eventsEgress.contains("/") && !isNull(eventsTopic);
+        return !Strings.isNullOrEmpty(eventsEgress) && eventsEgress.contains("/") && !Strings.isNullOrEmpty(eventsTopic);
     }
 }
