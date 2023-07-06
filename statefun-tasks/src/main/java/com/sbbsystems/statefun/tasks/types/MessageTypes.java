@@ -57,6 +57,9 @@ public final class MessageTypes {
             TaskActionResult.class, TASK_ACTION_RESULT_TYPE
     );
 
+    public static final String RUN_PIPELINE_TASK_TYPE = "__builtins.run_pipeline";
+    public static final String FLATTEN_RESULTS_TASK_TYPE = "__builtins.flatten_results";
+
     public static <T extends Message> boolean isType(Object input, Class<T> type) {
         if (input instanceof TypedValue) {
             var typedValue = (TypedValue) input;
@@ -174,6 +177,7 @@ public final class MessageTypes {
                 .setUid(incomingTaskActionRequest.getUid())
                 .setAction(incomingTaskActionRequest.getAction())
                 .setExceptionMessage(String.valueOf(e))
+                .setStacktrace(Arrays.toString(e.getStackTrace()))
                 .build();
     }
 

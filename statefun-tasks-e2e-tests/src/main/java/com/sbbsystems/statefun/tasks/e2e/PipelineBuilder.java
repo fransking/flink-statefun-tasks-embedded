@@ -87,10 +87,6 @@ public class PipelineBuilder {
         return addFrom(pipeline);
     }
 
-    public PipelineBuilder exceptionally(String taskType) {
-        return exceptionally(taskType, null);
-    }
-
     public PipelineBuilder exceptionally(String taskType, Message request) {
         return this.addTask(taskType, request, true, false);
     }

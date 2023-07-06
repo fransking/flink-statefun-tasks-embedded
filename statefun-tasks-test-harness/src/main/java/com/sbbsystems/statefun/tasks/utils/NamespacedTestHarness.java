@@ -130,6 +130,7 @@ public class NamespacedTestHarness {
         var taskRequest = TaskRequest.newBuilder()
                 .setId(uid)
                 .setUid(uid)
+                .setType(MessageTypes.RUN_PIPELINE_TASK_TYPE)
                 .setReplyTopic(uid)
                 .setRequest(Any.pack(pipeline));
 
