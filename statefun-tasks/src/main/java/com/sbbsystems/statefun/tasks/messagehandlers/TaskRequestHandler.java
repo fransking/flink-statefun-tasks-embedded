@@ -46,7 +46,7 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             TaskStatus.Status.CANCELLED
     );
 
-    public static TaskRequestHandler from(PipelineConfiguration configuration) {
+    public static TaskRequestHandler with(PipelineConfiguration configuration) {
         return new TaskRequestHandler(configuration);
     }
 

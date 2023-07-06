@@ -19,31 +19,41 @@ package com.sbbsystems.statefun.tasks.messagehandlers;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
+import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
+import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.generated.ResultsBatch;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
+import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.pipeline.CancelPipelineHandler;
+import com.sbbsystems.statefun.tasks.pipeline.ContinuePipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;
+import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
 import org.apache.flink.statefun.sdk.FunctionType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, PipelineFunctionState> {
+    private static final Logger LOG = LoggerFactory.getLogger(ResultsBatchHandler.class);
+
     private final FunctionType callbackFunctionType;
-    private final MessageHandler<TaskResultOrException, PipelineFunctionState> resultHandler;
+
+    public static ResultsBatchHandler forCallback(FunctionType callbackFunctionType, PipelineConfiguration configuration) {
+        return new ResultsBatchHandler(callbackFunctionType, configuration);
+    }
+
     private static final CallbackSignal BATCH_PROCESSED_SIGNAL = CallbackSignal.newBuilder()
             .setValue(CallbackSignal.Signal.BATCH_PROCESSED)
             .build();
 
-    private ResultsBatchHandler(FunctionType callbackFunctionType, MessageHandler<TaskResultOrException, PipelineFunctionState> resultHandler) {
-        super(resultHandler.configuration);
+    private ResultsBatchHandler(FunctionType callbackFunctionType, PipelineConfiguration configuration) {
+        super(configuration);
         this.callbackFunctionType = callbackFunctionType;
-        this.resultHandler = resultHandler;
-    }
-
-    public static ResultsBatchHandler withResultHandler(FunctionType callbackFunctionType,
-                                                        MessageHandler<TaskResultOrException, PipelineFunctionState> resultHandler) {
-        return new ResultsBatchHandler(callbackFunctionType, resultHandler);
     }
 
     @Override
@@ -57,10 +67,60 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
     }
 
     @Override
-    public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) throws StatefunTasksException {
-        for (var resultOrException : message.getResultsList()) {
-            this.resultHandler.handleMessage(context, resultOrException, state);
+    public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) {
+        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {0}", message.getResultsCount(), context.self())) {
+            try {
+                // create the graph
+                var graph = PipelineGraphBuilder.from(state).build();
+
+                // create events
+                var events = PipelineEvents.from(configuration, state);
+
+                for (var resultOrException : message.getResultsList()) {
+                    handleEachMessage(context, resultOrException, state, graph, events);
+                }
+
+                // save updated graph state
+                graph.saveUpdatedState();
+
+            } catch (StatefunTasksException e) {
+                failWithError(context, state, e);
+            } finally {
+                context.send(this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
+            }
         }
-        context.send(this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
+    }
+
+    private void handleEachMessage(Context context,
+                                   TaskResultOrException message,
+                                   PipelineFunctionState state,
+                                   PipelineGraph graph,
+                                   PipelineEvents events) {
+
+        try {
+            // handle message
+            switch (state.getStatus().getNumber()) {
+                case TaskStatus.Status.RUNNING_VALUE:
+                case TaskStatus.Status.PAUSED_VALUE:
+                    // continue pipeline onto continuations
+                    ContinuePipelineHandler.from(configuration, state, graph, events).continuePipeline(context, message);
+                    break;
+
+                case TaskStatus.Status.CANCELLING_VALUE:
+                case TaskStatus.Status.CANCELLED_VALUE:
+                    // cancel pipeline dealing after any finally task is complete
+                    CancelPipelineHandler.from(configuration, state, graph, events).cancelPipeline(context, message);
+                    break;
+            }
+        } catch (Exception e) {
+            failWithError(context, state, e);
+        }
+    }
+
+    private void failWithError(Context context, PipelineFunctionState state, Exception e) {
+        var taskRequest = state.getTaskRequest();
+        LOG.error(e.getMessage(), e);
+        state.setStatus(TaskStatus.Status.FAILED);
+        respond(context, taskRequest, MessageTypes.toTaskException(taskRequest, e));
     }
 }

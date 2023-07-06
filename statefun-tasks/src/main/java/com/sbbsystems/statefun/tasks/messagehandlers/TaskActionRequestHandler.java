@@ -41,7 +41,7 @@ import static java.util.Objects.isNull;
 public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskActionRequestHandler.class);
 
-    public static TaskActionRequestHandler of(PipelineConfiguration configuration) {
+    public static TaskActionRequestHandler with(PipelineConfiguration configuration) {
         return new TaskActionRequestHandler(configuration);
     }
 
@@ -60,8 +60,7 @@ public class TaskActionRequestHandler extends MessageHandler<TaskActionRequest, 
     }
 
     @Override
-    public void handleMessage(Context context, TaskActionRequest taskActionRequest, PipelineFunctionState state)
-            throws StatefunTasksException {
+    public void handleMessage(Context context, TaskActionRequest taskActionRequest, PipelineFunctionState state) {
 
         LOG.info(MessageFormat.format("Received task action request {0}", taskActionRequest.getAction().name()));
 

@@ -35,8 +35,8 @@ public final class CallbackAwareTaskRequestHandler extends MessageHandler<TaskRe
             .setValue(CallbackSignal.Signal.PIPELINE_STARTING)
             .build());
 
-    public static CallbackAwareTaskRequestHandler withRequestHandler(FunctionType callbackFunctionType,
-                                                                     MessageHandler<TaskRequest, PipelineFunctionState> requestHandler) {
+    public static CallbackAwareTaskRequestHandler forCallback(FunctionType callbackFunctionType,
+                                                              MessageHandler<TaskRequest, PipelineFunctionState> requestHandler) {
         return new CallbackAwareTaskRequestHandler(callbackFunctionType, requestHandler);
     }
 

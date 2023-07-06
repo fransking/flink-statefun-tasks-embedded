@@ -39,14 +39,14 @@ public class PipelineFunction implements StatefulFunction {
     public static PipelineFunction of(PipelineConfiguration configuration, FunctionType callbackFunctionType) {
         return new PipelineFunction(configuration,
                 List.of(
-                        CallbackAwareTaskRequestHandler.withRequestHandler(
-                                callbackFunctionType, TaskRequestHandler.from(configuration)
+                        CallbackAwareTaskRequestHandler.forCallback(
+                                callbackFunctionType, TaskRequestHandler.with(configuration)
                         ),
-                        ResultsBatchHandler.withResultHandler(
-                                callbackFunctionType, TaskResultOrExceptionHandler.from(configuration)
+                        ResultsBatchHandler.forCallback(
+                                callbackFunctionType, configuration
                         ),
-                        ChildPipelineHandler.from(configuration),
-                        TaskActionRequestHandler.of(configuration)
+                        ChildPipelineHandler.with(configuration),
+                        TaskActionRequestHandler.with(configuration)
                 )
         );
     }
