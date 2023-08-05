@@ -39,7 +39,7 @@
         <dependency>
             <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-tasks-test-harness</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
 
     </dependencies>
