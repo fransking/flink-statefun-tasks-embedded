@@ -18,6 +18,8 @@ package com.sbbsystems.statefun.tasks.types;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 
 import java.util.List;
+
+@TypeInfo(RetryPolicyTypeInfoFactory.class)
 public final class RetryPolicy {
     public List<String> retryFor;
     public int maxRetries;
