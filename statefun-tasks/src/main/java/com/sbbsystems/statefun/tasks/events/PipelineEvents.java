@@ -149,7 +149,6 @@ public class PipelineEvents {
                     groupInfo.addGroup(groupPipelineInfo);
                 }
 
-//                .setGroup(groupPipelineInfo);
                 pipelineInfo.addEntries(EntryInfo.newBuilder().setGroupEntry(groupInfo));
 
             } else if (entry instanceof Task) {
