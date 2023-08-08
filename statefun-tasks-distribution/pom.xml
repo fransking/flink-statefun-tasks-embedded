@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.sbbsystems.flink</groupId>
         <artifactId>statefun-tasks-parent</artifactId>
-        <version>1.0-rc0</version>
+        <version>1.0-rc1</version>
     </parent>
 
     <artifactId>statefun-tasks-distribution</artifactId>
