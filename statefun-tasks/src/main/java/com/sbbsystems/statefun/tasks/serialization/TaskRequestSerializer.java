@@ -19,11 +19,14 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.Address;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
+import com.sbbsystems.statefun.tasks.generated.TaskRetryPolicy;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.Context;
 
 import java.util.Objects;
+
+import static java.util.Objects.isNull;
 
 public final class TaskRequestSerializer {
     private final TaskRequest taskRequest;
@@ -57,6 +60,14 @@ public final class TaskRequestSerializer {
                 .setType(taskEntry.taskType)
                 .setInvocationId(state.getInvocationId());
 
+        if (!isNull(taskEntry.retryPolicy)) {
+            outgoingTaskRequest.setRetryPolicy(TaskRetryPolicy.newBuilder()
+                    .addAllRetryFor(taskEntry.retryPolicy.retryFor)
+                    .setMaxRetries(taskEntry.retryPolicy.maxRetries)
+                    .setDelayMs(taskEntry.retryPolicy.delayMs)
+                    .setExponentialBackOff(taskEntry.retryPolicy.exponentialBackOff));
+        }
+
         // set meta data properties
         var pipelineAddress = MessageTypes.toTypeName(state.getPipelineAddress());
         var pipelineId = state.getPipelineAddress().getId();
@@ -68,7 +79,7 @@ public final class TaskRequestSerializer {
         outgoingTaskRequest.putMeta("root_pipeline_address", rootPipelineAddress);
         outgoingTaskRequest.putMeta("root_pipeline_id", rootPipelineId);
 
-        if (!Objects.isNull(state.getCallerAddress())) {
+        if (!isNull(state.getCallerAddress())) {
             outgoingTaskRequest.putMeta("parent_task_address", MessageTypes.toTypeName(state.getCallerAddress()));
             outgoingTaskRequest.putMeta("parent_task_id", state.getCallerAddress().getId());
         }
