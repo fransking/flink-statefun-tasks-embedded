@@ -3,6 +3,8 @@ package com.sbbsystems.statefun.tasks.events;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
+import com.sbbsystems.statefun.tasks.graph.Entry;
+import com.sbbsystems.statefun.tasks.graph.Group;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
 import com.sbbsystems.statefun.tasks.graph.Task;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -40,11 +42,11 @@ public class PipelineEvents {
         var callerAddress = state.getCallerAddress();
 
         try (var ignored = TimedBlock.of(LOG::info, "Notifying new pipeline {0} created", MessageTypes.asString(pipelineAddress))) {
-            var tasks = graph.getTaskEntries().map(MessageTypes::toTaskInfo).collect(Collectors.toUnmodifiableList());
+
 
             if (configuration.hasEventsEgress()) {
                 // if we have events egress then publish PipelineCreated message
-                var pipelineCreated = PipelineCreated.newBuilder().addAllTasks(tasks);
+                var pipelineCreated = PipelineCreated.newBuilder().setPipeline(toPipelineInfo(graph));
 
                 if (!isNull(callerAddress)) {
                     pipelineCreated.setCallerId(callerAddress.getId()).setCallerAddress(MessageTypes.toTypeName(callerAddress));
@@ -56,6 +58,8 @@ public class PipelineEvents {
 
             if (notEqualsAndNotNull(pipelineAddress, rootPipelineAddress)) {
                 // if this is a child pipeline then notify the root pipeline of a new descendant
+                var tasks = graph.getTaskEntries().map(MessageTypes::toTaskInfo).collect(Collectors.toUnmodifiableList());
+
                 var childPipeline = ChildPipeline.newBuilder()
                         .setInvocationId(state.getInvocationId())
                         .setId(pipelineAddress.getId())
@@ -124,5 +128,35 @@ public class PipelineEvents {
 
         var event = MessageTypes.buildEventFor(state).setPipelineTaskFinished(taskFinished);
         context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
+    }
+
+    private PipelineInfo.Builder toPipelineInfo(PipelineGraph graph) {
+        var pipelineInfo = PipelineInfo.newBuilder();
+        extractEntryInfo(graph.getHead(), graph, pipelineInfo);
+        return pipelineInfo;
+    }
+
+    private void extractEntryInfo(Entry entry, PipelineGraph graph, PipelineInfo.Builder pipelineInfo) {
+        while(!isNull(entry)) {
+
+            if (entry instanceof Group) {
+                var group = (Group) entry;
+                var groupInfo = GroupInfo.newBuilder().setGroupId(group.getId());
+
+                for (var item: group.getItems()) {
+                    var groupPipelineInfo = PipelineInfo.newBuilder();
+                    extractEntryInfo(item, graph, groupPipelineInfo);
+                    groupInfo.addGroup(groupPipelineInfo);
+                }
+
+                pipelineInfo.addEntries(EntryInfo.newBuilder().setGroupEntry(groupInfo));
+
+            } else if (entry instanceof Task) {
+                var taskEntry = graph.getTaskEntry(entry.getId());
+                pipelineInfo.addEntries(EntryInfo.newBuilder().setTaskEntry(MessageTypes.toTaskInfo(taskEntry)));
+            }
+
+            entry = entry.getNext();
+        }
     }
 }
