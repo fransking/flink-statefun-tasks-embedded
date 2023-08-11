@@ -31,26 +31,5 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
 
         var extensionBinder = (ExtensionModule.Binder) binder;
         extensionBinder.bindExtension(PipelineBinderV1.KIND_TYPE, PipelineBinderV1.INSTANCE);
-
-//        var env = StreamExecutionEnvironment.getExecutionEnvironment();
-//        var config = StatefulFunctionsConfig.fromEnvironment(env);
-//
-//        for (var pipelineConfiguration: PipelineConfigurationLoader.loadFrom(config)) {
-//            configure(pipelineConfiguration, binder);
-//        }
     }
-
-//    public void configure(PipelineConfiguration configuration, Binder binder) {
-//        try {
-//            var pipelineFunctionType = new FunctionType(configuration.getNamespace(), configuration.getType());
-//            var callbackFunctionType = new FunctionType(configuration.getNamespace(), configuration.getCallbackType());
-//
-//            binder.bindFunctionProvider(pipelineFunctionType, PipelineFunctionProvider.of(configuration, callbackFunctionType));
-//            binder.bindFunctionProvider(callbackFunctionType, CallbackFunctionProvider.of(configuration, pipelineFunctionType));
-//
-//            LOG.info("Embedded pipeline function registered");
-//        } catch (IllegalStateException e) {
-//            LOG.error("Error registering embedded pipeline function", e);
-//        }
-//    }
 }
