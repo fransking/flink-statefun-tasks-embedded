@@ -60,6 +60,7 @@ public final class PipelineFunctionState {
     private final PersistedValue<TaskException> taskException;
     @Persisted
     private final PersistedValue<Address> callerAddress;
+    @Persisted
     private final PersistedValue<Address> pipelineAddress;
     @Persisted
     private final PersistedValue<Address> rootPipelineAddress;

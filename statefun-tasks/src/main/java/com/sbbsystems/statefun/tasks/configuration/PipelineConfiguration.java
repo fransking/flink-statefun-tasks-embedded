@@ -16,24 +16,20 @@
 package com.sbbsystems.statefun.tasks.configuration;
 
 import com.google.common.base.Strings;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonPointer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.statefun.flink.common.json.Selectors;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.statefun.sdk.state.Expiration;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 public final class PipelineConfiguration {
-    private static final JsonPointer PIPELINES = JsonPointer.compile("/module/spec/pipelines");
-    private static final JsonPointer PIPELINE_META_ID = JsonPointer.compile("/pipeline/meta/id");
-    private static final JsonPointer PIPELINE_SPEC_STATE_EXPIRATION = JsonPointer.compile("/pipeline/spec/stateExpiration");
-    private static final JsonPointer PIPELINE_SPEC_EGRESS = JsonPointer.compile("/pipeline/spec/egress");
-    private static final JsonPointer PIPELINE_SPEC_EVENTS_EGRESS = JsonPointer.compile("/pipeline/spec/eventsEgress");
-    private static final JsonPointer PIPELINE_SPEC_EVENTS_TOPIC = JsonPointer.compile("/pipeline/spec/eventsTopic");
+    private static final String ID_FIELD = "id";
+    private static final String STATE_EXPIRATION_FIELD = "stateExpiration";
+    private static final String EGRESS_FIELD = "egress";
+    private static final String EVENTS_EGRESS_FIELD = "eventsEgress";
+    private static final String EVENTS_TOPIC_FIELD = "eventsTopic";
 
     private final String pipelineId;
     private final String eventsEgress;
@@ -41,10 +37,22 @@ public final class PipelineConfiguration {
     private final String stateExpiration;
     private final String egress;
 
-    public static Stream<PipelineConfiguration> fromModuleYaml(JsonNode node) {
-        var pipelineNodes = Selectors.listAt(node, PIPELINES);
+    public static PipelineConfiguration fromNode(JsonNode jsonNode) {
+        var specNode = (ObjectNode) jsonNode;
 
-        return StreamSupport.stream(pipelineNodes.spliterator(), false).map(PipelineConfiguration::from);
+        var id = specNode.get(ID_FIELD);
+        var egress = specNode.get(EGRESS_FIELD);
+        var eventsEgress =  specNode.get(EVENTS_EGRESS_FIELD);
+        var eventsTopic =  specNode.get(EVENTS_TOPIC_FIELD);
+        var stateExpiration =  specNode.get(STATE_EXPIRATION_FIELD);
+
+        return new PipelineConfiguration(
+                id.asText(),
+                egress.asText(),
+                eventsEgress == null ? null : eventsEgress.asText(),
+                eventsTopic == null ? null : eventsTopic.asText(),
+                stateExpiration == null ? null : stateExpiration.asText()
+        );
     }
 
     public static PipelineConfiguration of(
@@ -70,16 +78,6 @@ public final class PipelineConfiguration {
                 null,
                 null,
                 null
-        );
-    }
-
-    private static PipelineConfiguration from(JsonNode pipelineNode) {
-        return new PipelineConfiguration(
-                Selectors.textAt(pipelineNode, PIPELINE_META_ID),
-                Selectors.textAt(pipelineNode, PIPELINE_SPEC_EGRESS),
-                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_EVENTS_EGRESS).orElse(null),
-                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_EVENTS_TOPIC).orElse(null),
-                Selectors.optionalTextAt(pipelineNode, PIPELINE_SPEC_STATE_EXPIRATION).orElse(null)
         );
     }
 

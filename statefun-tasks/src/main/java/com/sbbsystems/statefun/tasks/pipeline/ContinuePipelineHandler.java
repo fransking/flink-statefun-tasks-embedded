@@ -144,7 +144,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
                         respondWithError(context, state.getTaskRequest(), message.getTaskException());
                     }
 
-                } else if (message.hasTaskResult()) {
+                } else if (message.hasTaskException()) {
                     if (isNull(parentGroup) || graph.isComplete(parentGroup.getId())) {
                         // end pipeline waiting for group to complete so we get the full aggregate exception
                         LOG.info("Pipeline {} failed", pipelineAddress);
