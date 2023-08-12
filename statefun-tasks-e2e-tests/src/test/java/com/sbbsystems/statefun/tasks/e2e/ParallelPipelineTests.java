@@ -19,12 +19,14 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskException;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -253,5 +255,26 @@ public class ParallelPipelineTests {
         var result = asString(taskResult.getResult());
 
         assertThat(result).isEqualTo("([], 2)");
+    }
+
+    @Test
+    void test_large_parallel_pipeline_returns_aggregated_results() throws InvalidProtocolBufferException {
+        var group = new LinkedList<Pipeline>();
+
+        for (var i = 1; i <= 200000; i++) {
+            var p = PipelineBuilder
+                    .beginWith("echo", StringValue.of("" + i))
+                    .build();
+
+            group.add(p);
+        }
+
+        var pipeline = inParallel(group).build();
+
+        var response = harness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+
+        assertThat(result.contains("200000")).isTrue();
     }
 }
