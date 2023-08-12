@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.google.protobuf.StringValue;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
@@ -134,6 +135,24 @@ public final class PipelineGraphTests {
         assertThat(initialTasks).hasSize(2);
         assertThat(initialTasks.get(0).getId()).isEqualTo("a");
         assertThat(initialTasks.get(1).getId()).isEqualTo("d");
+    }
+
+    @Test
+    public void returns_initial_tasks_from_a_large_group() {
+
+        var group = new LinkedList<List<String>>();
+        for (var i = 0; i < 500000; i++) {
+            group.add(List.of("" + i));
+        }
+
+        var template = List.of(group);
+        var graph = fromTemplate(template);
+
+        var skippedTasks = new LinkedList<Task>();
+        var initialTasks = graph.getInitialTasks(graph.getHead(), skippedTasks).collect(Collectors.toList());
+
+        assertThat(skippedTasks).isEmpty();
+        assertThat(initialTasks).hasSize(500000);
     }
 
     @Test

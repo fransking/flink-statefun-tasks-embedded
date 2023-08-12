@@ -15,15 +15,14 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.google.common.collect.Iterables;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -101,6 +100,47 @@ public final class PipelineGraph {
     }
 
     public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
+        return StreamSupport.stream(getInitialTasksIterator(entry, skippedTasks, exceptionally).spliterator(), false);
+    }
+
+//    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
+//        // deal with empty groups
+//        while (entry instanceof Group && entry.isEmpty()) {
+//            entry = entry.getNext();
+//        }
+//
+//        if (entry instanceof Task) {
+//            var task = (Task) entry;
+//
+//            // skip tasks that don't match our current execution state
+//            if (!task.isFinally() && task.isExceptionally() != exceptionally) {
+//                markComplete(task);
+//                skippedTasks.add(task);
+//                return getInitialTasks(task.getNext(), skippedTasks, exceptionally);
+//            }
+//
+//            return Stream.of(task);
+//        }
+//
+//        if (entry instanceof Group) {
+//            var group = (Group) entry;
+//            var stream = Stream.<Task>of();
+//
+//            for (var groupEntry: group.getItems()) {
+//                stream = Stream.concat(stream, getInitialTasks(groupEntry, skippedTasks, exceptionally));
+//            }
+//
+//            return stream;
+//        }
+//
+//        return Stream.empty();
+//    }
+
+//    public Iterable<Task> getInitialTasks2(Entry entry, List<Task> skippedTasks) {
+//        return getInitialTasks2(entry, skippedTasks, false);
+//    }
+
+    private Iterable<Task> getInitialTasksIterator(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
         // deal with empty groups
         while (entry instanceof Group && entry.isEmpty()) {
             entry = entry.getNext();
@@ -113,24 +153,24 @@ public final class PipelineGraph {
             if (!task.isFinally() && task.isExceptionally() != exceptionally) {
                 markComplete(task);
                 skippedTasks.add(task);
-                return getInitialTasks(task.getNext(), skippedTasks, exceptionally);
+                return getInitialTasksIterator(task.getNext(), skippedTasks, exceptionally);
             }
 
-            return Stream.of(task);
+            return () -> Collections.singletonList(task).iterator();
         }
 
         if (entry instanceof Group) {
             var group = (Group) entry;
-            var stream = Stream.<Task>of();
+            Iterable<Task> iterable = Collections::emptyIterator;
 
             for (var groupEntry: group.getItems()) {
-                stream = Stream.concat(stream, getInitialTasks(groupEntry, skippedTasks, exceptionally));
+                iterable = Iterables.concat(iterable, getInitialTasksIterator(groupEntry, skippedTasks, exceptionally));
             }
 
-            return stream;
+            return iterable;
         }
 
-        return Stream.empty();
+        return Collections::emptyIterator;
     }
 
     public Entry getNextEntry(Entry from) {
