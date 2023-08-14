@@ -56,7 +56,7 @@ public class PipelineFunctionTests {
 
         verify(context).send(
                 eq(CALLBACK_FUNCTION_TYPE),
-                eq("pipeline-id"),
+                eq("di-enilepip"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.PIPELINE_STARTING));
     }
 
@@ -70,7 +70,7 @@ public class PipelineFunctionTests {
 
         verify(context).send(
                 eq(CALLBACK_FUNCTION_TYPE),
-                eq("pipeline-id"),
+                eq("di-enilepip"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.BATCH_PROCESSED));
     }
 }

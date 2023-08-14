@@ -6,7 +6,7 @@
 
     <groupId>com.sbbsystems.flink</groupId>
     <artifactId>statefun-tasks-parent</artifactId>
-        <version>1.0-rc5</version>
+        <version>1.0-rc6</version>
     <packaging>pom</packaging>
 
     <modules>

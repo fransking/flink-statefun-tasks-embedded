@@ -71,7 +71,7 @@ public class CallbackFunctionTests {
 
         verify(context).send(
                 eq(PIPELINE_FUNCTION_TYPE),
-                eq("pipeline-id"),
+                eq("di-enilepip"),
                 argThat(
                         arg -> {
                             List<TaskResultOrException> resultsList = extractResultsList(arg);
@@ -88,7 +88,7 @@ public class CallbackFunctionTests {
 
         taskResults.forEach(result -> this.callbackFunction.invoke(context, result));
 
-        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
+        verify(context, times(1)).send(eq(PIPELINE_FUNCTION_TYPE), eq("di-enilepip"), any());
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 1));
     }
 
@@ -105,7 +105,7 @@ public class CallbackFunctionTests {
                 CallbackSignal.newBuilder().setValue(CallbackSignal.Signal.BATCH_PROCESSED).build());
         this.callbackFunction.invoke(context, batchProcessedMessage);
 
-        verify(context, times(2)).send(eq(PIPELINE_FUNCTION_TYPE), eq("pipeline-id"), any());
+        verify(context, times(2)).send(eq(PIPELINE_FUNCTION_TYPE), eq("di-enilepip"), any());
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 1));
         verify(context).send(any(), anyString(), argThat(arg -> extractResultsList(arg).size() == 4));
     }

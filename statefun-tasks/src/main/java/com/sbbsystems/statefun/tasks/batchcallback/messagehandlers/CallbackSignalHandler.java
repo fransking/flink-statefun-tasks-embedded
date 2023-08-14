@@ -63,12 +63,12 @@ public class CallbackSignalHandler extends MessageHandler<CallbackSignal, Callba
         var signal = callbackSignal.getValue();
         switch (signal) {
             case PIPELINE_STARTING:
-                LOG.info("{} - starting pipeline", context.self().id());
+                LOG.info("{} - starting pipeline", context.self().id());  // todo improve this
                 state.getBatch().clear();
                 state.getPipelineRequestInProgress().set(false);
                 break;
             case BATCH_PROCESSED:
-                LOG.debug("{} - batch processed", context.self().id());
+                LOG.debug("{} - batch processed", context.self().id()); // todo improve this
                 state.getPipelineRequestInProgress().set(false);
                 this.batchSubmitter.trySubmitBatch(context, state);
                 break;

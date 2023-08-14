@@ -47,7 +47,7 @@ public class SimpleBatchSubmitter implements BatchSubmitter {
         var batchList = StreamSupport.stream(state.getBatch().view().spliterator(), false)
                 .collect(Collectors.toList());
         if (batchList.size() > 0) {
-            var functionId = context.self().id();
+            var functionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
             LOG.info("{} - Sending batch of {} results", functionId, batchList.size());
             var batchMessage = ResultsBatch.newBuilder()
                     .addAllResults(batchList)

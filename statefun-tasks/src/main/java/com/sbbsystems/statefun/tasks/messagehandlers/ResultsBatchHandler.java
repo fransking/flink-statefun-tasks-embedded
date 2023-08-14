@@ -86,7 +86,8 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
             } catch (StatefunTasksException e) {
                 failWithError(context, state, e);
             } finally {
-                context.send(this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
+                var callbackFunctionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
+                context.send(this.callbackFunctionType, callbackFunctionId, MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
             }
         }
     }
