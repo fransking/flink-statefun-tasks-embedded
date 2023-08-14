@@ -60,8 +60,7 @@ public final class CallbackAwareTaskRequestHandler extends MessageHandler<TaskRe
     public void handleMessage(Context context, TaskRequest message, PipelineFunctionState state)
             throws StatefunTasksException {
 
-        String id = context.self().id();
-        context.send(this.callbackFunctionType, id, START_SIGNAL);
+        context.send(this.callbackFunctionType, context.self().id(), START_SIGNAL);
         innerHandler.handleMessage(context, message, state);
     }
 }
