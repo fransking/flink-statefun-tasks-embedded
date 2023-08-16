@@ -97,7 +97,6 @@ public class PipelineHandler {
 
         // create cancellation exception
         var taskException = createCancellationException();
-        var callbackFunctionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
         var finallyTask = graph.getFinally();
 
         if (!isNull(finallyTask)) {
@@ -110,7 +109,7 @@ public class PipelineHandler {
                 var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
 
                 outgoingTaskRequest
-                        .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, callbackFunctionId))
+                        .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
                         .setRequest(taskEntry.mergeWith(MessageTypes.argsOfEmptyArray()))
                         .setState(requireNonNullElse(state.getCurrentTaskState(), Any.getDefaultInstance()));
 
@@ -128,7 +127,7 @@ public class PipelineHandler {
                     .setUid(state.getPipelineAddress().getId())
                     .build();
 
-            var callbackAddress = MessageTypes.getCallbackFunctionAddress(configuration, callbackFunctionId);
+            var callbackAddress = MessageTypes.getCallbackFunctionAddress(configuration, context.self().id());
             context.send(MessageTypes.toSdkAddress(callbackAddress), MessageTypes.wrap(taskException));
         }
     }

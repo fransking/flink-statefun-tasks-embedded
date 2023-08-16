@@ -160,10 +160,8 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         var taskEntry = TaskEntrySerializer.of(entry);
 
         var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
-        var callbackFunctionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
-
         outgoingTaskRequest
-                .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, callbackFunctionId))
+                .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
                 .setRequest(mergeArgsAndKwargs(task, taskEntry, taskResult, message))
                 .setState(taskResult.getState());
 

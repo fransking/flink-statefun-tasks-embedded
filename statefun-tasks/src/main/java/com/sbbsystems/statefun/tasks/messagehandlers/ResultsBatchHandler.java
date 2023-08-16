@@ -38,6 +38,8 @@ import org.apache.flink.statefun.sdk.FunctionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+
 public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(ResultsBatchHandler.class);
 
@@ -68,7 +70,7 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
 
     @Override
     public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) {
-        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {0}", message.getResultsCount(), context.self())) {
+        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {1}", message.getResultsCount(), context.self())) {
             try {
                 // create the graph
                 var graph = PipelineGraphBuilder.from(state).build();
@@ -86,8 +88,12 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
             } catch (StatefunTasksException e) {
                 failWithError(context, state, e);
             } finally {
-                var callbackFunctionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
-                context.send(this.callbackFunctionType, callbackFunctionId, MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
+                // todo we are calling the callback function too often for too small batches
+                // need to dynamically compute an optimal delay based on number of tasks in flight
+                // & time between callbacks to increase the batch size without adding latency
+
+                //context.send(this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
+                context.sendAfter(Duration.ofSeconds(1), this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
             }
         }
     }

@@ -120,8 +120,7 @@ public final class BeginPipelineHandler extends PipelineHandler {
         }
 
         // set the reply address to be the callback function
-        var callbackFunctionId = new StringBuilder(context.self().id()).reverse().toString(); // todo make this better
-        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, callbackFunctionId));
+        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
 
         // send message
         taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
