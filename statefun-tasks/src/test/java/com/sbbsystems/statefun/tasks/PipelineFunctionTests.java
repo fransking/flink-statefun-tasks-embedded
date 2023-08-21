@@ -26,6 +26,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 
+import java.time.Duration;
+
 import static org.mockito.Mockito.*;
 
 public class PipelineFunctionTests {
@@ -69,7 +71,8 @@ public class PipelineFunctionTests {
 
         pipelineFunction.invoke(context, MessageTypes.wrap(batchRequest));
 
-        verify(context).send(
+        verify(context).sendAfter(
+                eq(Duration.ofMillis(10)),
                 eq(CALLBACK_FUNCTION_TYPE),
                 eq("pipeline-id"),
                 argThat(arg -> parseSignalMessage(arg) == CallbackSignal.Signal.BATCH_PROCESSED));
