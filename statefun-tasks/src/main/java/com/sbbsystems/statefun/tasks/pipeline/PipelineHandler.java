@@ -97,8 +97,8 @@ public class PipelineHandler {
 
         // create cancellation exception
         var taskException = createCancellationException();
-
         var finallyTask = graph.getFinally();
+
         if (!isNull(finallyTask)) {
             // if we have a finally task then we need to submit it if it has not been already
 

@@ -30,12 +30,15 @@ public final class PipelineConfiguration {
     private static final String EGRESS_FIELD = "egress";
     private static final String EVENTS_EGRESS_FIELD = "eventsEgress";
     private static final String EVENTS_TOPIC_FIELD = "eventsTopic";
+    private static final String CALLBACK_DELAY_MS_FIELD = "callbackDelayMs";
+    private static final int DEFAULT_CALLBACK_DELAY_MS = 10;
 
     private final String pipelineId;
     private final String eventsEgress;
     private final String eventsTopic;
     private final String stateExpiration;
     private final String egress;
+    private final int callbackDelayMs;
 
     public static PipelineConfiguration fromNode(JsonNode jsonNode) {
         var specNode = (ObjectNode) jsonNode;
@@ -45,13 +48,15 @@ public final class PipelineConfiguration {
         var eventsEgress =  specNode.get(EVENTS_EGRESS_FIELD);
         var eventsTopic =  specNode.get(EVENTS_TOPIC_FIELD);
         var stateExpiration =  specNode.get(STATE_EXPIRATION_FIELD);
+        var callbackDelayMs = specNode.get(CALLBACK_DELAY_MS_FIELD);
 
         return new PipelineConfiguration(
                 id.asText(),
                 egress.asText(),
                 eventsEgress == null ? null : eventsEgress.asText(),
                 eventsTopic == null ? null : eventsTopic.asText(),
-                stateExpiration == null ? null : stateExpiration.asText()
+                stateExpiration == null ? null : stateExpiration.asText(),
+                callbackDelayMs == null ? DEFAULT_CALLBACK_DELAY_MS : callbackDelayMs.asInt()
         );
     }
 
@@ -60,14 +65,16 @@ public final class PipelineConfiguration {
             @NotNull String egress,
             String eventsEgress,
             String eventsTopic,
-            String stateExpiration) {
+            String stateExpiration,
+            int callbackDelayMs) {
 
         return new PipelineConfiguration(
                 Objects.requireNonNull(pipelineId),
                 Objects.requireNonNull(egress),
                 eventsEgress,
                 eventsTopic,
-                stateExpiration
+                stateExpiration,
+                callbackDelayMs
         );
     }
 
@@ -77,7 +84,8 @@ public final class PipelineConfiguration {
                 Objects.requireNonNull(egress),
                 null,
                 null,
-                null
+                null,
+                DEFAULT_CALLBACK_DELAY_MS
         );
     }
 
@@ -86,12 +94,15 @@ public final class PipelineConfiguration {
             String egress,
             String eventsEgress,
             String eventsTopic,
-            String stateExpiration) {
+            String stateExpiration,
+            int callbackDelayMs) {
+
         this.pipelineId = pipelineId;
         this.egress = egress;
         this.eventsEgress = eventsEgress;
         this.eventsTopic = eventsTopic;
         this.stateExpiration = stateExpiration;
+        this.callbackDelayMs = callbackDelayMs;
     }
 
     public String getNamespace() {
@@ -135,5 +146,9 @@ public final class PipelineConfiguration {
 
     public boolean hasEventsEgress() {
         return !Strings.isNullOrEmpty(eventsEgress) && eventsEgress.contains("/") && !Strings.isNullOrEmpty(eventsTopic);
+    }
+
+    public Duration getCallbackDelay() {
+        return Duration.ofMillis(this.callbackDelayMs);
     }
 }

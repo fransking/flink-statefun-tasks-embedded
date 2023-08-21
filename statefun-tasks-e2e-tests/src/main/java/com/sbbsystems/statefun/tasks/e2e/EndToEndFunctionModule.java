@@ -30,7 +30,8 @@ public class EndToEndFunctionModule implements StatefulFunctionModule {
                 "example/kafka-generic-egress",
                 MessageFormat.format("{0}/{1}", IoIdentifiers.EVENTS_EGRESS.namespace(), IoIdentifiers.EVENTS_EGRESS.name()),
                 IoIdentifiers.EVENTS_TOPIC,
-                null);
+                null,
+                10);
 
         PipelineBinderV1.INSTANCE.bind(configuration, binder);
         binder.bindFunctionProvider(EndToEndRemoteFunction.FUNCTION_TYPE, unused -> new EndToEndRemoteFunction());

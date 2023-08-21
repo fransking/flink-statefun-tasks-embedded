@@ -25,6 +25,7 @@ import org.apache.flink.statefun.sdk.FunctionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+
 import static org.mockito.Mockito.*;
 
 public class PipelineFunctionTests {

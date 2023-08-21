@@ -8,8 +8,9 @@ Example module.yaml:
       id: example/embedded_pipeline               # function namespace/type
       stateExpiration: PT1M                       # state expiration (ISO-8601)
       egress: example/kafka-generic-egress        # task response egress
-      eventsEgress: example/kafka-generic-egress  # events egress
-      eventsTopic: statefun-tasks.events          # events topic
+      eventsEgress: example/kafka-generic-egress  # events egress (optional)
+      eventsTopic: statefun-tasks.events          # events topic (optional)
+      callbackDelayMs: 10                         # callback delay (optional)
     ---
     kind: io.statefun.endpoints.v2/http
     spec:
