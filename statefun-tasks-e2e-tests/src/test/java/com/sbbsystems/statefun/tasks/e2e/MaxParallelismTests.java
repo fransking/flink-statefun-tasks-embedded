@@ -68,7 +68,7 @@ public class MaxParallelismTests {
     @Test
     public void test_max_parallelism_one_on_continuation() throws InvalidProtocolBufferException {
         var pipeline = PipelineBuilder.beginWith("echo", Int32Value.of(100))
-                .continueWith(createParallelPipeline(10, 1))
+                .continueWith(createParallelPipeline(2, 1))
                 .build();
 
         var response = harness.runPipelineAndGetResponse(pipeline);
