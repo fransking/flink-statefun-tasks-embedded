@@ -43,7 +43,7 @@ public class MaxParallelismTests {
 
     @Test
     public void test_max_parallelism() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(3, 0);
+        var pipeline = createParallelPipeline(10, 0);
 
         var response = harness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
@@ -55,7 +55,7 @@ public class MaxParallelismTests {
 
     @Test
     public void test_max_parallelism_one() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(3, 1);
+        var pipeline = createParallelPipeline(10, 1);
 
         var response = harness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
@@ -68,7 +68,7 @@ public class MaxParallelismTests {
     @Test
     public void test_max_parallelism_one_on_continuation() throws InvalidProtocolBufferException {
         var pipeline = PipelineBuilder.beginWith("echo", Int32Value.of(100))
-                .continueWith(createParallelPipeline(3, 1))
+                .continueWith(createParallelPipeline(10, 1))
                 .build();
 
         var response = harness.runPipelineAndGetResponse(pipeline);
