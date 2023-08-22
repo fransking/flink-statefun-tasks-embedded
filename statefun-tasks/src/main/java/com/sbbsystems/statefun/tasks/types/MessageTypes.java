@@ -59,6 +59,7 @@ public final class MessageTypes {
 
     public static final String RUN_PIPELINE_TASK_TYPE = "__builtins.run_pipeline";
     public static final String FLATTEN_RESULTS_TASK_TYPE = "__builtins.flatten_results";
+    public static final String ECHO_TASK_TYPE = "__builtins.echo";
 
     public static <T extends Message> boolean isType(Object input, Class<T> type) {
         if (input instanceof TypedValue) {
