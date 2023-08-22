@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.sbbsystems.flink</groupId>
         <artifactId>statefun-tasks-parent</artifactId>
-        <version>1.0-rc6</version>
+        <version>1.0-rc7</version>
     </parent>
 
     <artifactId>statefun-tasks-test-harness</artifactId>
