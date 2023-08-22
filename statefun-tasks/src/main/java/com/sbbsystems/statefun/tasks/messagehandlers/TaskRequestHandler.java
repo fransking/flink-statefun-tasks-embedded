@@ -39,8 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.text.MessageFormat;
 import java.util.List;
 
-import static com.sbbsystems.statefun.tasks.types.MessageTypes.FLATTEN_RESULTS_TASK_TYPE;
-import static com.sbbsystems.statefun.tasks.types.MessageTypes.RUN_PIPELINE_TASK_TYPE;
+import static com.sbbsystems.statefun.tasks.types.MessageTypes.*;
 
 public final class TaskRequestHandler extends MessageHandler<TaskRequest, PipelineFunctionState> {
     private static final Logger LOG = LoggerFactory.getLogger(TaskRequestHandler.class);
@@ -81,6 +80,10 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
                 case FLATTEN_RESULTS_TASK_TYPE:
                     flattenResults(context, taskRequest);
+                    break;
+
+                case ECHO_TASK_TYPE:
+                    echo(context, taskRequest);
                     break;
 
                 default:
@@ -160,5 +163,14 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
         } catch (IndexOutOfBoundsException | InvalidProtocolBufferException e) {
             throw new InvalidMessageTypeException("Expected a TaskRequest containing an ArrayOfAny", e);
         }
+    }
+
+    private void echo(Context context, TaskRequest taskRequest)
+            throws StatefunTasksException {
+
+        var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer().getArgsAndKwargs();
+
+        var taskResult = MessageTypes.toOutgoingTaskResult(taskRequest, taskArgsAndKwargs.getArgs(), taskRequest.getState());
+        respond(context, taskRequest, taskResult);
     }
 }
