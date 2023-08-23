@@ -68,7 +68,7 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
 
     @Override
     public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) {
-        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {0}", message.getResultsCount(), context.self())) {
+        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {1}", message.getResultsCount(), context.self())) {
             try {
                 // create the graph
                 var graph = PipelineGraphBuilder.from(state).build();
