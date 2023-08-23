@@ -56,7 +56,6 @@ public final class CancelPipelineHandler extends PipelineHandler {
         } else {
             // or wait for the finally
             graph.markComplete(completedEntry);
-            events.notifyPipelineTaskFinished(context, message);
 
             if (!graph.isFinally(completedEntry)) {
                 return;

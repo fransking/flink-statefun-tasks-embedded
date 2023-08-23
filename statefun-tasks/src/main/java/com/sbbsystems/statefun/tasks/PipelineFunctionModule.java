@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks;
 
+import com.sbbsystems.statefun.tasks.benchmarking.NoopRequestReplyClientFactory;
 import com.sbbsystems.statefun.tasks.configuration.PipelineBinderV1;
 import org.apache.flink.statefun.extensions.ExtensionModule;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
@@ -31,5 +32,8 @@ public class PipelineFunctionModule implements StatefulFunctionModule {
 
         var extensionBinder = (ExtensionModule.Binder) binder;
         extensionBinder.bindExtension(PipelineBinderV1.KIND_TYPE, PipelineBinderV1.INSTANCE);
+
+        // for benchmarking
+        extensionBinder.bindExtension(NoopRequestReplyClientFactory.KIND_TYPE, NoopRequestReplyClientFactory.INSTANCE);
     }
 }

@@ -42,10 +42,6 @@ public class EventsTests {
 
     @Test
     void test_pipeline_created_event_is_sent() throws InvalidProtocolBufferException {
-//        var pipeline = PipelineBuilder
-//                .beginWith("echo", Int32Value.of(1))
-//                .continueWith("echo")
-//                .build();
 
         var p1 = PipelineBuilder
                 .beginWith("echo", StringValue.of("a"))
