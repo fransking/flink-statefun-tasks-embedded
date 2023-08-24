@@ -18,6 +18,7 @@ import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskResultSerializer;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
+import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -111,7 +112,11 @@ public final class ContinuePipelineHandler extends PipelineHandler {
 
             if (graph.isComplete(parentGroup.getId())) {
                 LOG.info("{} is complete", parentGroup);
-                continuePipeline(context, aggregateGroupResults(parentGroup));
+
+                TaskResultOrException groupResults;
+                groupResults = aggregateGroupResults(parentGroup);
+
+                continuePipeline(context, groupResults);
             } else {
                 TaskSubmitter.submitNextDeferredTask(state, context, parentGroup);
             }
@@ -182,14 +187,18 @@ public final class ContinuePipelineHandler extends PipelineHandler {
 
     private TaskResultOrException aggregateGroupResults(Group group) {
         var groupEntry = graph.getGroupEntry(group.getId());
-        var hasException = graph.hasException(groupEntry);
-        var groupResults = group
-                .getItems()
-                .stream()
-                .map(entry -> state.getIntermediateGroupResults().get(entry.getChainHead().getId()));
 
-        return groupResultAggregator.aggregateResults(group.getId(),
-                state.getInvocationId(), groupResults, hasException, groupEntry.returnExceptions);
+        try (var ignored = TimedBlock.of(LOG::info,"Aggregating {0} results for {1}", groupEntry.size, group)) {
+
+            var hasException = graph.hasException(groupEntry);
+            var groupResults = group
+                    .getItems()
+                    .stream()
+                    .map(entry -> state.getIntermediateGroupResults().get(entry.getChainHead().getId()));
+
+            return groupResultAggregator.aggregateResults(group.getId(),
+                    state.getInvocationId(), groupResults, hasException, groupEntry.returnExceptions);
+        }
     }
 
     private boolean lastTaskIsCompleteOrSkipped(List<Task> skippedTasks, Entry completedEntry) {
