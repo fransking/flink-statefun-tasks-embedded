@@ -61,7 +61,6 @@ public class NoopRequestReplyClient implements RequestReplyClient {
             }
 
             return fromFunction.build();
-
         }
     }
 }
