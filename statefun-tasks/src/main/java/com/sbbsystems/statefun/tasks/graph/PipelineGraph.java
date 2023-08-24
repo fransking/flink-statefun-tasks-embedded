@@ -103,43 +103,6 @@ public final class PipelineGraph {
         return StreamSupport.stream(getInitialTasksIterator(entry, skippedTasks, exceptionally).spliterator(), false);
     }
 
-//    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
-//        // deal with empty groups
-//        while (entry instanceof Group && entry.isEmpty()) {
-//            entry = entry.getNext();
-//        }
-//
-//        if (entry instanceof Task) {
-//            var task = (Task) entry;
-//
-//            // skip tasks that don't match our current execution state
-//            if (!task.isFinally() && task.isExceptionally() != exceptionally) {
-//                markComplete(task);
-//                skippedTasks.add(task);
-//                return getInitialTasks(task.getNext(), skippedTasks, exceptionally);
-//            }
-//
-//            return Stream.of(task);
-//        }
-//
-//        if (entry instanceof Group) {
-//            var group = (Group) entry;
-//            var stream = Stream.<Task>of();
-//
-//            for (var groupEntry: group.getItems()) {
-//                stream = Stream.concat(stream, getInitialTasks(groupEntry, skippedTasks, exceptionally));
-//            }
-//
-//            return stream;
-//        }
-//
-//        return Stream.empty();
-//    }
-
-//    public Iterable<Task> getInitialTasks2(Entry entry, List<Task> skippedTasks) {
-//        return getInitialTasks2(entry, skippedTasks, false);
-//    }
-
     private Iterable<Task> getInitialTasksIterator(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
         // deal with empty groups
         while (entry instanceof Group && entry.isEmpty()) {

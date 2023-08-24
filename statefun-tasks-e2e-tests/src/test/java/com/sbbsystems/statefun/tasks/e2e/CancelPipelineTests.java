@@ -72,14 +72,6 @@ public class CancelPipelineTests {
                 TaskStatus.Status.RUNNING,
                 TaskStatus.Status.CANCELLING,
                 TaskStatus.Status.CANCELLED);
-
-        var tasksCompleted = events.stream()
-                .filter(Event::hasPipelineTaskFinished)
-                .map(e -> e.getPipelineTaskFinished().getUid())
-                .collect(Collectors.toUnmodifiableList());
-
-        var echoUid = pipeline.getEntries(1).getTaskEntry().getUid();
-        assertThat(tasksCompleted).doesNotContain(echoUid);
     }
 
     @Test
@@ -132,13 +124,5 @@ public class CancelPipelineTests {
                 TaskStatus.Status.RUNNING,
                 TaskStatus.Status.CANCELLING,
                 TaskStatus.Status.CANCELLED);
-
-        var tasksCompleted = events.stream()
-                .filter(Event::hasPipelineTaskFinished)
-                .map(e -> e.getPipelineTaskFinished().getUid())
-                .collect(Collectors.toUnmodifiableList());
-
-        var finallyUid = pipeline.getEntries(2).getTaskEntry().getUid();
-        assertThat(tasksCompleted).contains(finallyUid);
     }
 }

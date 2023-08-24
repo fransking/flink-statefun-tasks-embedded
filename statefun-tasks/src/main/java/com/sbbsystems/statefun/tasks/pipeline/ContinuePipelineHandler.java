@@ -63,8 +63,6 @@ public final class ContinuePipelineHandler extends PipelineHandler {
             return;
         }
 
-        events.notifyPipelineTaskFinished(context, message);
-
         // N.B. that context.caller() will return callback function address not the task address
         var completedEntry = graph.getEntry(callerId);
 

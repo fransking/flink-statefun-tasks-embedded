@@ -25,25 +25,45 @@ public final class TimedBlock implements AutoCloseable {
     private final long start = System.currentTimeMillis();
     private final Consumer<String> log;
     private final String message;
+    private final boolean printToConsole;
 
     public static TimedBlock of(@NotNull Consumer<String> log, String message) {
-        return new TimedBlock(Objects.requireNonNull(log), message);
+        return new TimedBlock(Objects.requireNonNull(log), message, false);
+    }
+
+    public static TimedBlock of(@NotNull Consumer<String> log, String message, boolean printToConsole) {
+        return new TimedBlock(Objects.requireNonNull(log), message, printToConsole);
     }
 
     public static TimedBlock of(@NotNull Consumer<String> log, String pattern, Object... arguments) {
         return TimedBlock.of(log, MessageFormat.format(pattern, arguments));
     }
 
-    private TimedBlock(Consumer<String> log, String message) {
+    public static TimedBlock of(@NotNull Consumer<String> log, boolean printToConsole, String pattern, Object... arguments) {
+        return TimedBlock.of(log, MessageFormat.format(pattern, arguments), printToConsole);
+    }
+
+    private TimedBlock(Consumer<String> log, String message, boolean printToConsole) {
         this.log = log;
         this.message = message;
+        this.printToConsole = printToConsole;
 
         log.accept(message);
+
+        if (printToConsole) {
+            System.out.println(message);
+        }
     }
 
     @Override
     public void close() {
         var duration = System.currentTimeMillis() - start;
-        log.accept(MessageFormat.format("{0} completed in {1} milliseconds", message, duration));
+        var message = MessageFormat.format("{0} completed in {1} milliseconds", this.message, duration);
+
+        log.accept(message);
+
+        if (printToConsole) {
+            System.out.println(message);
+        }
     }
 }
