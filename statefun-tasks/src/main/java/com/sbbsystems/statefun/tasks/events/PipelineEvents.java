@@ -103,33 +103,6 @@ public class PipelineEvents {
         context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
     }
 
-    public void notifyPipelineTaskFinished(Context context, TaskResultOrException message) {
-        if (!configuration.hasEventsEgress()) {
-            return;
-        }
-
-        var taskFinished = PipelineTaskFinished.newBuilder()
-                .setSizeInBytes(message.getSerializedSize());
-
-        if (message.hasTaskResult()) {
-            var taskResult = message.getTaskResult();
-
-            taskFinished.setId(taskResult.getId())
-                    .setUid(taskResult.getUid())
-                    .setStatus(TaskStatus.newBuilder().setValue(TaskStatus.Status.COMPLETED));
-
-        } else if (message.hasTaskException()) {
-            var taskException = message.getTaskException();
-
-            taskFinished.setId(taskException.getId())
-                    .setUid(taskException.getUid())
-                    .setStatus(TaskStatus.newBuilder().setValue(TaskStatus.Status.FAILED));
-        }
-
-        var event = MessageTypes.buildEventFor(state).setPipelineTaskFinished(taskFinished);
-        context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
-    }
-
     private PipelineInfo.Builder toPipelineInfo(PipelineGraph graph) {
         var pipelineInfo = PipelineInfo.newBuilder();
         extractEntryInfo(graph.getHead(), graph, pipelineInfo);

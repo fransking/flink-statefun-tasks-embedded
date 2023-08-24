@@ -24,7 +24,6 @@ import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -60,19 +59,12 @@ public class PausePipelineTests {
 
         WaitHandles.set(uid);
 
-        // wait for sleep task to complete
-        var events = new LinkedList<Event>();
-        do {
-            event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);
-            events.add(event);
-        } while (!event.hasPipelineTaskFinished());
-
         // now un-pause
         var resumeResult = harness.sendActionAndGetResponse(TaskAction.UNPAUSE_PIPELINE, uid);
         assertThat(resumeResult.is(TaskActionResult.class)).isTrue();
 
         harness.getMessage(uid);  // task result
-        events.addAll(harness.getEvents(uid));
+        var events = harness.getEvents(uid);
 
         var pipelineStatuses = Stream.concat(events.stream(), harness.getEvents(uid).stream())
                 .filter(Event::hasPipelineStatusChanged)
