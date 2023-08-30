@@ -20,14 +20,12 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
-import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.generated.ResultsBatch;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.CancelPipelineHandler;
 import com.sbbsystems.statefun.tasks.pipeline.ContinuePipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -70,10 +68,14 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
     public void handleMessage(Context context, ResultsBatch message, PipelineFunctionState state) {
         var pipelineAddress = MessageTypes.asString(context.self());
 
-        try (var ignored = TimedBlock.of(LOG::error, "Processing results batch of {0} messages for pipeline {1}", message.getResultsCount(), pipelineAddress)) {
+        try (var ignored = TimedBlock.of(LOG::info, "Processing results batch of {0} messages for pipeline {1}", message.getResultsCount(), pipelineAddress)) {
             try {
+
                 // create the graph
-                var graph = PipelineGraphBuilder.from(state).build();
+                PipelineGraph graph;
+                try (var ignored2 = TimedBlock.of(LOG::info, "Loading pipeline graph from state for pipeline {0}", pipelineAddress)) {
+                    graph = PipelineGraph.from(state);
+                }
 
                 // create events
                 var events = PipelineEvents.from(configuration, state);
@@ -85,8 +87,9 @@ public final class ResultsBatchHandler extends MessageHandler<ResultsBatch, Pipe
                 // save updated graph state
                 graph.saveUpdatedState();
 
-            } catch (StatefunTasksException e) {
-                failWithError(context, state, e);
+                // save updated state
+                state.saveUpdatedState();
+
             } finally {
                 context.sendAfter(configuration.getCallbackDelay(), this.callbackFunctionType, context.self().id(), MessageTypes.wrap(BATCH_PROCESSED_SIGNAL));
             }
