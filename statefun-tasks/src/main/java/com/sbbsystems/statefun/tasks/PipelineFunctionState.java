@@ -29,6 +29,8 @@ import org.apache.flink.statefun.sdk.state.PersistedAppendingBuffer;
 import org.apache.flink.statefun.sdk.state.PersistedTable;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
 
+import static java.util.Objects.isNull;
+
 public final class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries;
@@ -50,6 +52,7 @@ public final class PipelineFunctionState {
     private final PersistedValue<Any> initialState;
     @Persisted
     private final PersistedValue<Any> currentTaskState;
+    private Any cachedCurrentTaskState;
     @Persisted
     private final PersistedValue<String> invocationId;
     @Persisted
@@ -184,11 +187,15 @@ public final class PipelineFunctionState {
     }
 
     public void setCurrentTaskState(Any currentTaskState) {
-        this.currentTaskState.set(currentTaskState);
+        cachedCurrentTaskState = currentTaskState;
     }
 
     public Any getCurrentTaskState() {
-        return currentTaskState.get();
+        if (isNull(cachedCurrentTaskState)) {
+            cachedCurrentTaskState = currentTaskState.get();
+        }
+
+        return cachedCurrentTaskState;
     }
 
     public String getInvocationId() {
@@ -278,6 +285,12 @@ public final class PipelineFunctionState {
 
     public PersistedAppendingBuffer<PausedTask> getPausedTasks() {
         return pausedTasks;
+    }
+
+    public void saveUpdatedState() {
+        if (!isNull(cachedCurrentTaskState)) {
+            currentTaskState.set(cachedCurrentTaskState);
+        }
     }
 
     public void reset()
