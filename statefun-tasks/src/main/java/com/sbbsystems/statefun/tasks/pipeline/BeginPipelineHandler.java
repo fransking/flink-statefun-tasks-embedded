@@ -86,7 +86,7 @@ public final class BeginPipelineHandler extends PipelineHandler {
             respondWithResult(context, incomingTaskRequest, taskResult);
         }
         else {
-            LOG.info("Pipeline {} is starting with {} tasks to call", pipelineAddress, initialStep.numTasksToCall());
+            LOG.debug("Pipeline {} is starting with {} tasks to call", pipelineAddress, initialStep.numTasksToCall());
             events.notifyPipelineStatusChanged(context, TaskStatus.Status.RUNNING);
 
             try (var taskSubmitter = TaskSubmitter.of(state, context)) {
