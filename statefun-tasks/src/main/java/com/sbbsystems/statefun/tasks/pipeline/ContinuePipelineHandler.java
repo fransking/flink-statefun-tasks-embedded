@@ -73,12 +73,12 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         }
 
         if (message.hasTaskResult()) {
-            LOG.info("Got a task result from {} for pipeline {}", callerId, pipelineAddress);
+            LOG.debug("Got a task result from {} for pipeline {}", callerId, pipelineAddress);
             state.setCurrentTaskState(message.getTaskResult().getState());
         }
 
         if (message.hasTaskException()) {
-            LOG.info("Got a task exception from {} for pipeline {}", callerId, pipelineAddress);
+            LOG.debug("Got a task exception from {} for pipeline {}", callerId, pipelineAddress);
             state.setCurrentTaskState(message.getTaskException().getState());
         }
 
@@ -102,7 +102,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         if (equalsAndNotNull(parentGroup, nextStep.getEntry())) {
             // if the next step is the parent group this task was the end of a chain
             // save the result so that we can aggregate later
-            LOG.info("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
+            LOG.debug("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
             state.getIntermediateGroupResults().set(completedEntry.getChainHead().getId(), message);
 
             if (message.hasTaskException()) {
@@ -111,7 +111,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
             }
 
             if (graph.isComplete(parentGroup.getId())) {
-                LOG.info("{} is complete", parentGroup);
+                LOG.debug("{} is complete", parentGroup);
 
                 TaskResultOrException groupResults;
                 groupResults = aggregateGroupResults(parentGroup);
@@ -122,10 +122,10 @@ public final class ContinuePipelineHandler extends PipelineHandler {
             }
         } else {
 
-            LOG.info("The next entry is {} for pipeline {}", nextStep.getEntry(), pipelineAddress);
+            LOG.debug("The next entry is {} for pipeline {}", nextStep.getEntry(), pipelineAddress);
 
             if (!isNull(nextStep.getEntry())) {
-                LOG.info("Pipeline {} is continuing with {} tasks to call", pipelineAddress, nextStep.numTasksToCall());
+                LOG.debug("Pipeline {} is continuing with {} tasks to call", pipelineAddress, nextStep.numTasksToCall());
 
                 try (var taskSubmitter = TaskSubmitter.of(state, context)) {
 
