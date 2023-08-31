@@ -51,7 +51,7 @@ public class CallbackFunction implements StatefulFunction {
 
     @Override
     public void invoke(Context context, Object input) {
-        try (var ignored = TimedBlock.of(LOG::info, "Invoking function {0}", context.self())) {
+        try (var ignored = TimedBlock.of(LOG::debug, "Invoking function {0}", context.self())) {
             for (var handler : messageHandlers) {
                 if (handler.canHandle(context, input, state)) {
                     handler.handleInput(context, input, state);

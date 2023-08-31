@@ -27,7 +27,7 @@ public class NoopRequestReplyClient implements RequestReplyClient {
     private static FromFunction toFromFunction(ToFunction toFunction) {
         var fromFunction = FromFunction.newBuilder();
 
-        try (var ignored = TimedBlock.of(LOG::info, "Processing noop ToFunction of {0} messages", toFunction.getInvocation().getInvocationsCount())) {
+        try (var ignored = TimedBlock.of(LOG::debug, "Processing noop ToFunction of {0} messages", toFunction.getInvocation().getInvocationsCount())) {
 
             for (var invocation : toFunction.getInvocation().getInvocationsList()) {
                 var typedValue = invocation.getArgument();
