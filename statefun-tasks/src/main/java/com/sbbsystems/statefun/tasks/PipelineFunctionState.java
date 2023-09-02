@@ -24,14 +24,17 @@ import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
-import org.apache.flink.statefun.sdk.state.Expiration;
-import org.apache.flink.statefun.sdk.state.PersistedAppendingBuffer;
-import org.apache.flink.statefun.sdk.state.PersistedTable;
-import org.apache.flink.statefun.sdk.state.PersistedValue;
+import org.apache.flink.statefun.sdk.state.*;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Objects.isNull;
 
 public final class PipelineFunctionState {
+    @Persisted
+    private final Expiration expiration;
     @Persisted
     private final PersistedTable<String, TaskEntry> taskEntries;
     @Persisted
@@ -81,7 +84,10 @@ public final class PipelineFunctionState {
     private final PersistedAppendingBuffer<ChildPipeline> childPipelines;
     @Persisted
     private final PersistedAppendingBuffer<PausedTask> pausedTasks;
-
+    @Persisted
+    private final PersistedStateRegistry dynamicStateRegistry = new PersistedStateRegistry();
+    @Persisted
+    private final Map<String, PersistedAppendingBuffer<TaskResultOrException>> unOrderedIntermediateGroupResults = new HashMap<>();
 
     public static PipelineFunctionState newInstance() {
         return new PipelineFunctionState(Expiration.none());
@@ -92,6 +98,7 @@ public final class PipelineFunctionState {
     }
 
     private PipelineFunctionState(Expiration expiration) {
+        this.expiration = expiration;
         taskEntries = PersistedTable.of("taskEntries", String.class, TaskEntry.class, expiration);
         groupEntries = PersistedTable.of("groupEntries", String.class, GroupEntry.class, expiration);
         entries = PersistedValue.of("entries", MapOfEntries.class, expiration);
@@ -285,6 +292,31 @@ public final class PipelineFunctionState {
 
     public PersistedAppendingBuffer<PausedTask> getPausedTasks() {
         return pausedTasks;
+    }
+
+    public void addIntermediateGroupResult(String id, TaskResultOrException taskResultOrException, boolean ordered) {
+        if (ordered) {
+            intermediateGroupResults.set(id, taskResultOrException);
+        } else {
+            var unorderedResults = unOrderedIntermediateGroupResults.get(id);
+
+            if (isNull(unorderedResults)) {
+                unorderedResults = PersistedAppendingBuffer.of(id, TaskResultOrException.class, expiration);
+                dynamicStateRegistry.registerAppendingBuffer(unorderedResults);
+                unOrderedIntermediateGroupResults.put(id, unorderedResults);
+            }
+
+            unorderedResults.append(taskResultOrException);
+        }
+    }
+
+    public Iterable<TaskResultOrException> getUnorderedIntermediateGroupResults(String groupId) {
+        var unorderedResults = unOrderedIntermediateGroupResults.get(groupId);
+        return (isNull(unorderedResults)) ? Collections::emptyIterator : unorderedResults.view();
+    }
+
+    public void clearUnorderedIntermediateGroupResults(String groupId) {
+        unOrderedIntermediateGroupResults.remove(groupId);
     }
 
     public void saveUpdatedState() {
