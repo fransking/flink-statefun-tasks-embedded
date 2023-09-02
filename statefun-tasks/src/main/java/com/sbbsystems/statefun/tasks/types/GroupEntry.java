@@ -23,4 +23,5 @@ public final class GroupEntry {
     public int size;
     public int remaining;
     public boolean hasException;
+    public boolean isUnordered;
 }
