@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,12 +28,27 @@ import java.util.Objects;
 public final class Group extends EntryBase implements Entry {
     private List<Entry> items;
     private int maxParallelism;
+    private boolean isUnordered;
+
+    public static Group from(@NotNull GroupEntry groupEntry) {
+        return Group.of(
+                groupEntry.getGroupId(),
+                groupEntry.getMaxParallelism(),
+                groupEntry.getIsWait(),
+                groupEntry.getIsUnordered()
+        );
+    }
 
     public static Group of(@NotNull String id, int maxParallelism, boolean isWait) {
+        return Group.of(id, maxParallelism, isWait, false);
+    }
+
+    public static Group of(@NotNull String id, int maxParallelism, boolean isWait, boolean isUnordered) {
         var group = new Group();
         group.setId(id);
         group.setMaxParallelism(maxParallelism);
         group.setIsWait(isWait);
+        group.setUnordered(isUnordered);
         return group;
     }
 
@@ -61,6 +77,14 @@ public final class Group extends EntryBase implements Entry {
 
     public void setMaxParallelism(int maxParallelism) {
         this.maxParallelism = maxParallelism;
+    }
+
+    public boolean isUnordered() {
+        return isUnordered;
+    }
+
+    public void setUnordered(boolean unordered) {
+        isUnordered = unordered;
     }
 
     @Override

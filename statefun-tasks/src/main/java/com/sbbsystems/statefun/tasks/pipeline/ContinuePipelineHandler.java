@@ -25,6 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.equalsAndNotNull;
 import static java.util.Objects.isNull;
@@ -101,9 +104,14 @@ public final class ContinuePipelineHandler extends PipelineHandler {
 
         if (equalsAndNotNull(parentGroup, nextStep.getEntry())) {
             // if the next step is the parent group this task was the end of a chain
-            // save the result so that we can aggregate later
             LOG.debug("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
-            state.getIntermediateGroupResults().set(completedEntry.getChainHead().getId(), message);
+
+            // save the result so that we can aggregate later - unordered groups are quicker to aggregate
+            if (parentGroup.isUnordered()) {
+                state.addIntermediateGroupResult(parentGroup.getId(), message, false);
+            } else {
+                state.addIntermediateGroupResult(completedEntry.getChainHead().getId(), message, true);
+            }
 
             if (message.hasTaskException()) {
                 // if we have an exception then record this to aid in aggregation later
@@ -191,10 +199,18 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         try (var ignored = TimedBlock.of(LOG::info,"Aggregating {0} results for {1}", groupEntry.size, group)) {
 
             var hasException = graph.hasException(groupEntry);
-            var groupResults = group
-                    .getItems()
-                    .stream()
-                    .map(entry -> state.getIntermediateGroupResults().get(entry.getChainHead().getId()));
+            Stream<TaskResultOrException> groupResults;
+
+            if (group.isUnordered()) {
+                var unorderedResults = state.getUnorderedIntermediateGroupResults(group.getId());
+                state.clearUnorderedIntermediateGroupResults(group.getId());
+                groupResults = StreamSupport.stream(unorderedResults.spliterator(), false);
+            } else {
+                groupResults = group
+                        .getItems()
+                        .stream()
+                        .map(entry -> state.getIntermediateGroupResults().get(entry.getChainHead().getId()));
+            }
 
             return groupResultAggregator.aggregateResults(group.getId(),
                     state.getInvocationId(), groupResults, hasException, groupEntry.returnExceptions);
