@@ -39,7 +39,7 @@ public class GroupResultAggregator {
 
     public TaskResultOrException aggregateResults(String groupId,
                                                   String invocationId,
-                                                  Stream<TaskResultOrException> orderedGroupResults,
+                                                  Stream<TaskResultOrException> groupResults,
                                                   boolean hasException,
                                                   boolean returnExceptions) {
 
@@ -50,7 +50,7 @@ public class GroupResultAggregator {
         var aggregatedExceptionMessages = new StringBuilder();
         var aggregatedExceptionStackTraces = new StringBuilder();
 
-        orderedGroupResults
+        groupResults
                 .map(result -> getResult(result, returnExceptions))
                 .forEach(unchecked(result -> {
 

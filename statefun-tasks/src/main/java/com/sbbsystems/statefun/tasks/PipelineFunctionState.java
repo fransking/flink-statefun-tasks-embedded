@@ -26,7 +26,6 @@ import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.state.*;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -123,6 +122,10 @@ public final class PipelineFunctionState {
         deferredTasks = PersistedTable.of("deferredTasks", String.class, DeferredTask.class, expiration);
         childPipelines = PersistedAppendingBuffer.of("childPipelines", ChildPipeline.class, expiration);
         pausedTasks = PersistedAppendingBuffer.of("pausedTasks", PausedTask.class, expiration);
+    }
+
+    public Expiration getExpiration() {
+        return expiration;
     }
 
     public PersistedTable<String, TaskEntry> getTaskEntries() {
@@ -294,29 +297,12 @@ public final class PipelineFunctionState {
         return pausedTasks;
     }
 
-    public void addIntermediateGroupResult(String id, TaskResultOrException taskResultOrException, boolean ordered) {
-        if (ordered) {
-            intermediateGroupResults.set(id, taskResultOrException);
-        } else {
-            var unorderedResults = unOrderedIntermediateGroupResults.get(id);
-
-            if (isNull(unorderedResults)) {
-                unorderedResults = PersistedAppendingBuffer.of(id, TaskResultOrException.class, expiration);
-                dynamicStateRegistry.registerAppendingBuffer(unorderedResults);
-                unOrderedIntermediateGroupResults.put(id, unorderedResults);
-            }
-
-            unorderedResults.append(taskResultOrException);
-        }
+    public PersistedStateRegistry getDynamicStateRegistry() {
+        return dynamicStateRegistry;
     }
 
-    public Iterable<TaskResultOrException> getUnorderedIntermediateGroupResults(String groupId) {
-        var unorderedResults = unOrderedIntermediateGroupResults.get(groupId);
-        return (isNull(unorderedResults)) ? Collections::emptyIterator : unorderedResults.view();
-    }
-
-    public void clearUnorderedIntermediateGroupResults(String groupId) {
-        unOrderedIntermediateGroupResults.remove(groupId);
+    public Map<String, PersistedAppendingBuffer<TaskResultOrException>> getUnOrderedIntermediateGroupResults() {
+        return unOrderedIntermediateGroupResults;
     }
 
     public void saveUpdatedState() {
