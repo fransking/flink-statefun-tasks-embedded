@@ -25,7 +25,7 @@ import com.sbbsystems.statefun.tasks.generated.CallbackSignal;
 import com.sbbsystems.statefun.tasks.generated.ResultsBatch;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.pipeline.CancelPipelineHandler;
 import com.sbbsystems.statefun.tasks.pipeline.ContinuePipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;

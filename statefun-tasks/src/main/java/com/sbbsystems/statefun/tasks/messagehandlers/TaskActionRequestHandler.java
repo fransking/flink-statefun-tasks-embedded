@@ -25,7 +25,7 @@ import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.TaskActionRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskActionResult;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.PipelineHandler;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.CheckedFunction;

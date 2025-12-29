@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
 import com.google.common.collect.Iterables;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
@@ -26,21 +26,28 @@ import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.isTask;
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.isGroup;
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.getNext;
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 
 public final class PipelineGraph {
     private final Map<String, GroupEntry> updatedGroupEntries = new HashMap<>();
     private final PipelineFunctionState state;
-    private final MapOfEntries entries;
+    private final MapOfGraphEntries entries;
 
     private PipelineGraph(PipelineFunctionState state) {
         this.state = state;
-        this.entries = state.getEntries();
+        this.entries = state.getGraphEntries();
     }
 
     public static PipelineGraph from(@NotNull PipelineFunctionState state) {
         return new PipelineGraph(requireNonNull(state));
+    }
+
+    public Map<String, GraphEntry> getEntries() {
+        return entries.getItems();
     }
 
     public TaskEntry getTaskEntry(String id) {
@@ -55,78 +62,71 @@ public final class PipelineGraph {
         updatedGroupEntries.put(entry.groupId, entry);
     }
 
-    public Task getTask(String id) {
-        return (Task) getEntry(id);
+    public GraphEntry getEntry(String id) {
+        return getEntries().get(id);
     }
 
-    public Group getGroup(String id) {
-        return (Group) getEntry(id);
-    }
-
-    public Entry getEntry(String id) {
-        return entries.getItems().get(id);
-    }
-
-    public Iterable<Task> getTasks() {
+    public Iterable<GraphEntry> getTasks() {
         return getTasks(getHead());
     }
 
-    public Iterable<Task> getTasks(Entry from) {
-        return () -> TasksIterator.from(from);
+    public Iterable<GraphEntry> getTasks(GraphEntry from) {
+        return () -> GraphEntryIterator.from(from, getEntries());
     }
 
     public Stream<TaskEntry> getTaskEntries() {
         return StreamSupport.stream(getTasks().spliterator(), false).map(t -> getTaskEntry(t.getId()));
     }
 
-    public @Nullable Entry getHead() {
+    public @Nullable GraphEntry getHead() {
         return getEntry(state.getHead());
     }
 
-    public @Nullable Entry getTail() {
+    public @Nullable GraphEntry getTail() {
         return getEntry(state.getTail());
     }
 
-    public @Nullable Task getFinally() {
-        var tail = getTail();
-
-        return (tail instanceof Task && ((Task) tail).isFinally())
-                ? (Task) tail
-                : null;
+    public boolean isFinally(GraphEntry entry) {
+        return isTask(entry) && entry.isFinally();
     }
 
-    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks) {
+    public @Nullable GraphEntry getFinally() {
+        var tail = getTail();
+        return (isFinally(tail)) ? tail : null;
+    }
+
+    public Stream<GraphEntry> getInitialTasks(GraphEntry entry, List<GraphEntry> skippedTasks) {
         return getInitialTasks(entry, skippedTasks, false);
     }
 
-    public Stream<Task> getInitialTasks(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
+    public Stream<GraphEntry> getInitialTasks(GraphEntry entry, List<GraphEntry> skippedTasks, boolean exceptionally) {
         return StreamSupport.stream(getInitialTasksIterator(entry, skippedTasks, exceptionally).spliterator(), false);
     }
 
-    private Iterable<Task> getInitialTasksIterator(Entry entry, List<Task> skippedTasks, boolean exceptionally) {
+    private Iterable<GraphEntry> getInitialTasksIterator(GraphEntry entry, List<GraphEntry> skippedTasks, boolean exceptionally) {
         // deal with empty groups
-        while (entry instanceof Group && entry.isEmpty()) {
-            entry = entry.getNext();
+        while (isGroup(entry) && entry.isEmpty(getEntries())) {
+            entry = getEntry(entry.getNextId());
         }
 
-        if (entry instanceof Task) {
-            var task = (Task) entry;
+        if (isTask(entry)) {
+            var task = entry;
 
             // skip tasks that don't match our current execution state
             if (!task.isFinally() && task.isExceptionally() != exceptionally) {
                 markComplete(task);
                 skippedTasks.add(task);
-                return getInitialTasksIterator(task.getNext(), skippedTasks, exceptionally);
+                return getInitialTasksIterator(getNext(task, getEntries()), skippedTasks, exceptionally);
             }
 
             return () -> Collections.singletonList(task).iterator();
         }
 
-        if (entry instanceof Group) {
-            var group = (Group) entry;
-            Iterable<Task> iterable = Collections::emptyIterator;
+        if (isGroup(entry)) {
+            Iterable<GraphEntry> iterable = Collections::emptyIterator;
 
-            for (var groupEntry: group.getItems()) {
+            for (var entryId: entry.getIdsInGroup()) {
+                GraphEntry groupEntry = getEntries().get(entryId);
                 iterable = Iterables.concat(iterable, getInitialTasksIterator(groupEntry, skippedTasks, exceptionally));
             }
 
@@ -136,34 +136,34 @@ public final class PipelineGraph {
         return Collections::emptyIterator;
     }
 
-    public Entry getNextEntry(Entry from) {
-        var next = from.getNext();
+    public GraphEntry getNextEntry(GraphEntry from) {
+        var next = getNext(from, getEntries());
 
-        if (isNull(next) && !isNull(from.getParentGroup())) {
+        if (isNull(next) && !isNull(from.getParentGroupId())) {
             // we reached the end of this chain return parent group if we have one
-            return from.getParentGroup();
+            return getEntry(from.getParentGroupId());
         }
 
         return next;
     }
 
-    public void markComplete(Entry entry) {
-        if (entry instanceof Group) {
+    public void markComplete(GraphEntry entry) {
+        if (isGroup(entry)) {
             // if we are a group then mark group as complete
             var groupEntry = getGroupEntry(entry.getId());
             groupEntry.remaining = 0;
             updateGroupEntry(groupEntry);
         }
 
-        if (isNull(entry.getNext()) && !isNull(entry.getParentGroup())) {
+        if (isNull(getNext(entry, getEntries())) && !isNull(entry.getParentGroupId())) {
             // if we are the end of a chain in a parent group then decrement the parent group remaining count
-            var groupEntry = getGroupEntry(entry.getParentGroup().getId());
+            var groupEntry = getGroupEntry(entry.getParentGroupId());
             groupEntry.remaining = Math.max(0, groupEntry.remaining - 1);
             updateGroupEntry(groupEntry);
         }
     }
 
-    public void markHasException(Group group) {
+    public void markHasException(GraphEntry group) {
         var groupEntry = getGroupEntry(group.getId());
         groupEntry.hasException = true;
         updateGroupEntry(groupEntry);
@@ -186,16 +186,12 @@ public final class PipelineGraph {
         updatedGroupEntries.clear();
     }
 
-    public boolean isFinally(Entry entry) {
-        return entry instanceof Task && ((Task) entry).isFinally();
-    }
-
     public void saveState() {
         saveUpdatedState();
 
         // ensure write back to Flink state
         state.setHead(state.getHead());
         state.setTail(state.getTail());
-        state.setEntries(entries);
+        state.setGraphEntries(entries);
     }
 }
