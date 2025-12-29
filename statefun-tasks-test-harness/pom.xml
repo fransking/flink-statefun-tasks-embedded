@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.sbbsystems.flink</groupId>
         <artifactId>statefun-tasks-parent</artifactId>
-        <version>1.2-SNAPSHOT</version>
+        <version>3.4-SNAPSHOT</version>
     </parent>
 
     <artifactId>statefun-tasks-test-harness</artifactId>
@@ -25,9 +25,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-flink-harness</artifactId>
-            <version>3.3.0</version>
+            <version>3.4-SNAPSHOT</version>
         </dependency>
 
         <dependency>
