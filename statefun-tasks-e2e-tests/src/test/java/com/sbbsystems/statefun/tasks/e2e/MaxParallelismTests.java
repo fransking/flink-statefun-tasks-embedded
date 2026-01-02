@@ -43,7 +43,7 @@ public class MaxParallelismTests {
 
     @Test
     public void test_max_parallelism() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(10, 0);
+        var pipeline = createParallelPipeline(20, 0);
 
         var response = harness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
