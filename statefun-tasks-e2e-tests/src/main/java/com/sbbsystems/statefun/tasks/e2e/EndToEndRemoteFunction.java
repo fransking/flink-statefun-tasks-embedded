@@ -218,7 +218,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         var startTime = LocalDateTime.now();
 
         if (!WaitHandles.isReady(pipelineId)) {
-            context.sendAfter(Duration.of(500, ChronoUnit.MILLIS), context.self(), MessageTypes.wrap(originalTaskRequest.get()));
+            context.sendAfter(Duration.of(1000, ChronoUnit.MILLIS), context.self(), MessageTypes.wrap(originalTaskRequest.get()));
             return null;
         }
 
