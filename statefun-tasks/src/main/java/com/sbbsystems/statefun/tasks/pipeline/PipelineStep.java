@@ -16,9 +16,8 @@
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -27,9 +26,9 @@ import java.util.stream.Collectors;
 import static java.util.Objects.isNull;
 
 public class PipelineStep {
-    private final Entry entry;
-    private final List<Task> tasksToCall;
-    private final List<Task> skippedTasks;
+    private final GraphEntry entry;
+    private final List<GraphEntry> tasksToCall;
+    private final List<GraphEntry> skippedTasks;
 
     public static PipelineStep fromHead(PipelineGraph graph)
             throws StatefunTasksException {
@@ -40,7 +39,7 @@ public class PipelineStep {
             throw new StatefunTasksException("Cannot run an empty pipeline");
         }
 
-        var skippedTasks = new LinkedList<Task>();
+        var skippedTasks = new LinkedList<GraphEntry>();
         var initialTasks = graph.getInitialTasks(entry, skippedTasks).collect(Collectors.toUnmodifiableList());
 
         // we may have no initial tasks in the case of empty groups so continue to iterate over these
@@ -53,13 +52,13 @@ public class PipelineStep {
         return new PipelineStep(entry, initialTasks, skippedTasks);
     }
 
-    public static PipelineStep next(PipelineGraph graph, Entry entry, boolean exceptionally) {
-        var parentGroup = entry.getParentGroup();
-        var skippedTasks = new LinkedList<Task>();
+    public static PipelineStep next(PipelineGraph graph, GraphEntry entry, boolean exceptionally) {
+        var parentGroup = graph.getEntry(entry.getParentGroupId());
+        var skippedTasks = new LinkedList<GraphEntry>();
         var nextEntry = graph.getNextEntry(entry);
 
         var continuationTasks = nextEntry == parentGroup
-                ? List.<Task>of()
+                ? List.<GraphEntry>of()
                 : graph.getInitialTasks(nextEntry, skippedTasks, exceptionally).collect(Collectors.toUnmodifiableList());
 
         // skip over empty & exceptionally tasks as required
@@ -72,21 +71,21 @@ public class PipelineStep {
         return new PipelineStep(nextEntry, continuationTasks, skippedTasks);
     }
 
-    private PipelineStep(Entry entry, List<Task> tasksToCall, List<Task> skippedTasks) {
+    private PipelineStep(GraphEntry entry, List<GraphEntry> tasksToCall, List<GraphEntry> skippedTasks) {
         this.entry = entry;
         this.tasksToCall = tasksToCall;
         this.skippedTasks = skippedTasks;
     }
 
-    public Entry getEntry() {
+    public GraphEntry getEntry() {
         return entry;
     }
 
-    public List<Task> getTasksToCall() {
+    public List<GraphEntry> getTasksToCall() {
         return tasksToCall;
     }
 
-    public List<Task> getSkippedTasks() {
+    public List<GraphEntry> getSkippedTasks() {
         return skippedTasks;
     }
 

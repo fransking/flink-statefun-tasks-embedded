@@ -19,7 +19,7 @@ import com.google.protobuf.Any;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
-import com.sbbsystems.statefun.tasks.graph.MapOfEntries;
+import com.sbbsystems.statefun.tasks.graph.v2.MapOfGraphEntries;
 import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
@@ -39,7 +39,7 @@ public final class PipelineFunctionState {
     @Persisted
     private final PersistedTable<String, GroupEntry> groupEntries;
     @Persisted
-    private final PersistedValue<MapOfEntries> entries;
+    private final PersistedValue<MapOfGraphEntries> graphEntries;
     @Persisted
     private final PersistedValue<String> head;
     @Persisted
@@ -100,7 +100,7 @@ public final class PipelineFunctionState {
         this.expiration = expiration;
         taskEntries = PersistedTable.of("taskEntries", String.class, TaskEntry.class, expiration);
         groupEntries = PersistedTable.of("groupEntries", String.class, GroupEntry.class, expiration);
-        entries = PersistedValue.of("entries", MapOfEntries.class, expiration);
+        graphEntries = PersistedValue.of("graphEntries", MapOfGraphEntries.class, expiration);
         head = PersistedValue.of("head", String.class, expiration);
         tail = PersistedValue.of("tail", String.class, expiration);
         isInline = PersistedValue.of("isInline", Boolean.class, expiration);
@@ -136,12 +136,12 @@ public final class PipelineFunctionState {
         return groupEntries;
     }
 
-    public MapOfEntries getEntries() {
-        return entries.getOrDefault(new MapOfEntries());
+    public MapOfGraphEntries getGraphEntries() {
+        return graphEntries.getOrDefault(new MapOfGraphEntries());
     }
 
-    public void setEntries(MapOfEntries tasks) {
-        this.entries.set(tasks);
+    public void setGraphEntries(MapOfGraphEntries entries) {
+        this.graphEntries.set(entries);
     }
 
     public PersistedTable<String, TaskResultOrException> getIntermediateGroupResults() {

@@ -22,8 +22,7 @@ import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.generated.PausedTask;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
 import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
-import com.sbbsystems.statefun.tasks.graph.Group;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
 import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Address;
@@ -34,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+
+import static java.util.Objects.isNull;
 
 public class TaskSubmitter implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(TaskSubmitter.class);
@@ -48,11 +49,11 @@ public class TaskSubmitter implements AutoCloseable {
         return new TaskSubmitter(state, context);
     }
 
-    public static void submitNextDeferredTask(PipelineFunctionState state, Context context, Group parentGroup)
+    public static void submitNextDeferredTask(PipelineFunctionState state, Context context, GraphEntry parentGroup)
             throws StatefunTasksException {
 
         var groupDeferredTasks = state.getDeferredTaskIds().get(parentGroup.getId());
-        if (groupDeferredTasks != null && groupDeferredTasks.getTaskIds().size() > 0) {
+        if (groupDeferredTasks != null && !groupDeferredTasks.getTaskIds().isEmpty()) {
             // deferred tasks exist for this group - submit the next one from the list
             var nextTaskId = groupDeferredTasks.getTaskIds().remove();
             var nextTask = state.getDeferredTasks().get(nextTaskId);
@@ -95,19 +96,21 @@ public class TaskSubmitter implements AutoCloseable {
         this.context = context;
     }
 
-    public void submitOrDefer(Task task, Address address, TypedValue message)
+    public void submitOrDefer(GraphEntry task, Address address, TypedValue message)
             throws StatefunTasksException {
 
+        var graphEntries = state.getGraphEntries().getItems();
         var shouldDefer = false;
-        var parentGroup = task.getParentGroup();
-        if (parentGroup != null) {
+        var parentGroupId = task.getParentGroupId();
+        var parentGroup = graphEntries.get(parentGroupId);
+
+        if (!isNull(parentGroup)) {
             // keep track of the number of tasks submitted per group, and defer any above the max parallelism
-            var parentGroupId = parentGroup.getId();
             var groupTaskCount = taskCounts.getOrDefault(parentGroupId, 0) + 1;
 
             taskCounts.put(parentGroupId, groupTaskCount);
 
-            if (parentGroup.getMaxParallelism() > 0 && groupTaskCount > parentGroup.getMaxParallelism()) {
+            if (parentGroup.getGroupMaxParallelism() > 0 && groupTaskCount > parentGroup.getGroupMaxParallelism()) {
                 shouldDefer = true;
             }
         }
@@ -118,7 +121,7 @@ public class TaskSubmitter implements AutoCloseable {
         }
     }
 
-    private void deferTask(Task task, Address address, TypedValue message, Group parentGroup)
+    private void deferTask(GraphEntry task, Address address, TypedValue message, GraphEntry parentGroup)
             throws StatefunTasksException {
 
         if (parentGroup == null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2025] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.ListTypeInfo;
 
 import java.lang.reflect.Type;
 import java.util.Map;
 
-public class GroupTypeInfoFactory extends TypeInfoFactory<Group> {
+public class MapTypeInfoFactory<K, V> extends TypeInfoFactory<Map<K, V>> {
     @Override
-    public TypeInformation<Group> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
-        return Types.POJO(Group.class,
-                Map.of("items", ListTypeInfo.of(Entry.class)));
+    public TypeInformation<Map<K, V>> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
+        TypeInformation<?> keyType = map.get("K");
+        if (keyType == null) {
+            throw new InvalidTypesException("Key type unknown");
+        }
+
+        TypeInformation<?> valueType = map.get("V");
+        if (valueType == null) {
+            throw new InvalidTypesException("Value type unknown");
+        }
+
+        //noinspection unchecked
+        return Types.MAP((TypeInformation<K>) keyType, (TypeInformation<V>) valueType);
     }
 }

@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
+import com.sbbsystems.statefun.tasks.graph.InvalidGraphException;
 import com.sbbsystems.statefun.tasks.types.GroupEntry;
 import com.sbbsystems.statefun.tasks.types.GroupEntryBuilder;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
@@ -38,7 +39,7 @@ public final class PipelineGraphBuilder {
     private final List<GroupEntry> groupEntries = new LinkedList<>();
 
     private final PipelineFunctionState state;
-    private final MapOfEntries entries;
+    private final MapOfGraphEntries entries;
     private Pipeline pipelineProto;
     private String tail;
     private String defaultNamespace;
@@ -46,7 +47,7 @@ public final class PipelineGraphBuilder {
 
     private PipelineGraphBuilder(PipelineFunctionState state) {
         this.state = state;
-        this.entries = state.getEntries();
+        this.entries = state.getGraphEntries();
     }
 
     public static PipelineGraphBuilder newInstance() {
@@ -81,7 +82,7 @@ public final class PipelineGraphBuilder {
 
             state.setHead(Objects.isNull(headEntry) ? null : headEntry.getId());
             state.setTail(tail);
-            state.setEntries(entries);
+            state.setGraphEntries(entries);
             taskEntries.forEach(task -> state.getTaskEntries().set(task.uid, task));
             groupEntries.forEach(group -> state.getGroupEntries().set(group.groupId, group));
         }
@@ -89,22 +90,22 @@ public final class PipelineGraphBuilder {
         return PipelineGraph.from(state);
     }
 
-    private Entry buildGraph(Pipeline pipelineProto)
+    private GraphEntry buildGraph(Pipeline pipelineProto)
             throws InvalidGraphException {
         return buildGraph(pipelineProto, null, null, null, new MutableInt(0), false);
     }
 
-    private Entry buildGraph(
+    private GraphEntry buildGraph(
             Pipeline pipelineProto,
-            Group parentGroup,
+            GraphEntry parentGroup,
             GroupEntry parentGroupEntry,
-            Task finallyTask,
+            GraphEntry finallyTask,
             MutableInt chainTaskSize,
             boolean parentIsPrecededByAnEmptyGroup)
             throws InvalidGraphException {
 
-        Entry head = null;
-        Entry current = null;
+        GraphEntry head = null;
+        GraphEntry current = null;
         boolean isPrecededByAnEmptyGroup = parentIsPrecededByAnEmptyGroup;
 
         for (PipelineEntry entry : pipelineProto.getEntriesList()) {
@@ -112,18 +113,18 @@ public final class PipelineGraphBuilder {
                 throw new InvalidGraphException("Only one finally task is allowed per pipeline and it must be the last task");
             }
 
-            Entry next = null;
+            GraphEntry next = null;
 
             if (entry.hasTaskEntry()) {
                 var taskEntry = entry.getTaskEntry();
-                next = Task.of(taskEntry.getUid(), taskEntry.getIsExceptionally(), taskEntry.getIsFinally(), taskEntry.getIsWait());
+                next = GraphEntry.forTask(taskEntry.getUid(), taskEntry.getIsExceptionally(), taskEntry.getIsFinally(), taskEntry.getIsWait());
                 next.setPrecededByAnEmptyGroup(isPrecededByAnEmptyGroup);
 
                 if (entries.getItems().containsKey(next.getId())) {
                     throw new InvalidGraphException(MessageFormat.format("Duplicate task uid {0}", next.getId()));
                 }
 
-                var task = (Task) next;
+                var task = next;
                 if (task.isFinally()) {
                     finallyTask = task;
                 }
@@ -136,7 +137,7 @@ public final class PipelineGraphBuilder {
             } else if (entry.hasGroupEntry()) {
                 var groupEntryProto = entry.getGroupEntry();
                 var groupEntry = GroupEntryBuilder.fromProto(groupEntryProto);
-                next = Group.from(groupEntryProto);
+                next = GraphEntry.forGroup(groupEntryProto);
                 next.setPrecededByAnEmptyGroup(isPrecededByAnEmptyGroup);
 
                 if (entries.getItems().containsKey(next.getId())) {
@@ -146,11 +147,11 @@ public final class PipelineGraphBuilder {
                 entries.getItems().put(next.getId(), next);
                 groupEntries.add(groupEntry);
 
-                var group = (Group) next;
+                var group = next;
 
                 for (Pipeline pipelineInGroupProto : groupEntryProto.getGroupList()) {
                     var thisChainTaskSize = new MutableInt(0);
-                    group.addEntry(this.buildGraph(pipelineInGroupProto, group, groupEntry, finallyTask, thisChainTaskSize, isPrecededByAnEmptyGroup));
+                    group.addEntryToGroup(this.buildGraph(pipelineInGroupProto, group, groupEntry, finallyTask, thisChainTaskSize, isPrecededByAnEmptyGroup));
                     chainTaskSize.add(thisChainTaskSize);
                 }
 
@@ -159,22 +160,23 @@ public final class PipelineGraphBuilder {
 
             if (!Objects.isNull(next)) {
 
-                next.setParentGroup(parentGroup);
+                var parentGroupId = (Objects.isNull(parentGroup)) ? null : parentGroup.getId();
+                next.setParentGroupId(parentGroupId);
 
                 if (head == null) {
                     head = next;
                 } else {
-                    current.setNext(next);
-                    next.setPrevious(current);
+                    current.setNextId(next.getId());
+                    next.setPreviousId(current.getId());
 
-                    if (current instanceof Task && ((Task) current).isExceptionally()) {
+                    if (!current.isGroup() && current.isExceptionally()) {
                         // if we have [] -> ex -> t2 then ex will be skipped and t2 needs to receive an empty array
                         // propagate the empty group flag to allow this to happen
                         next.setPrecededByAnEmptyGroup(current.isPrecededByAnEmptyGroup());
                     }
                 }
 
-                next.setChainHead(head);
+                next.setChainHeadId(head.getId());
                 current = next;
 
                 if (Objects.isNull(parentGroup)) {
@@ -185,14 +187,13 @@ public final class PipelineGraphBuilder {
         }
 
         // check for valid graph structure
-        if (head instanceof Task) {
-            var task = (Task) head;
+        if (!Objects.isNull(head) && !head.isGroup()) {
 
-            if (task.isExceptionally()) {
+            if (head.isExceptionally()) {
                 throw new InvalidGraphException("Chains cannot begin with an exceptionally task");
             }
 
-            if (task.isFinally()) {
+            if (head.isFinally()) {
                 throw new InvalidGraphException("Chains cannot begin with a finally task");
             }
         }
@@ -205,24 +206,26 @@ public final class PipelineGraphBuilder {
         return head;
     }
 
-    private boolean isEmpty(Group group) {
-        for (var item: group.getItems()) {
-            while (!Objects.isNull(item)) {
-                boolean isEmpty = true;
+    private boolean isEmpty(GraphEntry group) {
+        for (var entryId: group.getIdsInGroup()) {
+            while (!Objects.isNull(entryId)) {
+                GraphEntry entry = entries.getItems().get(entryId);
 
-                if (item instanceof Task) {
+                boolean isEmpty;
+
+                if (!entry.isGroup()) {
                     // exceptionally tasks count as empty because [[] -> ex] is effectively an empty group
-                    isEmpty = ((Task) item).isExceptionally();
+                    isEmpty = entry.isExceptionally();
                 }
-                else if (item instanceof Group) {
-                    isEmpty = isEmpty((Group) item);
+                else {
+                    isEmpty = isEmpty(entry);
                 }
 
                 if (!isEmpty) {
                     return false;
                 }
 
-                item = item.getNext();
+                entryId = entry.getNextId();
             }
         }
         return true;
