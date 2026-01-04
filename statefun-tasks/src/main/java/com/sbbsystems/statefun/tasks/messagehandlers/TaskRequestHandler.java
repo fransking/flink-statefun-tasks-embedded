@@ -87,7 +87,7 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
                     break;
 
                 default:
-                    throw new UnsupportedMessageTypeException(MessageFormat.format("Unsupported request type {}", taskRequest.getType()));
+                    throw new UnsupportedMessageTypeException(MessageFormat.format("Unsupported request type {0}", taskRequest.getType()));
             }
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
