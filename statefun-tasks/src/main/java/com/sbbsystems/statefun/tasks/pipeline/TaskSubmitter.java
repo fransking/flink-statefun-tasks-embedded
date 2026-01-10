@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 
 import static java.util.Objects.isNull;
 
@@ -43,6 +44,7 @@ public class TaskSubmitter implements AutoCloseable {
     private final Context context;
     private final HashMap<String, LinkedList<String>> deferredTaskIds = new HashMap<>();
     private final HashMap<String, Integer> taskCounts = new HashMap<>();
+    private final Map<String, GraphEntry> graphEntries;
 
 
     public static TaskSubmitter of(PipelineFunctionState state, Context context) {
@@ -94,12 +96,12 @@ public class TaskSubmitter implements AutoCloseable {
     private TaskSubmitter(PipelineFunctionState state, Context context) {
         this.state = state;
         this.context = context;
+        this.graphEntries = state.getGraphEntries().getItems();
     }
 
     public void submitOrDefer(GraphEntry task, Address address, TypedValue message)
             throws StatefunTasksException {
 
-        var graphEntries = state.getGraphEntries().getItems();
         var shouldDefer = false;
         var parentGroupId = task.getParentGroupId();
         var parentGroup = graphEntries.get(parentGroupId);
