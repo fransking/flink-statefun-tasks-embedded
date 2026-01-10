@@ -31,12 +31,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class FlinkSerializationTests {
 
     @Test
-    public void test_types_are_pojo_serializable() {
+    public void types_are_pojo_serializable() {
         Map<Class<?>, String> serializableClasses = new HashMap<>();
 
         for (Class<?> cls : List.of(
-                Entry.class,
-                MapOfEntries.class
+                GraphEntry.class,
+                MapOfGraphEntries.class
         )) {
             var config = new ExecutionConfig();
             TypeSerializer<?> serializer = TypeExtractor.getForClass(cls).createSerializer(config);
@@ -50,26 +50,40 @@ public final class FlinkSerializationTests {
     }
 
     @Test
-    public void test_entry_serialization() throws IOException {
+    public void task_entry_is_pojo_serialized() throws IOException {
         var config = new ExecutionConfig();
         config.disableGenericTypes();
-        TypeSerializer<Entry> typeSerializer = TypeExtractor.getForClass(Entry.class).createSerializer(config);
+        TypeSerializer<GraphEntry> typeSerializer = TypeExtractor.getForClass(GraphEntry.class).createSerializer(config);
 
-        Entry task = new Entry();
-        task.setNextId(new Entry().getId());
+        GraphEntry task = new GraphEntry();
+        task.setNextId(new GraphEntry().getId());
 
         DataOutputSerializer serializer = new DataOutputSerializer(100);
         typeSerializer.serialize(task, serializer);
     }
 
     @Test
-    public void test_map_of_entries_serialization() throws IOException {
+    public void group_entry_is_pojo_serialized() throws IOException {
         var config = new ExecutionConfig();
         config.disableGenericTypes();
-        TypeSerializer<MapOfEntries> typeSerializer = TypeExtractor.getForClass(MapOfEntries.class).createSerializer(config);
+        TypeSerializer<GraphEntry> typeSerializer = TypeExtractor.getForClass(GraphEntry.class).createSerializer(config);
 
-        MapOfEntries map = new MapOfEntries();
-        map.setItems(Map.of("id",  new Entry()));
+        GraphEntry task = new GraphEntry();
+        task.setNextId(new GraphEntry().getId());
+        task.setIdsInGroup(List.of(new GraphEntry().getId()));
+
+        DataOutputSerializer serializer = new DataOutputSerializer(100);
+        typeSerializer.serialize(task, serializer);
+    }
+
+    @Test
+    public void map_of_entries_is_pojo_serialized() throws IOException {
+        var config = new ExecutionConfig();
+        config.disableGenericTypes();
+        TypeSerializer<MapOfGraphEntries> typeSerializer = TypeExtractor.getForClass(MapOfGraphEntries.class).createSerializer(config);
+
+        MapOfGraphEntries map = new MapOfGraphEntries();
+        map.setItems(Map.of("id",  new GraphEntry()));
 
         DataOutputSerializer serializer = new DataOutputSerializer(100);
         typeSerializer.serialize(map, serializer);

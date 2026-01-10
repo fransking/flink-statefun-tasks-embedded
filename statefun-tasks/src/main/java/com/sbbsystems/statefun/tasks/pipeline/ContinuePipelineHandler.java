@@ -9,10 +9,8 @@ import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.Group;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
 import com.sbbsystems.statefun.tasks.groupaggregation.IntermediateGroupResults;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
@@ -92,7 +90,8 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         graph.markComplete(completedEntry);
 
         // is task part of a group?
-        var parentGroup = completedEntry.getParentGroup();
+        var parentGroupId = completedEntry.getParentGroupId();
+        var parentGroup = graph.getEntry(parentGroupId);
 
         // get next entry skipping over exceptionally tasks as required
         var nextStep = PipelineStep.next(graph, completedEntry, message.hasTaskException());
@@ -102,7 +101,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
 
         if (equalsAndNotNull(parentGroup, nextStep.getEntry())) {
             // if the next step is the parent group this task was the end of a chain
-            LOG.debug("Chain {} in {} is complete", completedEntry.getChainHead(), parentGroup);
+            LOG.debug("Chain {} in {} is complete", completedEntry.getChainHeadId(), parentGroup);
 
             // save the result so that we can aggregate later
             var groupResults = IntermediateGroupResults.from(state);
@@ -157,7 +156,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         }
     }
 
-    private void submitTask(Context context, TaskSubmitter taskSubmitter, Task task, TaskResultOrException message, TaskRequestSerializer taskRequest, TaskResultSerializer taskResult) throws StatefunTasksException {
+    private void submitTask(Context context, TaskSubmitter taskSubmitter, GraphEntry task, TaskResultOrException message, TaskRequestSerializer taskRequest, TaskResultSerializer taskResult) throws StatefunTasksException {
         var entry = graph.getTaskEntry(task.getId());
         var taskEntry = TaskEntrySerializer.of(entry);
 
@@ -171,7 +170,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
     }
 
-    private Any mergeArgsAndKwargs(Task task, TaskEntrySerializer taskEntry, TaskResultSerializer taskResult, TaskResultOrException message)
+    private Any mergeArgsAndKwargs(GraphEntry task, TaskEntrySerializer taskEntry, TaskResultSerializer taskResult, TaskResultOrException message)
             throws StatefunTasksException {
 
         if (task.isFinally()) {
@@ -184,7 +183,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         }
     }
 
-    private TaskResultOrException aggregateGroupResults(Group group, IntermediateGroupResults groupResults) {
+    private TaskResultOrException aggregateGroupResults(GraphEntry group, IntermediateGroupResults groupResults) {
         var groupEntry = graph.getGroupEntry(group.getId());
 
         try (var ignored = TimedBlock.of(LOG::info,"Aggregating {0} results for {1}", groupEntry.size, group)) {
@@ -196,7 +195,7 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         }
     }
 
-    private boolean lastTaskIsCompleteOrSkipped(List<Task> skippedTasks, Entry completedEntry) {
+    private boolean lastTaskIsCompleteOrSkipped(List<GraphEntry> skippedTasks, GraphEntry completedEntry) {
         if (equalsAndNotNull(completedEntry, graph.getTail())) {
             return true;
         }

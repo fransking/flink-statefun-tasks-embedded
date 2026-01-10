@@ -15,19 +15,22 @@
  */
 package com.sbbsystems.statefun.tasks.graph.v2;
 
+import com.sbbsystems.statefun.tasks.generated.GroupEntry;
+import com.sbbsystems.statefun.tasks.graph.InvalidGraphException;
 import com.sbbsystems.statefun.tasks.util.Id;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.text.MessageFormat;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
-public class Entry {
+public class GraphEntry {
     private String id;
     private String nextId;
     private String previousId;
@@ -47,8 +50,56 @@ public class Entry {
     private int groupMaxParallelism;
     private boolean isGroupUnordered;
 
+    public static GraphEntry forTask(@NotNull String id, boolean isExceptionally, boolean isFinally, boolean isWait) {
+        var task = new GraphEntry();
+        task.setId(id);
+        task.setIsExceptionally(isExceptionally);
+        task.setIsFinally(isFinally);
+        task.setIsWait(isWait);
+        return task;
+    }
+
+    public static GraphEntry forGroup(@NotNull GroupEntry groupEntry) {
+        return GraphEntry.forGroup(
+                groupEntry.getGroupId(),
+                groupEntry.getMaxParallelism(),
+                groupEntry.getIsWait(),
+                groupEntry.getIsUnordered()
+        );
+    }
+
+    public static GraphEntry forGroup(@NotNull String id, int maxParallelism, boolean isWait) {
+        return GraphEntry.forGroup(id, maxParallelism, isWait, false);
+    }
+
+    public static GraphEntry forGroup(@NotNull String id, int maxParallelism, boolean isWait, boolean isUnordered) {
+        var group = new GraphEntry();
+        group.setIsGroup(true);
+        group.setId(id);
+        group.setGroupMaxParallelism(maxParallelism);
+        group.setIsWait(isWait);
+        group.setIsGroupUnordered(isUnordered);
+        group.setIdsInGroup(new LinkedList<>());
+        return group;
+    }
+
+    public static boolean isGroup(@Nullable GraphEntry entry) {
+        return !Objects.isNull(entry) && entry.isGroup();
+    }
+
+    public static boolean isTask(@Nullable GraphEntry entry) {
+        return !Objects.isNull(entry) && !entry.isGroup();
+    }
+
+    public static GraphEntry getNext(@Nullable GraphEntry entry, Map<String, GraphEntry> entries) {
+        if (!Objects.isNull(entry)) {
+            return entries.get(entry.getNextId());
+        }
+        return null;
+    }
+
     @SuppressWarnings("unused")  // POJO serialisation
-    public Entry() {
+    public GraphEntry() {
         id = Id.generate();
     }
 
@@ -169,22 +220,28 @@ public class Entry {
         return this.isGroupUnordered;
     }
 
-    public boolean isEmpty(Map<String, Entry> mapOfEntries) {
+    public boolean isEmpty(Map<String, GraphEntry> mapOfEntries) {
         if (isGroup) {
             for (var id : idsInGroup) {
                 while (!Objects.isNull(id)) {
-                    Entry entry = mapOfEntries.getOrDefault(id, null);
-
-                    if (Objects.isNull(entry) || entry.isEmpty(mapOfEntries)) {
+                    GraphEntry entry = mapOfEntries.get(id);
+                    if (!entry.isEmpty(mapOfEntries)) {
                         return false;
                     }
                     id = entry.getNextId();
                 }
             }
-
             return true;
         }
         return false;
+    }
+
+    public void addEntryToGroup(@NotNull GraphEntry entry) throws InvalidGraphException {
+        if (!isGroup) {
+            throw new InvalidGraphException(MessageFormat.format("GraphEntry {0} is not a group", getId()));
+        }
+
+        idsInGroup.add(entry.getId());
     }
 
     public String toString() {
@@ -192,7 +249,7 @@ public class Entry {
     }
 
     public boolean equals(Object o) {
-        return (o instanceof Entry && Objects.equals(((Entry) o).getId(), getId()));
+        return (o instanceof GraphEntry && Objects.equals(((GraphEntry) o).getId(), getId()));
     }
 
     @Override

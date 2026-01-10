@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
-import com.sbbsystems.statefun.tasks.types.GroupEntry;
+import com.sbbsystems.statefun.tasks.graph.InvalidGraphException;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 public class GraphTestUtils {
@@ -67,10 +66,10 @@ public class GraphTestUtils {
         }
     }
 
-    public static GroupEntry getGroupContainingTask(String taskId, PipelineGraph graph) {
-        var taskA = graph.getTask(taskId);
-        var groupId = Objects.requireNonNull(taskA.getParentGroup()).getId();
-        return graph.getGroupEntry(groupId);
-    }
+//    public static GroupEntry getGroupContainingTask(String taskId, PipelineGraph graph) {
+//        var taskA = graph.getTask(taskId);
+//        var groupId = Objects.requireNonNull(taskA.getParentGroup()).getId();
+//        return graph.getGroupEntry(groupId);
+//    }
 
 }
