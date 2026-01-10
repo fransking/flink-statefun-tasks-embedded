@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//package com.sbbsystems.statefun.tasks.graph;
-//
-//import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
-//import org.apache.flink.api.common.typeinfo.TypeInformation;
-//import org.apache.flink.api.common.typeinfo.Types;
-//import org.apache.flink.api.java.typeutils.ListTypeInfo;
-//
-//import java.lang.reflect.Type;
-//import java.util.Map;
-//
-//public class GroupTypeInfoFactory extends TypeInfoFactory<Group> {
-//    @Override
-//    public TypeInformation<Group> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
-//        return Types.POJO(Group.class,
-//                Map.of("items", ListTypeInfo.of(Entry.class)));
-//    }
-//}
+package com.sbbsystems.statefun.tasks.graph;
+
+import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+
+import java.lang.reflect.Type;
+import java.util.Map;
+
+public class GroupTypeInfoFactory extends TypeInfoFactory<Group> {
+    @Override
+    public TypeInformation<Group> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
+        return Types.POJO(Group.class,
+                Map.of("items", ListTypeInfo.of(Entry.class)));
+    }
+}
