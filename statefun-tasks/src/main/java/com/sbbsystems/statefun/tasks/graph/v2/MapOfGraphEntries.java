@@ -13,32 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
+
+import org.apache.flink.api.common.typeinfo.TypeInfo;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class MapOfEntries {
-    private Map<String, Entry> items;
+public class MapOfGraphEntries {
+    @TypeInfo(MapTypeInfoFactory.class)
+    private Map<String, GraphEntry> items;
 
-    public static MapOfEntries from(Map<String, Entry> items) {
-        var mapOfTasks = new MapOfEntries();
+    public static MapOfGraphEntries from(Map<String, GraphEntry> items) {
+        var mapOfTasks = new MapOfGraphEntries();
         mapOfTasks.setItems(items);
         return mapOfTasks;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public MapOfEntries() {
+    public MapOfGraphEntries() {
         items = new HashMap<>();
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public Map<String, Entry> getItems() {
+    public Map<String, GraphEntry> getItems() {
         return items;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public void setItems(Map<String, Entry> items) {
+    public void setItems(Map<String, GraphEntry> items) {
         this.items = items;
     }
 }

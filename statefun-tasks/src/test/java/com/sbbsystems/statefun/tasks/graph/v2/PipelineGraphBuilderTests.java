@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.GroupEntry;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.PipelineEntry;
 import com.sbbsystems.statefun.tasks.generated.TaskEntry;
+import com.sbbsystems.statefun.tasks.graph.InvalidGraphException;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -27,8 +28,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static com.sbbsystems.statefun.tasks.graph.GraphTestUtils.buildPipelineFromTemplate;
-import static java.util.Objects.requireNonNull;
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphTestUtils.buildPipelineFromTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -52,8 +52,6 @@ public final class PipelineGraphBuilderTests {
         return pipeline.build();
     }
 
-
-
     @Test
     public void graph_contains_all_task_entries_given_a_pipeline()
             throws InvalidGraphException {
@@ -63,8 +61,9 @@ public final class PipelineGraphBuilderTests {
 
         assertThat(graph.getTasks()).hasSize(10);
 
-        for (Entry entry : graph.getTasks()) {
-            assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
+        for (GraphEntry entry : graph.getTasks()) {
+            assertThat(graph.getEntry(entry.getId())).isNotNull();
+            assertThat(graph.getEntry(entry.getId()).isGroup()).isFalse();
         }
     }
 
@@ -89,13 +88,13 @@ public final class PipelineGraphBuilderTests {
         assertThat(graph.getTasks()).hasSize(10);
 
         var taskIds = List.of("1", "x", "a", "b", "c", "d", "e", "f", "y", "2");
-        var entryTaskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(Entry::getId);
+        var entryTaskIds = StreamSupport.stream(graph.getTasks().spliterator(), false).map(GraphEntry::getId);
         assertThat(entryTaskIds.collect(Collectors.toList())).isEqualTo(taskIds);
 
-        taskIds.forEach(taskId -> assertThat(graph.getTaskEntry(taskId)).isNotNull());
+        taskIds.forEach(taskId -> assertThat(graph.getEntry(taskId)).isNotNull());
 
-        for (Entry entry : graph.getTasks()) {
-            assertThat(graph.getTaskEntry(entry.getId())).isNotNull();
+        for (GraphEntry entry : graph.getTasks()) {
+            assertThat(graph.getEntry(entry.getId())).isNotNull();
         }
     }
 
@@ -171,14 +170,14 @@ public final class PipelineGraphBuilderTests {
         assertThat(head.getId()).isEqualTo("1");
         assertThat(tail).isNotNull();
         assertThat(tail.getId()).isEqualTo("2");
-        assertThat(state.getEntries().getItems()).hasSize(9);
+        assertThat(state.getGraphEntries().getItems()).hasSize(9);
         assertThat(state.getTaskEntries().entries()).hasSize(8);
         assertThat(state.getGroupEntries().entries()).hasSize(1);
 
-        var task = graph.getTask("a");
-        assertThat(task.getParentGroup()).isNotNull();
+        var task = graph.getEntry("a");
+        assertThat(task.getParentGroupId()).isNotNull();
 
-        var groupEntry = state.getGroupEntries().get(task.getParentGroup().getId());
+        var groupEntry = state.getGroupEntries().get(task.getParentGroupId());
         assertThat(groupEntry.size).isEqualTo(2);
         assertThat(groupEntry.remaining).isEqualTo(2);
 
@@ -202,8 +201,8 @@ public final class PipelineGraphBuilderTests {
     @Test
     public void builder_throws_exceptions_when_it_has_duplicate_groups() {
         var entryOne = PipelineEntry.newBuilder().setGroupEntry(GroupEntry.newBuilder().setGroupId("1"));
-        var entryTwp = PipelineEntry.newBuilder().setGroupEntry(GroupEntry.newBuilder().setGroupId("1"));
-        var pipeline = Pipeline.newBuilder().addEntries(entryOne).addEntries(entryTwp);
+        var entryTwo = PipelineEntry.newBuilder().setGroupEntry(GroupEntry.newBuilder().setGroupId("1"));
+        var pipeline = Pipeline.newBuilder().addEntries(entryOne).addEntries(entryTwo);
         var builder = PipelineGraphBuilder.newInstance().fromProto(pipeline.build());
 
         assertThrows(InvalidGraphException.class, builder::build);
@@ -244,11 +243,11 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        for (var entry : List.of(graph.getTask("a"), graph.getTask("b"), graph.getTask("c"))) {
-            assertThat(entry.getChainHead()).isEqualTo(graph.getTask("a"));
+        for (var entry : List.of(graph.getEntry("a"), graph.getEntry("b"), graph.getEntry("c"))) {
+            assertThat(entry.getChainHeadId()).isEqualTo("a");
         }
-        for (var entry : List.of(graph.getTask("x"), requireNonNull(graph.getTask("a").getParentGroup()), graph.getTask("y"))) {
-            assertThat(entry.getChainHead()).isEqualTo(graph.getTask("x"));
+        for (var entry : List.of(graph.getEntry("x"), graph.getEntry(graph.getEntry("a").getParentGroupId()), graph.getEntry("y"))) {
+            assertThat(entry.getChainHeadId()).isEqualTo("x");
         }
     }
 
@@ -271,7 +270,7 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        var grp = (Group) graph.getHead();
+        var grp = graph.getHead();
         assertThat(grp).isNotNull();
         assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(3);
     }
@@ -299,7 +298,7 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        var grp = (Group) graph.getHead();
+        var grp = graph.getHead();
         assertThat(grp).isNotNull();
         assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(3);
     }
@@ -327,7 +326,7 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        var grp = (Group) graph.getHead();
+        var grp = graph.getHead();
         assertThat(grp).isNotNull();
         assertThat(graph.getGroupEntry(grp.getId()).remaining).isEqualTo(2);
     }
@@ -353,25 +352,25 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        var groupOfa = graph.getTask("a").getParentGroup();
+        var groupOfa = graph.getEntry("a").getParentGroupId();
 
         assertThat(groupOfa).isNotNull();
-        assertThat(graph.getGroup(groupOfa.getId()).isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry(groupOfa).isPrecededByAnEmptyGroup()).isTrue();
 
-        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("b").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("c").isPrecededByAnEmptyGroup()).isFalse();
-        assertThat(graph.getTask("d").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("e").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("a").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("b").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("c").isPrecededByAnEmptyGroup()).isFalse();
+        assertThat(graph.getEntry("d").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("e").isPrecededByAnEmptyGroup()).isTrue();
 
-        assertThat(graph.getTask("x").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("y").isPrecededByAnEmptyGroup()).isFalse();
+        assertThat(graph.getEntry("x").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("y").isPrecededByAnEmptyGroup()).isFalse();
 
-        assertThat(graph.getTask("1").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("ex2").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("ex3").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("4").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("5").isPrecededByAnEmptyGroup()).isFalse();
+        assertThat(graph.getEntry("1").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("ex2").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("ex3").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("4").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("5").isPrecededByAnEmptyGroup()).isFalse();
     }
 
     @Test
@@ -393,8 +392,8 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        assertThat(graph.getTask("ex2").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("ex2").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("a").isPrecededByAnEmptyGroup()).isTrue();
     }
 
     @Test
@@ -415,7 +414,7 @@ public final class PipelineGraphBuilderTests {
                 .fromProto(pipeline)
                 .build();
 
-        assertThat(graph.getTask("a").isPrecededByAnEmptyGroup()).isTrue();
-        assertThat(graph.getTask("b").isPrecededByAnEmptyGroup()).isFalse();
+        assertThat(graph.getEntry("a").isPrecededByAnEmptyGroup()).isTrue();
+        assertThat(graph.getEntry("b").isPrecededByAnEmptyGroup()).isFalse();
     }
 }

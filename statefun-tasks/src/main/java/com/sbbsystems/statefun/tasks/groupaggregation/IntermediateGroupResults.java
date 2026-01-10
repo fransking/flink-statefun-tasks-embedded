@@ -18,8 +18,7 @@ package com.sbbsystems.statefun.tasks.groupaggregation;
 
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.Group;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
 import org.apache.flink.statefun.sdk.state.*;
 
 import java.util.Collections;
@@ -39,25 +38,29 @@ public class IntermediateGroupResults {
         this.state = state;
     }
 
-    public void addResult(Group group, Entry entry, TaskResultOrException resultOrException) {
-        if (group.isUnordered()) {
+    public void addResult(GraphEntry group, GraphEntry entry, TaskResultOrException resultOrException) {
+        if (group.isGroupUnordered()) {
             // unordered groups are quicker to aggregate as they use lists instead of maps
             addUnOrderedIntermediateGroupResult(group.getId(), resultOrException);
         } else {
-            state.getIntermediateGroupResults().set(entry.getChainHead().getId(), resultOrException);
+            state.getIntermediateGroupResults().set(entry.getChainHeadId(), resultOrException);
         }
     }
 
-    public Stream<TaskResultOrException> getResults(Group group) {
-        if (group.isUnordered()) {
+    public Stream<TaskResultOrException> getResults(GraphEntry group) {
+        if (group.isGroupUnordered()) {
             var unorderedResults = getUnorderedResults(group.getId());
             clearUnorderedResults(group.getId());
             return StreamSupport.stream(unorderedResults.spliterator(), false);
+
         } else {
+            var graphEntries = state.getGraphEntries().getItems();
+
             return group
-                    .getItems()
+                    .getIdsInGroup()
                     .stream()
-                    .map(entry -> state.getIntermediateGroupResults().get(entry.getChainHead().getId()));
+                    .map(entryId ->
+                            state.getIntermediateGroupResults().get(graphEntries.get(entryId).getChainHeadId()));
         }
     }
 

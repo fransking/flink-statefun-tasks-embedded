@@ -5,7 +5,7 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Context;
 import org.jetbrains.annotations.NotNull;

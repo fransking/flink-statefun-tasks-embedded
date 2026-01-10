@@ -8,8 +8,8 @@ import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
@@ -101,7 +101,7 @@ public final class BeginPipelineHandler extends PipelineHandler {
         }
     }
 
-    private void submitTask(Context context, TaskSubmitter taskSubmitter, Task task, TaskRequestSerializer taskRequest, ArgsAndKwargs argsAndKwargs)
+    private void submitTask(Context context, TaskSubmitter taskSubmitter, GraphEntry task, TaskRequestSerializer taskRequest, ArgsAndKwargs argsAndKwargs)
             throws StatefunTasksException {
 
         var taskEntry = graph.getTaskEntry(task.getId());

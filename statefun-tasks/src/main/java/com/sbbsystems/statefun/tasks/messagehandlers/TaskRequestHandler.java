@@ -25,7 +25,7 @@ import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraphBuilder;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraphBuilder;
 import com.sbbsystems.statefun.tasks.pipeline.BeginPipelineHandler;
 import com.sbbsystems.statefun.tasks.serialization.TaskRequestSerializer;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
