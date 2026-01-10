@@ -16,6 +16,7 @@
 package com.sbbsystems.statefun.tasks.graph.v2;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -38,7 +39,7 @@ public final class FlinkSerializationTests {
                 GraphEntry.class,
                 MapOfGraphEntries.class
         )) {
-            var config = new ExecutionConfig();
+            var config = new ExecutionConfig().getSerializerConfig();
             TypeSerializer<?> serializer = TypeExtractor.getForClass(cls).createSerializer(config);
 
             serializableClasses.put(cls, serializer.getClass().getName());
@@ -51,8 +52,8 @@ public final class FlinkSerializationTests {
 
     @Test
     public void task_entry_is_pojo_serialized() throws IOException {
-        var config = new ExecutionConfig();
-        config.disableGenericTypes();
+        var config = new SerializerConfigImpl();
+        config.setGenericTypes(false);
         TypeSerializer<GraphEntry> typeSerializer = TypeExtractor.getForClass(GraphEntry.class).createSerializer(config);
 
         GraphEntry task = new GraphEntry();
@@ -64,8 +65,8 @@ public final class FlinkSerializationTests {
 
     @Test
     public void group_entry_is_pojo_serialized() throws IOException {
-        var config = new ExecutionConfig();
-        config.disableGenericTypes();
+        var config = new SerializerConfigImpl();
+        config.setGenericTypes(false);
         TypeSerializer<GraphEntry> typeSerializer = TypeExtractor.getForClass(GraphEntry.class).createSerializer(config);
 
         GraphEntry task = new GraphEntry();
@@ -78,8 +79,8 @@ public final class FlinkSerializationTests {
 
     @Test
     public void map_of_entries_is_pojo_serialized() throws IOException {
-        var config = new ExecutionConfig();
-        config.disableGenericTypes();
+        var config = new SerializerConfigImpl();
+        config.setGenericTypes(false);
         TypeSerializer<MapOfGraphEntries> typeSerializer = TypeExtractor.getForClass(MapOfGraphEntries.class).createSerializer(config);
 
         MapOfGraphEntries map = new MapOfGraphEntries();

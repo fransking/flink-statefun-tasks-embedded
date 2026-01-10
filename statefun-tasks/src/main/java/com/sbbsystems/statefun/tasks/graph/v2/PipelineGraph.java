@@ -61,15 +61,7 @@ public final class PipelineGraph {
     public void updateGroupEntry(GroupEntry entry) {
         updatedGroupEntries.put(entry.groupId, entry);
     }
-//
-//    public Task getTask(String id) {
-//        return (Task) getEntry(id);
-//    }
-//
-//    public Group getGroup(String id) {
-//        return (Group) getEntry(id);
-//    }
-//
+
     public GraphEntry getEntry(String id) {
         return getEntries().get(id);
     }
