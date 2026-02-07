@@ -6,7 +6,7 @@
 
     <groupId>com.sbbsystems.flink</groupId>
     <artifactId>statefun-tasks-parent</artifactId>
-        <version>3.4-SNAPSHOT</version>
+        <version>3.4.0</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -28,12 +28,12 @@
         <dependency>
             <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-sdk-embedded</artifactId>
-            <version>3.4-SNAPSHOT</version>
+            <version>3.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-flink-core</artifactId>
-            <version>3.4-SNAPSHOT</version>
+            <version>3.4.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
