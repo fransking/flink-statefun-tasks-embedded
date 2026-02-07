@@ -28,10 +28,10 @@ import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.StatefulFunction;
 import org.apache.flink.statefun.sdk.annotations.Persisted;
 import org.apache.flink.statefun.sdk.state.PersistedValue;
-import org.joda.time.DateTime;
 
 import java.text.MessageFormat;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 import static com.sbbsystems.statefun.tasks.types.MessageTypes.RUN_PIPELINE_TASK_TYPE;
@@ -215,14 +215,14 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
         var pipelineId = taskRequest.getMetaMap().get("root_pipeline_id");
 
-        var startTime = DateTime.now();
+        var startTime = LocalDateTime.now();
 
         if (!WaitHandles.isReady(pipelineId)) {
-            context.sendAfter(Duration.of(500, ChronoUnit.MILLIS), context.self(), MessageTypes.wrap(originalTaskRequest.get()));
+            context.sendAfter(Duration.of(1000, ChronoUnit.MILLIS), context.self(), MessageTypes.wrap(originalTaskRequest.get()));
             return null;
         }
 
-        var endTime = DateTime.now();
+        var endTime = LocalDateTime.now();
 
         var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);
 

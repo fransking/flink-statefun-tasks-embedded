@@ -1,6 +1,5 @@
 package com.sbbsystems.statefun.tasks.configuration;
 
-import com.sbbsystems.statefun.tasks.PipelineFunctionModule;
 import com.sbbsystems.statefun.tasks.PipelineFunctionProvider;
 import com.sbbsystems.statefun.tasks.batchcallback.CallbackFunctionProvider;
 import org.apache.flink.statefun.extensions.ComponentBinder;
@@ -12,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PipelineBinderV1 implements ComponentBinder {
-    private static final Logger LOG = LoggerFactory.getLogger(PipelineFunctionModule.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PipelineBinderV1.class);
 
     public static final PipelineBinderV1 INSTANCE = new PipelineBinderV1();
     public static final TypeName KIND_TYPE = TypeName.parseFrom("io.statefun_tasks.v1/pipeline");

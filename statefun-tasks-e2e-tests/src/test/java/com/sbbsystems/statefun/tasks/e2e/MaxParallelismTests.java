@@ -21,10 +21,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
-import org.joda.time.DateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,7 +43,7 @@ public class MaxParallelismTests {
 
     @Test
     public void test_max_parallelism() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(10, 0);
+        var pipeline = createParallelPipeline(50, 0);
 
         var response = harness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
@@ -95,8 +95,8 @@ public class MaxParallelismTests {
         String[] taskResults = result.substring(1, result.length() - 1).split(",");
         for (var taskResult : taskResults) {
             var splitResult = taskResult.trim().split("\\|");
-            var startTime = DateTime.parse(splitResult[0]);
-            var endTime = DateTime.parse(splitResult[1]);
+            var startTime = LocalDateTime.parse(splitResult[0]);
+            var endTime = LocalDateTime.parse(splitResult[1]);
             startAndEndTimes.add(TaskRunTimes.of(startTime, endTime));
         }
 
@@ -110,23 +110,23 @@ public class MaxParallelismTests {
     }
 
     private static class TaskRunTimes {
-        private final DateTime start;
-        private final DateTime end;
+        private final LocalDateTime start;
+        private final LocalDateTime end;
 
-        private TaskRunTimes(DateTime start, DateTime end) {
+        private TaskRunTimes(LocalDateTime start, LocalDateTime end) {
             this.start = start;
             this.end = end;
         }
 
-        public static TaskRunTimes of(DateTime startTime, DateTime endTime) {
+        public static TaskRunTimes of(LocalDateTime startTime, LocalDateTime endTime) {
             return new TaskRunTimes(startTime, endTime);
         }
 
-        public DateTime getStart() {
+        public LocalDateTime getStart() {
             return start;
         }
 
-        public DateTime getEnd() {
+        public LocalDateTime getEnd() {
             return end;
         }
 

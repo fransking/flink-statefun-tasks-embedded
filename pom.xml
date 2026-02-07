@@ -6,15 +6,15 @@
 
     <groupId>com.sbbsystems.flink</groupId>
     <artifactId>statefun-tasks-parent</artifactId>
-        <version>1.2-SNAPSHOT</version>
+        <version>3.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>statefun-sdk-protos</module>
         <module>statefun-tasks-protos</module>
+        <module>statefun-tasks</module>
         <module>statefun-tasks-test-harness</module>
         <module>statefun-tasks-distribution</module>
-        <module>statefun-tasks</module>
         <module>statefun-tasks-e2e-tests</module>
     </modules>
 
@@ -26,14 +26,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-sdk-embedded</artifactId>
-            <version>3.3.0</version>
+            <version>3.4-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-flink-core</artifactId>
-            <version>3.3.0</version>
+            <version>3.4-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.32</version>
+            <version>1.7.36</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.32</version>
+            <version>1.7.36</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -103,7 +103,6 @@
         </dependency>
     </dependencies>
 
-
     <build>
         <plugins>
 
@@ -120,5 +119,13 @@
 
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots</url>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
 
 </project>

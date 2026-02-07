@@ -3,10 +3,8 @@ package com.sbbsystems.statefun.tasks.events;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.graph.Entry;
-import com.sbbsystems.statefun.tasks.graph.Group;
-import com.sbbsystems.statefun.tasks.graph.PipelineGraph;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
+import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.util.TimedBlock;
 import org.apache.flink.statefun.sdk.Context;
@@ -17,6 +15,9 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.isGroup;
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.isTask;
+import static com.sbbsystems.statefun.tasks.graph.v2.GraphEntry.getNext;
 import static com.sbbsystems.statefun.tasks.util.MoreObjects.notEqualsAndNotNull;
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
@@ -42,7 +43,6 @@ public class PipelineEvents {
         var callerAddress = state.getCallerAddress();
 
         try (var ignored = TimedBlock.of(LOG::info, "Notifying new pipeline {0} created", MessageTypes.asString(pipelineAddress))) {
-
 
             if (configuration.hasEventsEgress()) {
                 // if we have events egress then publish PipelineCreated message
@@ -88,7 +88,7 @@ public class PipelineEvents {
         context.send(MessageTypes.getEventsEgress(configuration), MessageTypes.toEgress(event.build(), configuration.getEventsTopic()));
     }
 
-    public void notifyPipelineTasksSkipped(Context context, PipelineGraph graph, List<Task> skippedTasks) {
+    public void notifyPipelineTasksSkipped(Context context, PipelineGraph graph, List<GraphEntry> skippedTasks) {
         if (!configuration.hasEventsEgress() || skippedTasks.isEmpty()) {
             return;
         }
@@ -109,27 +109,26 @@ public class PipelineEvents {
         return pipelineInfo;
     }
 
-    private void extractEntryInfo(Entry entry, PipelineGraph graph, PipelineInfo.Builder pipelineInfo) {
+    private void extractEntryInfo(GraphEntry entry, PipelineGraph graph, PipelineInfo.Builder pipelineInfo) {
         while(!isNull(entry)) {
 
-            if (entry instanceof Group) {
-                var group = (Group) entry;
-                var groupInfo = GroupInfo.newBuilder().setGroupId(group.getId());
+            if (isGroup(entry)) {
+                var groupInfo = GroupInfo.newBuilder().setGroupId(entry.getId());
 
-                for (var item: group.getItems()) {
+                for (var entryId: entry.getIdsInGroup()) {
                     var groupPipelineInfo = PipelineInfo.newBuilder();
-                    extractEntryInfo(item, graph, groupPipelineInfo);
+                    extractEntryInfo(graph.getEntry(entryId), graph, groupPipelineInfo);
                     groupInfo.addGroup(groupPipelineInfo);
                 }
 
                 pipelineInfo.addEntries(EntryInfo.newBuilder().setGroupEntry(groupInfo));
 
-            } else if (entry instanceof Task) {
+            } else if (isTask(entry)) {
                 var taskEntry = graph.getTaskEntry(entry.getId());
                 pipelineInfo.addEntries(EntryInfo.newBuilder().setTaskEntry(MessageTypes.toTaskInfo(taskEntry)));
             }
 
-            entry = entry.getNext();
+            entry = getNext(entry, graph.getEntries());
         }
     }
 }

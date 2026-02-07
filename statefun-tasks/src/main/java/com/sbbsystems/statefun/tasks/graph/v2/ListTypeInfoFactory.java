@@ -1,5 +1,5 @@
 /*
- * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2025] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sbbsystems.statefun.tasks.graph;
+package com.sbbsystems.statefun.tasks.graph.v2;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Map;
 
-public class GroupTypeInfoFactory extends TypeInfoFactory<Group> {
+public class ListTypeInfoFactory<E> extends TypeInfoFactory<List<E>> {
     @Override
-    public TypeInformation<Group> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
-        return Types.POJO(Group.class,
-                Map.of("items", Types.LIST(Types.POJO(Entry.class))));
+    public TypeInformation<List<E>> createTypeInfo(Type type, Map<String, TypeInformation<?>> map) {
+        TypeInformation<?> elementType = map.get("E");
+        if (elementType == null) {
+            throw new InvalidTypesException("Element type unknown");
+        }
+
+        //noinspection unchecked
+        return Types.LIST((TypeInformation<E>) elementType);
     }
 }

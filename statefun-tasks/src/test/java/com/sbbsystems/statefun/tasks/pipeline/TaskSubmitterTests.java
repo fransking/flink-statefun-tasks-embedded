@@ -20,8 +20,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
-import com.sbbsystems.statefun.tasks.graph.Group;
-import com.sbbsystems.statefun.tasks.graph.Task;
+import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
+import com.sbbsystems.statefun.tasks.graph.v2.MapOfGraphEntries;
 import com.sbbsystems.statefun.tasks.types.DeferredTask;
 import org.apache.flink.statefun.sdk.Address;
 import org.apache.flink.statefun.sdk.Context;
@@ -30,6 +30,7 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,12 +51,20 @@ public class TaskSubmitterTests {
 
     @Test
     public void submits_two_tasks_when_max_parallelism_is_zero() throws StatefunTasksException {
-        var group = Group.of("group-id", 0, false);
+        var group = GraphEntry.forGroup("group-id", 0, false);
+        var task1 = GraphEntry.forTask("task-1", false, false, false);
+        var task2 = GraphEntry.forTask("task-2", false, false, false);
 
-        var task1 = Task.of("task-1", false, false, false);
-        var task2 = Task.of("task-2", false, false, false);
-        task1.setParentGroup(group);
-        task2.setParentGroup(group);
+        task1.setParentGroupId(group.getId());
+        task2.setParentGroupId(group.getId());
+
+        state.setGraphEntries(MapOfGraphEntries.from(new HashMap<>() {
+            {
+                put(group.getId(), group);
+                put(task1.getId(), task1);
+                put(task2.getId(), task2);
+            }
+        }));
 
         var message1 = TypedValue.newBuilder().setTypename("request-type-1").build();
         var message2 = TypedValue.newBuilder().setTypename("request-type-2").build();
@@ -79,12 +88,21 @@ public class TaskSubmitterTests {
     @Test
     public void delays_second_task_when_max_parallelism_one()
             throws StatefunTasksException, InvalidProtocolBufferException {
-        var group = Group.of("group-id", 1, false);
+        var group = GraphEntry.forGroup("group-id", 1, false);
 
-        var task1 = Task.of("task-1", false, false, false);
-        var task2 = Task.of("task-2", false, false, false);
-        task1.setParentGroup(group);
-        task2.setParentGroup(group);
+        var task1 = GraphEntry.forTask("task-1", false, false, false);
+        var task2 = GraphEntry.forTask("task-2", false, false, false);
+
+        task1.setParentGroupId(group.getId());
+        task2.setParentGroupId(group.getId());
+
+        state.setGraphEntries(MapOfGraphEntries.from(new HashMap<>() {
+            {
+                put(group.getId(), group);
+                put(task1.getId(), task1);
+                put(task2.getId(), task2);
+            }
+        }));
 
         var message1 = TypedValue.newBuilder().setTypename("request-type-1").build();
         var message2 = TypedValue.newBuilder().setTypename("request-type-2").build();
@@ -111,18 +129,31 @@ public class TaskSubmitterTests {
 
     @Test
     public void submits_tasks_across_multiple_groups() throws StatefunTasksException {
-        var group1 = Group.of("group-id-1", 1, false);
+        var group1 = GraphEntry.forGroup("group-id-1", 1, false);
+        var task1 = GraphEntry.forTask("task-1", false, false, false);
+        var task2 = GraphEntry.forTask("task-2", false, false, false);
 
-        var task1 = Task.of("task-1", false, false, false);
-        var task2 = Task.of("task-2", false, false, false);
-        task1.setParentGroup(group1);
-        task2.setParentGroup(group1);
+        task1.setParentGroupId(group1.getId());
+        task2.setParentGroupId(group1.getId());
 
-        var group2 = Group.of("group-id-2", 1, false);
-        var task3 = Task.of("task-3", false, false, false);
-        var task4 = Task.of("task-4", false, false, false);
-        task3.setParentGroup(group2);
-        task4.setParentGroup(group2);
+        var group2 = GraphEntry.forGroup("group-id-2", 1, false);
+        var task3 = GraphEntry.forTask("task-3", false, false, false);
+        var task4 = GraphEntry.forTask("task-4", false, false, false);
+
+        task3.setParentGroupId(group2.getId());
+        task4.setParentGroupId(group2.getId());
+
+        state.setGraphEntries(MapOfGraphEntries.from(new HashMap<>() {
+            {
+                put(group1.getId(), group1);
+                put(task1.getId(), task1);
+                put(task2.getId(), task2);
+
+                put(group2.getId(), group2);
+                put(task3.getId(), task3);
+                put(task4.getId(), task4);
+            }
+        }));
 
         var message1 = TypedValue.newBuilder().setTypename("request-type-1").build();
         var message2 = TypedValue.newBuilder().setTypename("request-type-2").build();
@@ -146,19 +177,19 @@ public class TaskSubmitterTests {
 
         verifyNoMoreInteractions(context);
     }
-    
+
     @Test
     public void submits_next_deferred_task() throws StatefunTasksException {
-        var group = Group.of("group-id", 1, false);
+        var group = GraphEntry.forGroup("group-id", 1, false);
         var message = TypedValue.newBuilder().setTypename("request-type").build();
         var deferredTask = DeferredTask.of("namespace", "func", "id", message);
         state.getDeferredTasks().set("task-id", deferredTask);
         var taskIds = new LinkedList<String>();
         taskIds.add("task-id");
         state.getDeferredTaskIds().set("group-id", DeferredTaskIds.of(taskIds));
-        
+
         TaskSubmitter.submitNextDeferredTask(state, context, group);
-        
+
         verify(context).send(address, message);
         assertThat(state.getDeferredTaskIds().get("group-id")).isNull();
         assertThat(state.getDeferredTasks().get("task-id")).isNull();
@@ -166,7 +197,7 @@ public class TaskSubmitterTests {
 
     @Test
     public void does_nothing_when_submitting_next_deferred_task_with_no_tasks_in_state() throws StatefunTasksException {
-        var group = Group.of("group-id", 1, false);
+        var group = GraphEntry.forGroup("group-id", 1, false);
 
         TaskSubmitter.submitNextDeferredTask(state, context, group);
 
