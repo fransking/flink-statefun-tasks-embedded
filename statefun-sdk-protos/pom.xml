@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>statefun-sdk-protos</artifactId>
+    <name>statefun-sdk-protos</name>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -40,6 +41,17 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- No need to publish this artifact to Maven -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <skipPublishing>true</skipPublishing>
+                </configuration>
             </plugin>
         </plugins>
     </build>

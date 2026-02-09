@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>statefun-tasks-distribution</artifactId>
+    <name>statefun-tasks-distribution</name>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -48,6 +49,18 @@
                 <configuration>
                     <forceCreation>true</forceCreation>
                 </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>javadoc</classifier>
+                            <classesDirectory>${basedir}/javadoc</classesDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>

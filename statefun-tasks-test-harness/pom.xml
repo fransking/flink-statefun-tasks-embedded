@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>statefun-tasks-test-harness</artifactId>
+    <name>statefun-tasks-test-harness</name>
 
     <dependencies>
         <dependency>

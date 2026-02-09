@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>statefun-tasks-e2e-tests</artifactId>
+    <name>statefun-tasks-e2e-tests</name>
 
     <dependencies>
         <dependency>
