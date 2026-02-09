@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>statefun-tasks-protos</artifactId>
+    <name>statefun-tasks-protos</name>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
