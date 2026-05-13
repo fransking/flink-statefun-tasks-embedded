@@ -24,8 +24,6 @@ import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import com.sbbsystems.statefun.tasks.types.TaskEntry;
 import org.apache.flink.statefun.sdk.Context;
 
-import java.util.Objects;
-
 import static java.util.Objects.isNull;
 
 public final class TaskRequestSerializer {

@@ -19,17 +19,22 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.ValueArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.TupleOfValue;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
-import org.apache.flink.api.java.tuple.Tuple;
 
 public final class ArgsAndKwargsSerializer {
     private final ArgsAndKwargs argsAndKwargs;
+    private final ValueArgsAndKwargs valueArgsAndKwargs;
 
     public static ArgsAndKwargsSerializer of(ArgsAndKwargs argsAndKwargs) {
+        return new ArgsAndKwargsSerializer(argsAndKwargs);
+    }
+
+    public static ArgsAndKwargsSerializer of(ValueArgsAndKwargs argsAndKwargs) {
         return new ArgsAndKwargsSerializer(argsAndKwargs);
     }
 
@@ -50,20 +55,30 @@ public final class ArgsAndKwargsSerializer {
             if (any.is(ArgsAndKwargs.class)) {
                 return ArgsAndKwargsSerializer.of(any.unpack(ArgsAndKwargs.class));
             }
+            else if (any.is(ValueArgsAndKwargs.class)) {
+                return ArgsAndKwargsSerializer.of(any.unpack(ValueArgsAndKwargs.class));
+            }
             else {
-
+                // TODO need to decide if we use legacy types here or not
                 TupleOfAny args;
 
                 if (any.is(TupleOfAny.class)) {
                     args = any.unpack(TupleOfAny.class);
                 }
+//                else if (any.is(TupleOfValue.class)) {
+//                    // TODO need to decide if we use legacy types here or not
+//                    args = any.unpack(TupleOfValue.class);
+//                }
                 else if (MessageTypes.isEmpty(any)) {
+                    // TODO need to decide if we use legacy types here or not
                     args = TupleOfAny.getDefaultInstance();
                 }
                 else {
+                    // TODO need to decide if we use legacy types here or not
                     args = TupleOfAny.newBuilder().addItems(any).build();
                 }
 
+                // TODO need to decide if we use legacy types here or not
                 return ArgsAndKwargsSerializer.of(ArgsAndKwargs
                         .newBuilder()
                         .setArgs(args)
@@ -76,6 +91,12 @@ public final class ArgsAndKwargsSerializer {
 
     private ArgsAndKwargsSerializer(ArgsAndKwargs argsAndKwargs) {
         this.argsAndKwargs = argsAndKwargs;
+        this.valueArgsAndKwargs = null;
+    }
+
+    private ArgsAndKwargsSerializer(ValueArgsAndKwargs argsAndKwargs) {
+        this.argsAndKwargs = null;
+        this.valueArgsAndKwargs = argsAndKwargs;
     }
 
     public ArgsAndKwargs slice(int start) {
