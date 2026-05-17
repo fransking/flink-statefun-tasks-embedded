@@ -1,2 +1,2 @@
 #!/bin/sh
-docker build -t fransking/flink-statefun-tasks:3.4.2 -f docker/Dockerfile ..
+docker build -t fransking/flink-statefun-tasks:3.4.3 -f docker/Dockerfile ..
