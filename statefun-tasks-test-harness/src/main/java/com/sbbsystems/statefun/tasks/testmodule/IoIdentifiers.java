@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +26,8 @@ public final class IoIdentifiers {
     public static final IngressIdentifier<TypedValue> REQUEST_INGRESS = new IngressIdentifier<>(TypedValue.class, NAMESPACE, "in");
     public static final EgressIdentifier<TypedValue> RESULT_EGRESS = new EgressIdentifier<>("example", "kafka-generic-egress", TypedValue.class);
     public static final FunctionType ECHO_FUNCTION_TYPE = new FunctionType(NAMESPACE, "remote_function");
+    public static final FunctionType LEGACY_TYPES_PIPELINE_FUNCTION_TYPE = new FunctionType("example", "embedded_pipeline");
+    public static final FunctionType VALUE_TYPES_PIPELINE_FUNCTION_TYPE = new FunctionType("example", "embedded_pipeline_using_value_types");
     public static final EgressIdentifier<TypedValue> EVENTS_EGRESS = new EgressIdentifier<>("example", "kafka-events-egress", TypedValue.class);
     public static final String EVENTS_TOPIC = "statefun-tasks.events";
 }

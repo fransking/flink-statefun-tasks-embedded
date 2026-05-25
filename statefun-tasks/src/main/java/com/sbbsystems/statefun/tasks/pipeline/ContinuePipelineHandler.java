@@ -1,3 +1,19 @@
+/*
+ * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.sbbsystems.statefun.tasks.pipeline;
 
 import com.google.common.collect.Iterables;
@@ -6,9 +22,7 @@ import com.sbbsystems.statefun.tasks.PipelineFunctionState;
 import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
-import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
-import com.sbbsystems.statefun.tasks.generated.TaskResultOrException;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
 import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.groupaggregation.GroupResultAggregator;
@@ -163,8 +177,13 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, entry);
         outgoingTaskRequest
                 .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
-                .setRequest(mergeArgsAndKwargs(task, taskEntry, taskResult, message))
                 .setState(taskResult.getState());
+
+        if (configuration.isUseLegacyTypes()) {
+            outgoingTaskRequest.setRequest(mergeArgsAndKwargs(task, taskEntry, taskResult, message));
+        } else {
+            outgoingTaskRequest.setRequest(mergeValueArgsAndKwargs(task, taskEntry, taskResult, message));
+        }
 
         // send message
         taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
@@ -183,6 +202,19 @@ public final class ContinuePipelineHandler extends PipelineHandler {
         }
     }
 
+    private Any mergeValueArgsAndKwargs(GraphEntry task, TaskEntrySerializer taskEntry, TaskResultSerializer taskResult, TaskResultOrException message)
+            throws StatefunTasksException {
+
+        if (task.isFinally()) {
+            state.setResponseBeforeFinally(message);
+            return taskEntry.mergeValueWith(TupleOfValue.getDefaultInstance());
+        } else if (task.isPrecededByAnEmptyGroup() && !message.hasTaskException()) {
+            return taskEntry.mergeValueWith(ArrayOfValue.getDefaultInstance());
+        } else {
+            return taskEntry.mergeValueWith(taskResult.getResult());
+        }
+    }
+
     private TaskResultOrException aggregateGroupResults(GraphEntry group, IntermediateGroupResults groupResults) {
         var groupEntry = graph.getGroupEntry(group.getId());
 
@@ -191,7 +223,8 @@ public final class ContinuePipelineHandler extends PipelineHandler {
                     state.getInvocationId(),
                     groupResults.getResults(group),
                     graph.hasException(groupEntry),
-                    groupEntry.returnExceptions);
+                    groupEntry.returnExceptions,
+                    configuration.isUseLegacyTypes());
         }
     }
 

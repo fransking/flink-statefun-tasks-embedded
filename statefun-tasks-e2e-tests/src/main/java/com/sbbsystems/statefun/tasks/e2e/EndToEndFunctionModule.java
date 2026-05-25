@@ -15,25 +15,13 @@
  */
 package com.sbbsystems.statefun.tasks.e2e;
 
-import com.sbbsystems.statefun.tasks.configuration.PipelineBinderV1;
-import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
-import com.sbbsystems.statefun.tasks.testmodule.IoIdentifiers;
 import org.apache.flink.statefun.sdk.spi.StatefulFunctionModule;
 
-import java.text.MessageFormat;
 import java.util.Map;
 
 public class EndToEndFunctionModule implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
-        var configuration = PipelineConfiguration.of(
-                "e2e/embedded_pipeline",
-                "example/kafka-generic-egress",
-                MessageFormat.format("{0}/{1}", IoIdentifiers.EVENTS_EGRESS.namespace(), IoIdentifiers.EVENTS_EGRESS.name()),
-                IoIdentifiers.EVENTS_TOPIC,
-                null,
-                10);
-
-        PipelineBinderV1.INSTANCE.bind(configuration, binder);
-        binder.bindFunctionProvider(EndToEndRemoteFunction.FUNCTION_TYPE, unused -> new EndToEndRemoteFunction());
+        binder.bindFunctionProvider(EndToEndRemoteFunction.FUNCTION_TYPE, unused -> new EndToEndRemoteFunction(true));
+        binder.bindFunctionProvider(EndToEndRemoteFunction.VALUE_FUNCTION_TYPE, unused -> new EndToEndRemoteFunction(false));
     }
 }

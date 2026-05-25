@@ -6,8 +6,10 @@ import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
+import com.sbbsystems.statefun.tasks.generated.ArrayOfValue;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.ValueArgsAndKwargs;
 import com.sbbsystems.statefun.tasks.graph.v2.GraphEntry;
 import com.sbbsystems.statefun.tasks.graph.v2.PipelineGraph;
 import com.sbbsystems.statefun.tasks.serialization.TaskEntrySerializer;
@@ -82,7 +84,10 @@ public final class BeginPipelineHandler extends PipelineHandler {
         if (initialStep.hasNoTasksToCall()) {
             // if we have a completely empty pipeline after iterating over empty groups then return empty result
             LOG.info("Pipeline {} is empty, returning []", pipelineAddress);
-            var taskResult = MessageTypes.toOutgoingTaskResult(incomingTaskRequest, ArrayOfAny.getDefaultInstance());
+            var emptyResult = configuration.isUseLegacyTypes()
+                    ? ArrayOfAny.getDefaultInstance()
+                    : ArrayOfValue.getDefaultInstance();
+            var taskResult = MessageTypes.toOutgoingTaskResult(incomingTaskRequest, emptyResult);
             respondWithResult(context, incomingTaskRequest, taskResult);
         }
         else {
@@ -90,11 +95,17 @@ public final class BeginPipelineHandler extends PipelineHandler {
             events.notifyPipelineStatusChanged(context, TaskStatus.Status.RUNNING);
 
             try (var taskSubmitter = TaskSubmitter.of(state, context)) {
-                var argsAndKwargs = state.getInitialArgsAndKwargs();
-
                 // else call the initial tasks
-                for (var task : initialStep.getTasksToCall()) {
-                    submitTask(context, taskSubmitter, task, taskRequest, argsAndKwargs);
+                if (configuration.isUseLegacyTypes()) {
+                    var argsAndKwargs = state.getInitialArgsAndKwargs();
+                    for (var task : initialStep.getTasksToCall()) {
+                        submitTask(context, taskSubmitter, task, taskRequest, argsAndKwargs);
+                    }
+                } else {
+                    var valueArgsAndKwargs = state.getInitialValueArgsAndKwargs();
+                    for (var task : initialStep.getTasksToCall()) {
+                        submitTask(context, taskSubmitter, task, taskRequest, valueArgsAndKwargs);
+                    }
                 }
             }
             LOG.info("Pipeline {} started", pipelineAddress);
@@ -113,6 +124,31 @@ public final class BeginPipelineHandler extends PipelineHandler {
                 : TaskEntrySerializer.of(taskEntry).mergeWith(argsAndKwargs);
 
         outgoingTaskRequest.setRequest(mergedArgsAndKwargs);
+
+        // add initial state if present otherwise we start each pipeline with empty state
+        if (!isNull(state.getInitialState())) {
+            outgoingTaskRequest.setState(state.getInitialState());
+        }
+
+        // set the reply address to be the callback function
+        outgoingTaskRequest.setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()));
+
+        // send message
+        taskSubmitter.submitOrDefer(task, MessageTypes.getSdkAddress(taskEntry), MessageTypes.wrap(outgoingTaskRequest.build()));
+    }
+
+    private void submitTask(Context context, TaskSubmitter taskSubmitter, GraphEntry task, TaskRequestSerializer taskRequest, ValueArgsAndKwargs valueArgsAndKwargs)
+            throws StatefunTasksException {
+
+        var taskEntry = graph.getTaskEntry(task.getId());
+        var outgoingTaskRequest = taskRequest.createOutgoingTaskRequest(state, taskEntry);
+
+        // add task arguments - if we skipped any empty groups then we have to send [] to the next task
+        var mergedRequest = task.isPrecededByAnEmptyGroup()
+                ? TaskEntrySerializer.of(taskEntry).mergeValueWith(MessageTypes.valueArgsOfEmptyArray())
+                : TaskEntrySerializer.of(taskEntry).mergeValueWith(valueArgsAndKwargs);
+
+        outgoingTaskRequest.setRequest(mergedRequest);
 
         // add initial state if present otherwise we start each pipeline with empty state
         if (!isNull(state.getInitialState())) {

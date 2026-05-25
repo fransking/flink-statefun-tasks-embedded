@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,132 +17,49 @@
 package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.Message;
-import com.sbbsystems.statefun.tasks.generated.*;
-import com.sbbsystems.statefun.tasks.util.Id;
+import com.sbbsystems.statefun.tasks.generated.Pipeline;
 
-import java.util.Objects;
-
-import static com.sbbsystems.statefun.tasks.types.MessageTypes.packAny;
-
+/**
+ * Convenience wrapper around {@link com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder}
+ * for use in e2e tests.  All task entries are pre-bound to
+ * {@link EndToEndRemoteFunction#FUNCTION_TYPE} so callers only need to supply a task type.
+ */
 public class PipelineBuilder {
 
-    private final Pipeline.Builder pipeline;
-
-    public static PipelineBuilder inParallel(Iterable<Pipeline> entries) {
-        return inParallel(entries, false);
+    private static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder forE2eWorker() {
+        return com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder.forWorker(
+                EndToEndRemoteFunction.FUNCTION_TYPE.namespace(),
+                EndToEndRemoteFunction.FUNCTION_TYPE.name());
     }
 
-    public static PipelineBuilder inParallel(Iterable<Pipeline> entries, boolean returnExceptions) {
-        return new PipelineBuilder().addGroup(entries, returnExceptions, 0);
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder forE2eWorker(boolean useLegacyTypes) {
+        return com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder.forWorker(
+                EndToEndRemoteFunction.FUNCTION_TYPE.namespace(),
+                useLegacyTypes
+                        ? EndToEndRemoteFunction.FUNCTION_TYPE.name()
+                        : EndToEndRemoteFunction.VALUE_FUNCTION_TYPE.name());
     }
 
-    public static PipelineBuilder inParallel(Iterable<Pipeline> entries, int maxParallelism) {
-        return new PipelineBuilder().addGroup(entries, false, maxParallelism);
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder beginWith(String taskType) {
+        return forE2eWorker().beginWith(taskType);
     }
 
-    public static PipelineBuilder beginWith(String taskType) {
-        return new PipelineBuilder().addTask(taskType, null, false, false);
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder beginWith(String taskType, Message request) {
+        return forE2eWorker().beginWith(taskType, request);
     }
 
-    public static PipelineBuilder beginWith(String taskType, Message request) {
-        return new PipelineBuilder().addTask(taskType, request, false, false);
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(Iterable<Pipeline> entries) {
+        return forE2eWorker().inParallel(entries);
     }
 
-    private PipelineBuilder() {
-        pipeline = Pipeline.newBuilder();
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(Iterable<Pipeline> entries, boolean returnExceptions) {
+        return forE2eWorker().inParallel(entries, returnExceptions);
     }
 
-    public Pipeline build() {
-        return pipeline.build();
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(Iterable<Pipeline> entries, int maxParallelism) {
+        return forE2eWorker().inParallel(entries, maxParallelism);
     }
 
-    public PipelineBuilder withInitialState(Message initialState) {
-        pipeline.setInitialState(packAny(initialState));
-        return this;
-    }
-
-    public PipelineBuilder withInitialArgs(Message initialArgs) {
-        pipeline.setInitialArgs(packAny(initialArgs));
-        return this;
-    }
-
-    public PipelineBuilder withInitialKwargs(MapOfStringToAny initialKwargs) {
-        pipeline.setInitialKwargs(initialKwargs);
-        return this;
-    }
-
-    public PipelineBuilder inline() {
-        pipeline.setInline(true);
-        return this;
-    }
-
-    public PipelineBuilder continueWith(String taskType) {
-        return continueWith(taskType, null);
-    }
-
-    public PipelineBuilder continueWith(String taskType, Message request) {
-        return this.addTask(taskType, request, false, false);
-    }
-
-    public PipelineBuilder continueWith(Pipeline pipeline) {
-        return addFrom(pipeline);
-    }
-
-    public PipelineBuilder exceptionally(String taskType, Message request) {
-        return this.addTask(taskType, request, true, false);
-    }
-
-    public PipelineBuilder finally_do(String taskType) {
-        return finally_do(taskType, null);
-    }
-
-    public PipelineBuilder finally_do(String taskType, Message request) {
-        return this.addTask(taskType, request, false, true);
-    }
-
-    private PipelineBuilder addTask(String taskType, Message request, boolean isExceptionally, boolean isFinally) {
-        var taskEntry = TaskEntry.newBuilder()
-                .setNamespace(EndToEndRemoteFunction.FUNCTION_TYPE.namespace())
-                .setWorkerName(EndToEndRemoteFunction.FUNCTION_TYPE.name())
-                .setTaskType(taskType)
-                .setTaskId(Id.generate())
-                .setUid(Id.generate())
-                .setIsExceptionally(isExceptionally)
-                .setIsFinally(isFinally);
-
-        if (!Objects.isNull(request)) {
-            taskEntry.setRequest(packAny(request));
-        }
-
-        var pipelineEntry = PipelineEntry.newBuilder()
-                .setTaskEntry(taskEntry)
-                .build();
-        pipeline.addEntries(pipelineEntry);
-
-        return this;
-    }
-
-    private PipelineBuilder addGroup(Iterable<Pipeline> entries, boolean returnExceptions, int maxParallelism) {
-        var groupEntry = GroupEntry
-                .newBuilder()
-                .setGroupId(Id.generate())
-                .setReturnExceptions(returnExceptions)
-                .setMaxParallelism(maxParallelism);
-
-        for (var entry: entries) {
-            groupEntry.addGroup(entry);
-        }
-
-        var pipelineEntry = PipelineEntry.newBuilder()
-                .setGroupEntry(groupEntry)
-                .build();
-        pipeline.addEntries(pipelineEntry);
-
-        return this;
-    }
-
-    private PipelineBuilder addFrom(Pipeline thisPipeline) {
-        pipeline.addAllEntries(thisPipeline.getEntriesList());
-        return this;
-    }
+    // not instantiable
+    private PipelineBuilder() {}
 }

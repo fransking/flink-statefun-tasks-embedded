@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +44,11 @@ public final class TaskRequestSerializer {
         return ArgsAndKwargsSerializer.of(taskRequest.getRequest());
     }
 
+    public ValueArgsAndKwargsSerializer getValueArgsAndKwargsSerializer()
+            throws StatefunTasksException {
+
+        return ValueArgsAndKwargsSerializer.of(taskRequest.getRequest());
+    }
     public Address getRootPipelineAddress(Context context) {
         var rootPipelineAddress =  taskRequest.getMetaOrDefault("root_pipeline_address", MessageTypes.toTypeName(context.self()));
         var rootPipelineId =  taskRequest.getMetaOrDefault("root_pipeline_id", context.self().id());

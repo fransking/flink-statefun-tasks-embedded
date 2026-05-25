@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,6 +113,25 @@ public final class MessageTypes {
         return TaskResultOrException.newBuilder()
                 .setTaskResult(TaskResult.newBuilder()
                         .setResult(Any.pack(ArrayOfAny.getDefaultInstance())))
+                .build();
+    }
+
+    public static TupleOfValue tupleOfValueEmptyArray() {
+        return TupleOfValue.newBuilder()
+                .addItems(Value.newBuilder().setArrayValue(ArrayOfValue.getDefaultInstance()).build())
+                .build();
+    }
+
+    public static ValueArgsAndKwargs valueArgsOfEmptyArray() {
+        return ValueArgsAndKwargs.newBuilder()
+                .setArgs(tupleOfValueEmptyArray())
+                .build();
+    }
+
+    public static TaskResultOrException emptyGroupValueResult() {
+        return TaskResultOrException.newBuilder()
+                .setTaskResult(TaskResult.newBuilder()
+                        .setResult(Any.pack(Value.newBuilder().setArrayValue(ArrayOfValue.getDefaultInstance()).build())))
                 .build();
     }
 
@@ -277,6 +297,20 @@ public final class MessageTypes {
         }
 
         return Any.pack(message);
+    }
+
+    public static Value packValue(Message message) throws InvalidProtocolBufferException {
+        if (message instanceof Value) {
+            return (Value) message;
+        } else if (message instanceof TupleOfValue) {
+            return Value.newBuilder().setTupleValue((TupleOfValue) message).build();
+        } else if (message instanceof ArrayOfValue) {
+            return Value.newBuilder().setArrayValue((ArrayOfValue) message).build();
+        } else if (message instanceof MapOfStringToValue) {
+            return Value.newBuilder().setMapValue((MapOfStringToValue) message).build();
+        } else {
+            return Value.newBuilder().setAnyValue(packAny(message)).build();
+        }
     }
 
     public static boolean isEmpty(Any any) {

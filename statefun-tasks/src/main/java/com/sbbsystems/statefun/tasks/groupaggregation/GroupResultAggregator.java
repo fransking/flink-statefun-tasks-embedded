@@ -41,24 +41,32 @@ public class GroupResultAggregator {
                                                   String invocationId,
                                                   Stream<TaskResultOrException> groupResults,
                                                   boolean hasException,
-                                                  boolean returnExceptions) {
+                                                  boolean returnExceptions,
+                                                  boolean useLegacyTypes) {
 
         var unaggregatedState = new LinkedList<Any>();
         var aggregatedState = MapOfStringToAny.newBuilder();
+        var aggregatedValueState = MapOfStringToValue.newBuilder();
 
         var aggregatedResults = ArrayOfAny.newBuilder();
+        var aggregatedValueResults = ArrayOfValue.newBuilder();
         var aggregatedExceptionMessages = new StringBuilder();
         var aggregatedExceptionStackTraces = new StringBuilder();
 
         groupResults
-                .map(result -> getResult(result, returnExceptions))
+                .map(result -> getResult(result, returnExceptions, useLegacyTypes))
                 .forEach(unchecked(result -> {
 
             if (result.hasTaskResult()) {
                 var taskResult = result.getTaskResult();
 
-                aggregatedResults.addItems(taskResult.getResult());
-                aggregateState(taskResult.getState(), unaggregatedState, aggregatedState);
+                if (useLegacyTypes) {
+                    aggregatedResults.addItems(taskResult.getResult());
+                    aggregateState(taskResult.getState(), unaggregatedState, aggregatedState);
+                } else {
+                    aggregatedValueResults.addItems(taskResult.getResult().unpack(Value.class));
+                    aggregateValueState(taskResult.getState(), unaggregatedState, aggregatedValueState);
+                }
 
             } else if (result.hasTaskException()) {
                 var taskException = result.getTaskException();
@@ -77,13 +85,17 @@ public class GroupResultAggregator {
                         .append(", ")
                         .append(taskException.getStacktrace());
 
-                aggregateState(taskException.getState(), unaggregatedState, aggregatedState);
+                if (useLegacyTypes) {
+                    aggregateState(taskException.getState(), unaggregatedState, aggregatedState);
+                } else {
+                    aggregateValueState(taskException.getState(), unaggregatedState, aggregatedValueState);
+                }
             }
 
         }));
 
-        var state = (unaggregatedState.isEmpty())
-                ? Any.pack(aggregatedState.build())
+        var state = unaggregatedState.isEmpty()
+                ? (useLegacyTypes ? Any.pack(aggregatedState.build()) : Any.pack(aggregatedValueState.build()))
                 : unaggregatedState.getFirst();
 
         if (hasException && !returnExceptions) {
@@ -101,12 +113,16 @@ public class GroupResultAggregator {
                     .setTaskException(taskException)
                     .build();
         } else {
+            var resultAny = useLegacyTypes
+                    ? Any.pack(aggregatedResults.build())
+                    : Any.pack(aggregatedValueResults.build());
+
             var taskResult = TaskResult.newBuilder()
                     .setId(groupId)
                     .setUid(groupId)
                     .setInvocationId(invocationId)
                     .setType("__aggregate.result")
-                    .setResult(Any.pack(aggregatedResults.build()))
+                    .setResult(resultAny)
                     .setState(state)
                     .build();
             return TaskResultOrException.newBuilder()
@@ -133,6 +149,22 @@ public class GroupResultAggregator {
         }
     }
 
+    private void aggregateValueState(Any state, LinkedList<Any> unaggregatedState, MapOfStringToValue.Builder aggregatedState)
+            throws InvalidProtocolBufferException {
+
+        if (Objects.isNull(state)) {
+            return;
+        }
+
+        if (unaggregatedState.isEmpty()) {
+            if (state.is(MapOfStringToValue.class)) {
+                mergeValueItems(state.unpack(MapOfStringToValue.class), aggregatedState);
+            } else {
+                unaggregatedState.add(state);
+            }
+        }
+    }
+
     private void mergeItems(MapOfStringToAny from, MapOfStringToAny.Builder into) {
         from.getItemsMap().forEach((key ,value) -> {
             if (!into.containsItems(key)) {
@@ -141,9 +173,17 @@ public class GroupResultAggregator {
         });
     }
 
-    private static TaskResultOrException getResult(TaskResultOrException result, boolean returnExceptions) {
+    private void mergeValueItems(MapOfStringToValue from, MapOfStringToValue.Builder into) {
+        from.getItemsMap().forEach((key, value) -> {
+            if (!into.containsItems(key)) {
+                into.putItems(key, value);
+            }
+        });
+    }
+
+    private static TaskResultOrException getResult(TaskResultOrException result, boolean returnExceptions, boolean useLegacyTypes) {
         if (Objects.isNull(result)) {
-            return MessageTypes.emptyGroupResult();
+            return useLegacyTypes ? MessageTypes.emptyGroupResult() : MessageTypes.emptyGroupValueResult();
         }
 
         if (result.hasTaskResult() || !returnExceptions) {
@@ -153,8 +193,12 @@ public class GroupResultAggregator {
         // convert the TaskException to a TaskResult containing the TaskException
         var taskException = result.getTaskException();
 
+        var resultAny = useLegacyTypes
+                ? Any.pack(taskException)
+                : Any.pack(Value.newBuilder().setAnyValue(Any.pack(taskException)).build());
+
         var taskResult = TaskResult.newBuilder()
-                .setResult(Any.pack(taskException))
+                .setResult(resultAny)
                 .setState(taskException.getState());
         return TaskResultOrException.newBuilder()
                 .setTaskResult(taskResult)
