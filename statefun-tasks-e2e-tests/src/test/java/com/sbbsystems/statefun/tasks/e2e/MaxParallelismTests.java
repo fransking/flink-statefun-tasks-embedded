@@ -18,8 +18,7 @@ package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.sbbsystems.statefun.tasks.generated.Pipeline;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,18 +33,20 @@ import static com.sbbsystems.statefun.tasks.e2e.PipelineBuilder.inParallel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class MaxParallelismTests {
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     void setup() {
-        harness = NamespacedTestHarness.newInstance();
+        legacyHarness = NamespacedTestHarness.newInstance();
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    public void test_max_parallelism() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(50, 0);
+    public void test_max_parallelism_using_legacy_types() throws InvalidProtocolBufferException {
+        var pipeline = createParallelPipeline(50, 0, true);
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
 
         var maxConcurrentTasks = findMaxConcurrentTasks(result);
@@ -54,10 +55,22 @@ public class MaxParallelismTests {
     }
 
     @Test
-    public void test_max_parallelism_one() throws InvalidProtocolBufferException {
-        var pipeline = createParallelPipeline(10, 1);
+    public void test_max_parallelism_using_value_types() throws InvalidProtocolBufferException {
+        var pipeline = createParallelPipeline(50, 0, false);
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var result = asString(response.unpack(TaskResult.class).getResult());
+
+        var maxConcurrentTasks = findMaxConcurrentTasks(result);
+
+        assertThat(maxConcurrentTasks).isGreaterThan(1);
+    }
+
+    @Test
+    public void test_max_parallelism_one_using_legacy_types() throws InvalidProtocolBufferException {
+        var pipeline = createParallelPipeline(10, 1, true);
+
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
 
         var maxConcurrentTasks = findMaxConcurrentTasks(result);
@@ -66,12 +79,10 @@ public class MaxParallelismTests {
     }
 
     @Test
-    public void test_max_parallelism_one_on_continuation() throws InvalidProtocolBufferException {
-        var pipeline = PipelineBuilder.beginWith("echo", Int32Value.of(100))
-                .continueWith(createParallelPipeline(2, 1))
-                .build();
+    public void test_max_parallelism_one_using_value_types() throws InvalidProtocolBufferException {
+        var pipeline = createParallelPipeline(10, 1, false);
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
         var result = asString(response.unpack(TaskResult.class).getResult());
 
         var maxConcurrentTasks = findMaxConcurrentTasks(result);
@@ -79,15 +90,44 @@ public class MaxParallelismTests {
         assertThat(maxConcurrentTasks).isEqualTo(1);
     }
 
-    private static Pipeline createParallelPipeline(int nTasks, int maxParallelism) {
+    @Test
+    public void test_max_parallelism_one_on_continuation_using_legacy_types() throws InvalidProtocolBufferException {
+        var pipeline = PipelineBuilder.beginWith("echo", Int32Value.of(100))
+                .continueWith(createParallelPipeline(2, 1, true))
+                .build();
+
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
+        var result = asString(response.unpack(TaskResult.class).getResult());
+
+        var maxConcurrentTasks = findMaxConcurrentTasks(result);
+
+        assertThat(maxConcurrentTasks).isEqualTo(1);
+    }
+
+    @Test
+    public void test_max_parallelism_one_on_continuation_using_value_types() throws InvalidProtocolBufferException {
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Value.newBuilder().setIntValue(100).build())
+                .continueWith(createParallelPipeline(2, 1, false))
+                .build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var result = asString(response.unpack(TaskResult.class).getResult());
+
+        var maxConcurrentTasks = findMaxConcurrentTasks(result);
+
+        assertThat(maxConcurrentTasks).isEqualTo(1);
+    }
+
+    private static Pipeline createParallelPipeline(int nTasks, int maxParallelism, boolean useLegacyTypes) {
         var tasks = IntStream.range(0, nTasks)
                 .boxed()
-                .map(i -> PipelineBuilder
+                .map(i -> PipelineBuilder.forE2eWorker(useLegacyTypes)
                         .beginWith("delay")
                         .build())
                 .collect(Collectors.toList());
 
-        return inParallel(tasks, maxParallelism).build();
+        return inParallel(useLegacyTypes, tasks, maxParallelism).build();
     }
 
     private static long findMaxConcurrentTasks(String result) {

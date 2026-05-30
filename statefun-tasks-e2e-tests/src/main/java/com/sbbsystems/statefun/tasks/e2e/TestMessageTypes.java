@@ -16,8 +16,7 @@
 package com.sbbsystems.statefun.tasks.e2e;
 
 import com.google.protobuf.Message;
-import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 
 import java.util.Map;
 
@@ -28,5 +27,11 @@ public class TestMessageTypes {
         var kwargs = MapOfStringToAny.newBuilder();
         keywordArgs.forEach((k, v) -> kwargs.putItems(k, packAny(v)));
         return ArgsAndKwargs.newBuilder().setKwargs(kwargs.build()).build();
+    }
+
+    public static ValueArgsAndKwargs toValueArgsAndKwargs(Map<String, Value> keywordArgs) {
+        var kwargs = MapOfStringToValue.newBuilder();
+        keywordArgs.forEach(kwargs::putItems);
+        return ValueArgsAndKwargs.newBuilder().setKwargs(kwargs.build()).build();
     }
 }

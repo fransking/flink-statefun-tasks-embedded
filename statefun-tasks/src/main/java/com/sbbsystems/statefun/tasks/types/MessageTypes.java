@@ -299,6 +299,20 @@ public final class MessageTypes {
         return Any.pack(message);
     }
 
+    public static Value unpackAnyToValue(Any message) throws InvalidProtocolBufferException {
+        if (message.is(Value.class)) {
+            return message.unpack(Value.class);
+        } else if (message.is(TupleOfValue.class)) {
+            return Value.newBuilder().setTupleValue(message.unpack(TupleOfValue.class)).build();
+        } else if (message.is(ArrayOfValue.class)) {
+            return Value.newBuilder().setArrayValue(message.unpack(ArrayOfValue.class)).build();
+        } else if (message.is(MapOfStringToValue.class)) {
+            return Value.newBuilder().setMapValue(message.unpack(MapOfStringToValue.class)).build();
+        } else {
+            return Value.newBuilder().setAnyValue(packAny(message)).build();
+        }
+    }
+
     public static Value packValue(Message message) throws InvalidProtocolBufferException {
         if (message instanceof Value) {
             return (Value) message;
@@ -308,6 +322,8 @@ public final class MessageTypes {
             return Value.newBuilder().setArrayValue((ArrayOfValue) message).build();
         } else if (message instanceof MapOfStringToValue) {
             return Value.newBuilder().setMapValue((MapOfStringToValue) message).build();
+        } else if (message instanceof Any) {
+            return unpackAnyToValue((Any) message);
         } else {
             return Value.newBuilder().setAnyValue(packAny(message)).build();
         }

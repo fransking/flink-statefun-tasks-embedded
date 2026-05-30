@@ -18,9 +18,7 @@ package com.sbbsystems.statefun.tasks.e2e;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
-import com.sbbsystems.statefun.tasks.generated.Event;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
-import com.sbbsystems.statefun.tasks.generated.TaskStatus;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,15 +31,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 public class EventsTests {
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     void setup() {
-        harness = NamespacedTestHarness.newInstance();
+        legacyHarness = NamespacedTestHarness.newInstance();
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    void test_pipeline_created_event_is_sent() throws InvalidProtocolBufferException {
+    void test_pipeline_created_event_is_sent_using_legacy_types() throws InvalidProtocolBufferException {
 
         var p1 = PipelineBuilder
                 .beginWith("echo", StringValue.of("a"))
@@ -54,10 +54,10 @@ public class EventsTests {
 
         var pipeline = inParallel(List.of(p1, p2)).build();
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
         var taskResult = response.unpack(TaskResult.class);
 
-        var events = harness.getEvents(taskResult.getId());
+        var events = legacyHarness.getEvents(taskResult.getId());
         var pipelineCreatedEvents = events.stream().filter(Event::hasPipelineCreated).collect(Collectors.toUnmodifiableList());
         assertThat(pipelineCreatedEvents).hasSize(1);
 
@@ -70,16 +70,62 @@ public class EventsTests {
     }
 
     @Test
-    void test_pipeline_status_changed_events_are_sent() throws InvalidProtocolBufferException {
+    void test_pipeline_created_event_is_sent_using_value_types() throws InvalidProtocolBufferException {
+
+        var p1 = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Value.newBuilder().setStringValue("a").build())
+                .continueWith("echo")
+                .build();
+
+        var p2 = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Value.newBuilder().setStringValue("b").build())
+                .build();
+
+        var pipeline = PipelineBuilder.forE2eWorker(false).inParallel(List.of(p1, p2)).build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+
+        var events = valueHarness.getEvents(taskResult.getId());
+        var pipelineCreatedEvents = events.stream().filter(Event::hasPipelineCreated).collect(Collectors.toUnmodifiableList());
+        assertThat(pipelineCreatedEvents).hasSize(1);
+
+        var event = pipelineCreatedEvents.get(0).getPipelineCreated();
+        assertThat(event.getPipeline().getEntriesCount()).isEqualTo(1);
+        assertThat(event.getPipeline().getEntries(0).hasGroupEntry()).isTrue();
+        assertThat(event.getPipeline().getEntries(0).getGroupEntry().getGroupCount()).isEqualTo(2);
+        assertThat(event.getPipeline().getEntries(0).getGroupEntry().getGroup(0).getEntriesCount()).isEqualTo(2);
+        assertThat(event.getPipeline().getEntries(0).getGroupEntry().getGroup(1).getEntriesCount()).isEqualTo(1);
+    }
+
+    @Test
+    void test_pipeline_status_changed_events_are_sent_using_legacy_types() throws InvalidProtocolBufferException {
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(1))
                 .continueWith("echo")
                 .build();
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
         var taskResult = response.unpack(TaskResult.class);
 
-        var events = harness.getEvents(taskResult.getId());
+        var events = legacyHarness.getEvents(taskResult.getId());
+        var statusEvents = events.stream().filter(Event::hasPipelineStatusChanged).collect(Collectors.toUnmodifiableList());
+        assertThat(statusEvents).hasSize(2);
+        assertThat(statusEvents.get(0).getPipelineStatusChanged().getStatus().getValue()).isEqualTo(TaskStatus.Status.RUNNING);
+        assertThat(statusEvents.get(1).getPipelineStatusChanged().getStatus().getValue()).isEqualTo(TaskStatus.Status.COMPLETED);
+    }
+
+    @Test
+    void test_pipeline_status_changed_events_are_sent_using_value_types() throws InvalidProtocolBufferException {
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Value.newBuilder().setIntValue(1).build())
+                .continueWith("echo")
+                .build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+
+        var events = valueHarness.getEvents(taskResult.getId());
         var statusEvents = events.stream().filter(Event::hasPipelineStatusChanged).collect(Collectors.toUnmodifiableList());
         assertThat(statusEvents).hasSize(2);
         assertThat(statusEvents.get(0).getPipelineStatusChanged().getStatus().getValue()).isEqualTo(TaskStatus.Status.RUNNING);

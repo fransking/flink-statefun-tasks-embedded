@@ -18,6 +18,7 @@ package com.sbbsystems.statefun.tasks.groupaggregation;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 
@@ -25,6 +26,7 @@ import java.util.LinkedList;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static com.sbbsystems.statefun.tasks.types.MessageTypes.*;
 import static com.sbbsystems.statefun.tasks.util.Unchecked.unchecked;
 
 
@@ -64,7 +66,7 @@ public class GroupResultAggregator {
                     aggregatedResults.addItems(taskResult.getResult());
                     aggregateState(taskResult.getState(), unaggregatedState, aggregatedState);
                 } else {
-                    aggregatedValueResults.addItems(taskResult.getResult().unpack(Value.class));
+                    aggregatedValueResults.addItems(unpackAnyToValue(taskResult.getResult()));
                     aggregateValueState(taskResult.getState(), unaggregatedState, aggregatedValueState);
                 }
 
@@ -158,7 +160,17 @@ public class GroupResultAggregator {
 
         if (unaggregatedState.isEmpty()) {
             if (state.is(MapOfStringToValue.class)) {
+                // state may be an Any wrapped MapOfStringToValue that can be merged
                 mergeValueItems(state.unpack(MapOfStringToValue.class), aggregatedState);
+            }
+            else if (state.is(Value.class)) {
+                // or state may be an Any wrapped Value containing a MapOfStringToValue that can be merged
+                var value = state.unpack(Value.class);
+                if (value.hasMapValue()) {
+                    mergeValueItems(value.getMapValue(), aggregatedState);
+                } else {
+                    unaggregatedState.add(state);
+                }
             } else {
                 unaggregatedState.add(state);
             }

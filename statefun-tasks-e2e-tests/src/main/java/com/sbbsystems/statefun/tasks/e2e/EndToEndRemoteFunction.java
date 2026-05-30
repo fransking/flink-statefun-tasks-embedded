@@ -213,10 +213,17 @@ public class EndToEndRemoteFunction implements StatefulFunction {
     private TaskResult.Builder errorTask(TaskRequest taskRequest)
             throws StatefunTasksException, InvalidProtocolBufferException {
 
-        var request = getArgsAndKwargs(taskRequest);
-        var kwargs = request.getKwargs();
-        var message = kwargs.getItemsOrDefault("message", packAny(StringValue.of("")));
-        throw new StatefunTasksException(message.unpack(StringValue.class).getValue());
+        if (useLegacyTypes) {
+            var request = getArgsAndKwargs(taskRequest);
+            var kwargs = request.getKwargs();
+            var message = kwargs.getItemsOrDefault("message", packAny(StringValue.of("")));
+            throw new StatefunTasksException(message.unpack(StringValue.class).getValue());
+        } else {
+            var request = getValueArgsAndKwargs(taskRequest);
+            var kwargs = request.getKwargs();
+            var message = kwargs.getItemsOrDefault("message", Value.newBuilder().setStringValue("").build());
+            throw new StatefunTasksException(message.getStringValue());
+        }
     }
 
     private TaskResult.Builder updateAndGetStateTask(TaskRequest taskRequest)
@@ -259,6 +266,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                     .newBuilder()
                     .setResult(toResult(request.getArgs()))
                     .setState(toResult(request.getArgs()));
+            // returns Any(TupleOfAny(0) = MapOfStringAny)) = Any(MapOfStringAny)
         } else {
             var request = getValueArgsAndKwargs(taskRequest);
 
@@ -266,6 +274,7 @@ public class EndToEndRemoteFunction implements StatefulFunction {
                     .newBuilder()
                     .setResult(toResult(request.getArgs()))
                     .setState(toResult(request.getArgs()));
+            // return Any(TupleOfValue(0) = Value(MapOfStringValue)) = Any(Value[MapOfStringValue])
         }
     }
 
@@ -274,8 +283,14 @@ public class EndToEndRemoteFunction implements StatefulFunction {
 
         var state = taskRequest.getState();
 
-        if (state.is(BoolValue.class) && state.unpack(BoolValue.class).getValue()) {
-            throw new StatefunTasksException("error in finally");
+        if (useLegacyTypes) {
+            if (state.is(BoolValue.class) && state.unpack(BoolValue.class).getValue()) {
+                throw new StatefunTasksException("error in finally");
+            }
+        } else {
+            if (state.is(Value.class) && state.unpack(Value.class).getBoolValue()) {
+                throw new StatefunTasksException("error in finally");
+            }
         }
 
         return TaskResult.newBuilder();
@@ -294,18 +309,20 @@ public class EndToEndRemoteFunction implements StatefulFunction {
         }
 
         var endTime = LocalDateTime.now();
-
         var stringResult = MessageFormat.format("{0}|{1}", startTime, endTime);
 
-        return TaskResult.newBuilder()
-                .setResult(Any.pack(StringValue.of(stringResult)));
+        if (useLegacyTypes) {
+            return TaskResult.newBuilder().setResult(Any.pack(StringValue.of(stringResult)));
+        } else {
+            return TaskResult.newBuilder().setResult(Any.pack(Value.newBuilder().setStringValue(stringResult).build()));
+        }
     }
 
     private void newPipelineTask(Context context, TaskRequest taskRequest)
             throws InvalidProtocolBufferException {
 
-        var request = getArgsAndKwargs(taskRequest);
-        var builder = PipelineBuilder.beginWith("echo", request);
+        var request = (useLegacyTypes) ? getArgsAndKwargs(taskRequest) : getValueArgsAndKwargs(taskRequest);
+        var builder = PipelineBuilder.forE2eWorker(useLegacyTypes).beginWith("echo", request);
 
         var output = TaskRequest.newBuilder()
                 .setUid(taskRequest.getUid())

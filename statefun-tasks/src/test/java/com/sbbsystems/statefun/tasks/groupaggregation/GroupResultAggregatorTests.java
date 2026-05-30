@@ -84,6 +84,10 @@ public class GroupResultAggregatorTests {
         return Any.pack(MapOfStringToValue.newBuilder().putAllItems(map).build());
     }
 
+    private Any mapToValueOfValueProto(Map<String, Value> map) {
+        return Any.pack(Value.newBuilder().setMapValue(MapOfStringToValue.newBuilder().putAllItems(map)).build());
+    }
+
     // ---- setup ---------------------------------------------------------------------------------
 
     @BeforeEach
@@ -243,6 +247,26 @@ public class GroupResultAggregatorTests {
                 wrapValueResult(none, mapToValueProto(Map.of("A", vA))),
                 wrapValueResult(none, mapToValueProto(Map.of("B", vB1))),
                 wrapValueResult(none, mapToValueProto(Map.of("B", vB2)))
+        );
+
+        var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, false, false, false);
+
+        var aggregatedState = aggregatedResult.getTaskResult().getState();
+        assertThat(aggregatedState.is(MapOfStringToValue.class)).isTrue();
+        var stateMap = aggregatedState.unpack(MapOfStringToValue.class).getItemsMap();
+        assertThat(stateMap).containsExactlyInAnyOrderEntriesOf(Map.of("A", vA, "B", vB1));
+    }
+
+    @Test
+    public void merges_state_when_each_task_returns_state_as_value_of_map_of_string_to_value_value_mode() throws InvalidProtocolBufferException {
+        var vA = Value.newBuilder().setIntValue(1).build();
+        var vB1 = Value.newBuilder().setIntValue(2).build();
+        var vB2 = Value.newBuilder().setIntValue(3).build();
+        var none = Value.newBuilder().setAnyValue(Any.pack(NoneValue.getDefaultInstance())).build();
+        var groupResults = Stream.of(
+                wrapValueResult(none, mapToValueOfValueProto(Map.of("A", vA))),
+                wrapValueResult(none, mapToValueOfValueProto(Map.of("B", vB1))),
+                wrapValueResult(none, mapToValueOfValueProto(Map.of("B", vB2)))
         );
 
         var aggregatedResult = resultAggregator.aggregateResults("group-id", "invocation-id", groupResults, false, false, false);

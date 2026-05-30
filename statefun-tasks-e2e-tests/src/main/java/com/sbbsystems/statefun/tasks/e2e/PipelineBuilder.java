@@ -52,12 +52,24 @@ public class PipelineBuilder {
         return forE2eWorker().inParallel(entries);
     }
 
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(boolean useLegacyTypes, Iterable<Pipeline> entries) {
+        return forE2eWorker(useLegacyTypes).inParallel(entries);
+    }
+
     public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(Iterable<Pipeline> entries, boolean returnExceptions) {
         return forE2eWorker().inParallel(entries, returnExceptions);
     }
 
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(boolean useLegacyTypes, Iterable<Pipeline> entries, boolean returnExceptions) {
+        return forE2eWorker(useLegacyTypes).inParallel(entries, returnExceptions);
+    }
+
     public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(Iterable<Pipeline> entries, int maxParallelism) {
         return forE2eWorker().inParallel(entries, maxParallelism);
+    }
+
+    public static com.sbbsystems.statefun.tasks.pipeline.PipelineBuilder inParallel(boolean useLegacyTypes, Iterable<Pipeline> entries, int maxParallelism) {
+        return forE2eWorker(useLegacyTypes).inParallel(entries, maxParallelism);
     }
 
     // not instantiable

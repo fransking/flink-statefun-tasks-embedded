@@ -31,15 +31,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class CancelPipelineTests {
     private final long POLL_WAIT_MILLIS = 10_000;
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     public void setup() {
-        harness = NamespacedTestHarness.newInstance();
+
+        legacyHarness = NamespacedTestHarness.newInstance();
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    public void test_cancelling_a_pipeline()
+    public void test_cancelling_a_pipeline_using_legacy_types()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
@@ -49,20 +52,20 @@ public class CancelPipelineTests {
 
         var uid = Id.generate();
         WaitHandles.create(uid);
-        harness.startPipeline(pipeline, null, uid);
+        legacyHarness.startPipeline(pipeline, null, uid);
 
-        var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        var event = legacyHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
         assertThat(event.hasPipelineCreated()).isTrue();
 
-        var cancelResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        var cancelResult = legacyHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
         assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
 
         WaitHandles.set(uid);
 
-        var result = harness.getMessage(uid);  // task exception (cancelled)
+        var result = legacyHarness.getMessage(uid);  // task exception (cancelled)
         assertThat(result.toString()).contains("PipelineCancelledException");
 
-        var events = harness.getEvents(uid);
+        var events = legacyHarness.getEvents(uid);
 
         var pipelineStatuses = events.stream()
                 .filter(Event::hasPipelineStatusChanged)
@@ -75,21 +78,71 @@ public class CancelPipelineTests {
     }
 
     @Test
-    public void test_cancelling_a_completed_pipeline() throws InvalidProtocolBufferException {
+    public void test_cancelling_a_pipeline_using_value_types()
+            throws InvalidProtocolBufferException, InterruptedException {
+
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("delay")
+                .continueWith("echo")
+                .build();
+
+        var uid = Id.generate();
+        WaitHandles.create(uid);
+        valueHarness.startPipeline(pipeline, null, uid);
+
+        var event = valueHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        assertThat(event.hasPipelineCreated()).isTrue();
+
+        var cancelResult = valueHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
+
+        var result = valueHarness.getMessage(uid);  // task exception (cancelled)
+        assertThat(result.toString()).contains("PipelineCancelledException");
+
+        var events = valueHarness.getEvents(uid);
+
+        var pipelineStatuses = events.stream()
+                .filter(Event::hasPipelineStatusChanged)
+                .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
+                .collect(Collectors.toList());
+        assertThat(pipelineStatuses).containsExactly(
+                TaskStatus.Status.RUNNING,
+                TaskStatus.Status.CANCELLING,
+                TaskStatus.Status.CANCELLED);
+    }
+
+    @Test
+    public void test_cancelling_a_completed_pipeline_using_legacy_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(0))
                 .build();
 
-        harness.runPipeline(pipeline, null, uid);
+        legacyHarness.runPipeline(pipeline, null, uid);
 
-        var pauseResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        var pauseResult = legacyHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
 
         assertThat(pauseResult.is(TaskActionException.class)).isTrue();
     }
 
     @Test
-    public void test_cancelling_a_pipeline_with_a_finally()
+    public void test_cancelling_a_completed_pipeline_using_value_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Int32Value.of(0))
+                .build();
+
+        valueHarness.runPipeline(pipeline, null, uid);
+
+        var pauseResult = valueHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+
+        assertThat(pauseResult.is(TaskActionException.class)).isTrue();
+    }
+
+    @Test
+    public void test_cancelling_a_pipeline_with_a_finally_using_legacy_types()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
@@ -101,20 +154,58 @@ public class CancelPipelineTests {
         var uid = Id.generate();
         WaitHandles.create(uid);
 
-        harness.startPipeline(pipeline, null, uid);
+        legacyHarness.startPipeline(pipeline, null, uid);
 
-        var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        var event = legacyHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
         assertThat(event.hasPipelineCreated()).isTrue();
 
-        var cancelResult = harness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        var cancelResult = legacyHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
         assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
 
         WaitHandles.set(uid);
 
-        var result = harness.getMessage(uid);  // task exception (cancelled)
+        var result = legacyHarness.getMessage(uid);  // task exception (cancelled)
         assertThat(result.toString()).contains("PipelineCancelledException");
 
-        var events = harness.getEvents(uid);
+        var events = legacyHarness.getEvents(uid);
+
+        var pipelineStatuses = events.stream()
+                .filter(Event::hasPipelineStatusChanged)
+                .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
+                .collect(Collectors.toList());
+        assertThat(pipelineStatuses).containsExactly(
+                TaskStatus.Status.RUNNING,
+                TaskStatus.Status.CANCELLING,
+                TaskStatus.Status.CANCELLED);
+    }
+
+    @Test
+    public void test_cancelling_a_pipeline_with_a_finally_using_value_types()
+            throws InvalidProtocolBufferException, InterruptedException {
+
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("delay")
+                .continueWith("echo")
+                .finally_do("cleanup")
+                .build();
+
+        var uid = Id.generate();
+        WaitHandles.create(uid);
+
+        valueHarness.startPipeline(pipeline, null, uid);
+
+        var event = valueHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        assertThat(event.hasPipelineCreated()).isTrue();
+
+        var cancelResult = valueHarness.sendActionAndGetResponse(TaskAction.CANCEL_PIPELINE, uid);
+        assertThat(cancelResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
+
+        var result = valueHarness.getMessage(uid);  // task exception (cancelled)
+        assertThat(result.toString()).contains("PipelineCancelledException");
+
+        var events = valueHarness.getEvents(uid);
 
         var pipelineStatuses = events.stream()
                 .filter(Event::hasPipelineStatusChanged)
