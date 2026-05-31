@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +23,8 @@ import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -476,6 +479,7 @@ public class ParallelPipelineTests {
     }
 
     @Test
+    @Execution(ExecutionMode.SAME_THREAD)
     void test_large_parallel_pipeline_returns_aggregated_results_using_legacy_types() throws InvalidProtocolBufferException {
         var group = new LinkedList<Pipeline>();
 
@@ -497,6 +501,7 @@ public class ParallelPipelineTests {
     }
 
     @Test
+    @Execution(ExecutionMode.SAME_THREAD)
     void test_large_parallel_pipeline_returns_aggregated_results_using_value_types() throws InvalidProtocolBufferException {
         var group = new LinkedList<Pipeline>();
 
