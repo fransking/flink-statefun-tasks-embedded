@@ -478,47 +478,47 @@ public class ParallelPipelineTests {
         assertThat(result).isEqualTo("([], 2)");
     }
 
-    @Test
-    @Execution(ExecutionMode.SAME_THREAD)
-    void test_large_parallel_pipeline_returns_aggregated_results_using_legacy_types() throws InvalidProtocolBufferException {
-        var group = new LinkedList<Pipeline>();
-
-        for (var i = 1; i <= 200000; i++) {
-            var p = PipelineBuilder
-                    .beginWith("echo", StringValue.of("" + i))
-                    .build();
-
-            group.add(p);
-        }
-
-        var pipeline = inParallel(group).build();
-
-        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
-        var taskResult = response.unpack(TaskResult.class);
-        var result = asString(taskResult.getResult());
-
-        assertThat(result.contains("200000")).isTrue();
-    }
-
 //    @Test
 //    @Execution(ExecutionMode.SAME_THREAD)
-//    void test_large_parallel_pipeline_returns_aggregated_results_using_value_types() throws InvalidProtocolBufferException {
+//    void test_large_parallel_pipeline_returns_aggregated_results_using_legacy_types() throws InvalidProtocolBufferException {
 //        var group = new LinkedList<Pipeline>();
 //
 //        for (var i = 1; i <= 200000; i++) {
-//            var p = PipelineBuilder.forE2eWorker(false)
-//                    .beginWith("echo", Value.newBuilder().setStringValue("" + i).build())
+//            var p = PipelineBuilder
+//                    .beginWith("echo", StringValue.of("" + i))
 //                    .build();
 //
 //            group.add(p);
 //        }
 //
-//        var pipeline = inParallel(false, group).build();
+//        var pipeline = inParallel(group).build();
 //
-//        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+//        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
 //        var taskResult = response.unpack(TaskResult.class);
 //        var result = asString(taskResult.getResult());
 //
 //        assertThat(result.contains("200000")).isTrue();
 //    }
+
+    @Test
+    @Execution(ExecutionMode.SAME_THREAD)
+    void test_large_parallel_pipeline_returns_aggregated_results_using_value_types() throws InvalidProtocolBufferException {
+        var group = new LinkedList<Pipeline>();
+
+        for (var i = 1; i <= 200000; i++) {
+            var p = PipelineBuilder.forE2eWorker(false)
+                    .beginWith("echo", Value.newBuilder().setStringValue("" + i).build())
+                    .build();
+
+            group.add(p);
+        }
+
+        var pipeline = inParallel(false, group).build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+
+        assertThat(result.contains("200000")).isTrue();
+    }
 }
