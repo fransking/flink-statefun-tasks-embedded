@@ -7,7 +7,7 @@
     <groupId>com.sbbsystems.flink</groupId>
     <artifactId>statefun-tasks-parent</artifactId>
     <name>statefun-tasks-parent</name>
-    <version>3.4.3</version>
+    <version>3.4.4</version>
     <packaging>pom</packaging>
 
     <description>Embedded pipeline function for Flink Statefun Tasks</description>
