@@ -19,12 +19,10 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sbbsystems.statefun.tasks.generated.ArgsAndKwargs;
-import com.sbbsystems.statefun.tasks.generated.MapOfStringToAny;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
-import org.apache.flink.api.java.tuple.Tuple;
 
 public final class ArgsAndKwargsSerializer {
     private final ArgsAndKwargs argsAndKwargs;
@@ -51,7 +49,6 @@ public final class ArgsAndKwargsSerializer {
                 return ArgsAndKwargsSerializer.of(any.unpack(ArgsAndKwargs.class));
             }
             else {
-
                 TupleOfAny args;
 
                 if (any.is(TupleOfAny.class)) {

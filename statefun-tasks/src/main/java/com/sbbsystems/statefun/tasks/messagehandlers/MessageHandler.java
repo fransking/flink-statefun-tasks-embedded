@@ -71,14 +71,12 @@ public abstract class MessageHandler<TMessage, TState> {
         if (!Strings.isNullOrEmpty(replyTopic)) {
             // send a message to egress if reply_topic was specified
             context.send(MessageTypes.getEgress(configuration), MessageTypes.toEgress(message, replyTopic));
-        } else if (replyAddress != null) {
-            // else call back to a particular flink function if reply_address was specified
-            if (!Strings.isNullOrEmpty(replyAddress.getNamespace())
+        } else if (replyAddress != null
+                && !Strings.isNullOrEmpty(replyAddress.getNamespace())
                 && !Strings.isNullOrEmpty(replyAddress.getType())
                 && !Strings.isNullOrEmpty(replyAddress.getId())) {
-
-                context.send(MessageTypes.toSdkAddress(replyAddress), MessageTypes.wrap(message));
-            }
+            // else call back to a particular flink function if reply_address was specified
+            context.send(MessageTypes.toSdkAddress(replyAddress), MessageTypes.wrap(message));
         } else if (!Objects.isNull(context.caller())) {
             // else call back to the caller of this function (if there is one)
             context.send(context.caller(), MessageTypes.wrap(message));

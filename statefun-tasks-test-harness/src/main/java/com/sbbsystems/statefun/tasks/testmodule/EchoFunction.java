@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.testmodule;
 
+import com.google.protobuf.StringValue;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskResult;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;

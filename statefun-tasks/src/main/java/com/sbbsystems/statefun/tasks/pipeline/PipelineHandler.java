@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,8 +111,13 @@ public class PipelineHandler {
 
                 outgoingTaskRequest
                         .setReplyAddress(MessageTypes.getCallbackFunctionAddress(configuration, context.self().id()))
-                        .setRequest(taskEntry.mergeWith(MessageTypes.argsOfEmptyArray()))
                         .setState(requireNonNullElse(state.getCurrentTaskState(), Any.getDefaultInstance()));
+
+                if (configuration.isUseLegacyTypes()) {
+                    outgoingTaskRequest.setRequest(taskEntry.mergeWith(MessageTypes.argsOfEmptyArray()));
+                } else {
+                    outgoingTaskRequest.setRequest(taskEntry.mergeValueWith(MessageTypes.valueArgsOfEmptyArray()));
+                }
 
                 // submit the task
                 context.send(MessageTypes.getSdkAddress(entry), MessageTypes.wrap(outgoingTaskRequest.build()));
@@ -195,7 +201,9 @@ public class PipelineHandler {
     protected void respondWithResult(@NotNull Context context, TaskRequest taskRequest, TaskResult taskResult) {
         var result = state.getIsFruitful()
                 ? taskResult.getResult()
-                : MessageTypes.tupleOfEmptyArray();
+                : configuration.isUseLegacyTypes()
+                  ? MessageTypes.tupleOfEmptyArray()
+                  : MessageTypes.tupleOfValueEmptyArray();
 
         var outgoingTaskResult = state.getIsInline()
                 ? MessageTypes.toOutgoingTaskResult(taskRequest, result, taskResult.getState())

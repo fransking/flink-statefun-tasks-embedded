@@ -22,6 +22,7 @@ import com.sbbsystems.statefun.tasks.configuration.PipelineConfiguration;
 import com.sbbsystems.statefun.tasks.core.StatefunTasksException;
 import com.sbbsystems.statefun.tasks.events.PipelineEvents;
 import com.sbbsystems.statefun.tasks.generated.ArrayOfAny;
+import com.sbbsystems.statefun.tasks.generated.ArrayOfValue;
 import com.sbbsystems.statefun.tasks.generated.Pipeline;
 import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.generated.TaskStatus;
@@ -108,14 +109,27 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
             // reset pipeline state
             state.reset();
 
-            var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer();
-            var pipelineProto = taskArgsAndKwargs.getArg(0).unpack(Pipeline.class);
+            Pipeline pipelineProto;
 
-            state.setIsInline(pipelineProto.getInline());
+            if (configuration.isUseLegacyTypes()) {
+                var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer();
+                pipelineProto = taskArgsAndKwargs.getArg(0).unpack(Pipeline.class);
 
-            // set the args and kwargs for the initial tasks in the pipeline
-            var initialArgsAndKwargs = taskArgsAndKwargs.getInitialArgsAndKwargs(pipelineProto, 1);
-            state.setInitialArgsAndKwargs(initialArgsAndKwargs);
+                state.setIsInline(pipelineProto.getInline());
+
+                // set the args and kwargs for the initial tasks in the pipeline
+                var initialArgsAndKwargs = taskArgsAndKwargs.getInitialArgsAndKwargs(pipelineProto, 1);
+                state.setInitialArgsAndKwargs(initialArgsAndKwargs);
+            } else {
+                var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getValueArgsAndKwargsSerializer();
+                pipelineProto = taskArgsAndKwargs.getArg(0).getAnyValue().unpack(Pipeline.class);
+
+                state.setIsInline(pipelineProto.getInline());
+
+                // set the args and kwargs for the initial tasks in the pipeline
+                var initialValueArgsAndKwargs = taskArgsAndKwargs.getInitialArgsAndKwargs(pipelineProto, 1);
+                state.setInitialValueArgsAndKwargs(initialValueArgsAndKwargs);
+            }
 
             if (pipelineProto.hasInitialState()) {
                 // if we have initial state then set it
@@ -152,28 +166,42 @@ public final class TaskRequestHandler extends MessageHandler<TaskRequest, Pipeli
 
         try {
 
-            var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer();
-            var from = taskArgsAndKwargs.getArg(0).unpack(ArrayOfAny.class);
-            var into = ArrayOfAny.newBuilder();
+            if (configuration.isUseLegacyTypes()) {
+                var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer();
+                var from = taskArgsAndKwargs.getArg(0).unpack(ArrayOfAny.class);
+                var into = ArrayOfAny.newBuilder();
 
-            for (var item: from.getItemsList()) {
-                into.addAllItems(item.unpack(ArrayOfAny.class).getItemsList());
+                for (var item : from.getItemsList()) {
+                    into.addAllItems(item.unpack(ArrayOfAny.class).getItemsList());
+                }
+
+                respond(context, taskRequest, MessageTypes.toOutgoingTaskResult(taskRequest, into.build()));
+            } else {
+                var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getValueArgsAndKwargsSerializer();
+                var from = taskArgsAndKwargs.getArg(0).getArrayValue();
+                var into = ArrayOfValue.newBuilder();
+
+                for (var item : from.getItemsList()) {
+                    into.addAllItems(item.getArrayValue().getItemsList());
+                }
+
+                respond(context, taskRequest, MessageTypes.toOutgoingTaskResult(taskRequest, into.build()));
             }
 
-            var taskResult = MessageTypes.toOutgoingTaskResult(taskRequest, into.build());
-            respond(context, taskRequest, taskResult);
-
         } catch (IndexOutOfBoundsException | InvalidProtocolBufferException e) {
-            throw new InvalidMessageTypeException("Expected a TaskRequest containing an ArrayOfAny", e);
+            throw new InvalidMessageTypeException("Expected a TaskRequest containing an array of arrays", e);
         }
     }
 
     private void echo(Context context, TaskRequest taskRequest)
             throws StatefunTasksException {
 
-        var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer().getArgsAndKwargs();
-
-        var taskResult = MessageTypes.toOutgoingTaskResult(taskRequest, taskArgsAndKwargs.getArgs(), taskRequest.getState());
-        respond(context, taskRequest, taskResult);
+        if (configuration.isUseLegacyTypes()) {
+            var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getArgsAndKwargsSerializer().getArgsAndKwargs();
+            respond(context, taskRequest, MessageTypes.toOutgoingTaskResult(taskRequest, taskArgsAndKwargs.getArgs(), taskRequest.getState()));
+        } else {
+            var taskArgsAndKwargs = TaskRequestSerializer.of(taskRequest).getValueArgsAndKwargsSerializer().getArgsAndKwargs();
+            respond(context, taskRequest, MessageTypes.toOutgoingTaskResult(taskRequest, taskArgsAndKwargs.getArgs(), taskRequest.getState()));
+        }
     }
 }

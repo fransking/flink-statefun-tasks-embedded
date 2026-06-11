@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,15 +32,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class PausePipelineTests {
     private final long POLL_WAIT_MILLIS = 10_000;
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     public void setup() {
-        harness = NamespacedTestHarness.newInstance();
+        legacyHarness = NamespacedTestHarness.newInstance();
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    public void test_pausing_and_resuming_a_pipeline()
+    public void test_pausing_and_resuming_a_pipeline_using_legacy_types()
             throws InvalidProtocolBufferException, InterruptedException {
 
         var pipeline = PipelineBuilder
@@ -49,24 +52,24 @@ public class PausePipelineTests {
 
         var uid = Id.generate();
         WaitHandles.create(uid);
-        harness.startPipeline(pipeline, null, uid);
+        legacyHarness.startPipeline(pipeline, null, uid);
 
-        var event = harness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        var event = legacyHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
         assertThat(event.hasPipelineCreated()).isTrue();
 
-        var pauseResult = harness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
+        var pauseResult = legacyHarness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
         assertThat(pauseResult.is(TaskActionResult.class)).isTrue();
 
         WaitHandles.set(uid);
 
         // now un-pause
-        var resumeResult = harness.sendActionAndGetResponse(TaskAction.UNPAUSE_PIPELINE, uid);
+        var resumeResult = legacyHarness.sendActionAndGetResponse(TaskAction.UNPAUSE_PIPELINE, uid);
         assertThat(resumeResult.is(TaskActionResult.class)).isTrue();
 
-        harness.getMessage(uid);  // task result
-        var events = harness.getEvents(uid);
+        legacyHarness.getMessage(uid);  // task result
+        var events = legacyHarness.getEvents(uid);
 
-        var pipelineStatuses = Stream.concat(events.stream(), harness.getEvents(uid).stream())
+        var pipelineStatuses = Stream.concat(events.stream(), legacyHarness.getEvents(uid).stream())
                 .filter(Event::hasPipelineStatusChanged)
                 .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
                 .collect(Collectors.toList());
@@ -78,15 +81,68 @@ public class PausePipelineTests {
     }
 
     @Test
-    public void test_pausing_completed_pipeline() throws InvalidProtocolBufferException {
+    public void test_pausing_and_resuming_a_pipeline_using_value_types()
+            throws InvalidProtocolBufferException, InterruptedException {
+
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("delay")
+                .continueWith("echo")
+                .build();
+
+        var uid = Id.generate();
+        WaitHandles.create(uid);
+        valueHarness.startPipeline(pipeline, null, uid);
+
+        var event = valueHarness.pollForEvent(uid, POLL_WAIT_MILLIS);  // created pipeline
+        assertThat(event.hasPipelineCreated()).isTrue();
+
+        var pauseResult = valueHarness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
+        assertThat(pauseResult.is(TaskActionResult.class)).isTrue();
+
+        WaitHandles.set(uid);
+
+        // now un-pause
+        var resumeResult = valueHarness.sendActionAndGetResponse(TaskAction.UNPAUSE_PIPELINE, uid);
+        assertThat(resumeResult.is(TaskActionResult.class)).isTrue();
+
+        valueHarness.getMessage(uid);  // task result
+        var events = valueHarness.getEvents(uid);
+
+        var pipelineStatuses = Stream.concat(events.stream(), valueHarness.getEvents(uid).stream())
+                .filter(Event::hasPipelineStatusChanged)
+                .map(e -> e.getPipelineStatusChanged().getStatus().getValue())
+                .collect(Collectors.toList());
+        assertThat(pipelineStatuses).containsExactly(
+                TaskStatus.Status.RUNNING,
+                TaskStatus.Status.PAUSED,
+                TaskStatus.Status.RUNNING,
+                TaskStatus.Status.COMPLETED);
+    }
+
+    @Test
+    public void test_pausing_completed_pipeline_using_legacy_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(0))
                 .build();
 
-        harness.runPipeline(pipeline, null, uid);
+        legacyHarness.runPipeline(pipeline, null, uid);
 
-        var pauseResult = harness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
+        var pauseResult = legacyHarness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
+
+        assertThat(pauseResult.is(TaskActionException.class)).isTrue();
+    }
+
+    @Test
+    public void test_pausing_completed_pipeline_using_value_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Int32Value.of(0))
+                .build();
+
+        valueHarness.runPipeline(pipeline, null, uid);
+
+        var pauseResult = valueHarness.sendActionAndGetResponse(TaskAction.PAUSE_PIPELINE, uid);
 
         assertThat(pauseResult.is(TaskActionException.class)).isTrue();
     }

@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +19,7 @@ package com.sbbsystems.statefun.tasks.e2e;
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
-import com.sbbsystems.statefun.tasks.generated.TaskException;
-import com.sbbsystems.statefun.tasks.generated.TaskResult;
-import com.sbbsystems.statefun.tasks.generated.TupleOfAny;
+import com.sbbsystems.statefun.tasks.generated.*;
 import com.sbbsystems.statefun.tasks.utils.NamespacedTestHarness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,15 +30,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 public class FinallyTests {
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     void setup() {
-        harness = NamespacedTestHarness.newInstance();
+        legacyHarness = NamespacedTestHarness.newInstance(true);
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    void test_finally_runs_when_there_is_no_error() throws InvalidProtocolBufferException {
+    void test_finally_runs_when_there_is_no_error_using_legacy_types() throws InvalidProtocolBufferException {
         var arguments = TupleOfAny
                 .newBuilder()
                 .addItems(packAny(StringValue.of("task 1")))
@@ -52,7 +53,7 @@ public class FinallyTests {
                 .inline()
                 .build();
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
         var taskResult = response.unpack(TaskResult.class);
         var result = asString(taskResult.getResult());
         var state = asString(taskResult.getState());
@@ -62,7 +63,30 @@ public class FinallyTests {
     }
 
     @Test
-    void test_when_finally_throws_an_error_it_is_returned() throws InvalidProtocolBufferException {
+    void test_finally_runs_when_there_is_no_error_using_value_types() throws InvalidProtocolBufferException {
+        var arguments = TupleOfValue
+                .newBuilder()
+                .addItems(Value.newBuilder().setStringValue("task 1").build())
+                .build();
+
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", arguments)
+                .finally_do("cleanup")
+                .withInitialState(Value.newBuilder().setBoolValue(false).build())  // do not throw error
+                .inline()
+                .build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
+        var taskResult = response.unpack(TaskResult.class);
+        var result = asString(taskResult.getResult());
+        var state = asString(taskResult.getState());
+
+        assertThat(result).isEqualTo("task 1");
+        assertThat(state).isEqualTo("false");
+    }
+
+    @Test
+    void test_when_finally_throws_an_error_it_is_returned_using_legacy_types() throws InvalidProtocolBufferException {
         var arguments = TupleOfAny
                 .newBuilder()
                 .addItems(packAny(StringValue.of("task 1")))
@@ -75,7 +99,29 @@ public class FinallyTests {
                 .inline()
                 .build();
 
-        var response = harness.runPipelineAndGetResponse(pipeline);
+        var response = legacyHarness.runPipelineAndGetResponse(pipeline);
+        var taskException = response.unpack(TaskException.class);
+        var state = asString(taskException.getState());
+
+        assertThat(taskException.getExceptionMessage()).isEqualTo("com.sbbsystems.statefun.tasks.core.StatefunTasksException: error in finally");
+        assertThat(state).isEqualTo("true");
+    }
+
+    @Test
+    void test_when_finally_throws_an_error_it_is_returned_using_value_types() throws InvalidProtocolBufferException {
+        var arguments = TupleOfValue
+                .newBuilder()
+                .addItems(Value.newBuilder().setStringValue("task 1").build())
+                .build();
+
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", arguments)
+                .finally_do("cleanup")
+                .withInitialState(Value.newBuilder().setBoolValue(true).build())  // throw error
+                .inline()
+                .build();
+
+        var response = valueHarness.runPipelineAndGetResponse(pipeline);
         var taskException = response.unpack(TaskException.class);
         var state = asString(taskException.getState());
 

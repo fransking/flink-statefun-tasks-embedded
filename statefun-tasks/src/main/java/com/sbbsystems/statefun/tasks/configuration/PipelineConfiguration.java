@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +32,7 @@ public final class PipelineConfiguration {
     private static final String EVENTS_EGRESS_FIELD = "eventsEgress";
     private static final String EVENTS_TOPIC_FIELD = "eventsTopic";
     private static final String CALLBACK_DELAY_MS_FIELD = "callbackDelayMs";
+    private static final String USE_LEGACY_TYPES_FIELD = "useLegacyTypes";
     private static final int DEFAULT_CALLBACK_DELAY_MS = 10;
 
     private final String pipelineId;
@@ -39,6 +41,7 @@ public final class PipelineConfiguration {
     private final String stateExpiration;
     private final String egress;
     private final int callbackDelayMs;
+    private final boolean useLegacyTypes;
 
     public static PipelineConfiguration fromNode(JsonNode jsonNode) {
         var specNode = (ObjectNode) jsonNode;
@@ -49,6 +52,7 @@ public final class PipelineConfiguration {
         var eventsTopic =  specNode.get(EVENTS_TOPIC_FIELD);
         var stateExpiration =  specNode.get(STATE_EXPIRATION_FIELD);
         var callbackDelayMs = specNode.get(CALLBACK_DELAY_MS_FIELD);
+        var useLegacyTypes = specNode.get(USE_LEGACY_TYPES_FIELD);
 
         return new PipelineConfiguration(
                 id.asText(),
@@ -56,7 +60,28 @@ public final class PipelineConfiguration {
                 eventsEgress == null ? null : eventsEgress.asText(),
                 eventsTopic == null ? null : eventsTopic.asText(),
                 stateExpiration == null ? null : stateExpiration.asText(),
-                callbackDelayMs == null ? DEFAULT_CALLBACK_DELAY_MS : callbackDelayMs.asInt()
+                callbackDelayMs == null ? DEFAULT_CALLBACK_DELAY_MS : callbackDelayMs.asInt(),
+                useLegacyTypes != null && useLegacyTypes.asBoolean()
+        );
+    }
+
+    public static PipelineConfiguration of(
+            @NotNull String pipelineId,
+            @NotNull String egress,
+            String eventsEgress,
+            String eventsTopic,
+            String stateExpiration,
+            int callbackDelayMs,
+            boolean useLegacyTypes) {
+
+        return new PipelineConfiguration(
+                Objects.requireNonNull(pipelineId),
+                Objects.requireNonNull(egress),
+                eventsEgress,
+                eventsTopic,
+                stateExpiration,
+                callbackDelayMs,
+                useLegacyTypes
         );
     }
 
@@ -74,7 +99,8 @@ public final class PipelineConfiguration {
                 eventsEgress,
                 eventsTopic,
                 stateExpiration,
-                callbackDelayMs
+                callbackDelayMs,
+                false
         );
     }
 
@@ -85,7 +111,20 @@ public final class PipelineConfiguration {
                 null,
                 null,
                 null,
-                DEFAULT_CALLBACK_DELAY_MS
+                DEFAULT_CALLBACK_DELAY_MS,
+                false
+        );
+    }
+
+    public static PipelineConfiguration of(@NotNull String pipelineId, @NotNull String egress, boolean useLegacyTypes) {
+        return new PipelineConfiguration(
+                Objects.requireNonNull(pipelineId),
+                Objects.requireNonNull(egress),
+                null,
+                null,
+                null,
+                DEFAULT_CALLBACK_DELAY_MS,
+                useLegacyTypes
         );
     }
 
@@ -95,7 +134,8 @@ public final class PipelineConfiguration {
             String eventsEgress,
             String eventsTopic,
             String stateExpiration,
-            int callbackDelayMs) {
+            int callbackDelayMs,
+            boolean useLegacyTypes) {
 
         this.pipelineId = pipelineId;
         this.egress = egress;
@@ -103,6 +143,7 @@ public final class PipelineConfiguration {
         this.eventsTopic = eventsTopic;
         this.stateExpiration = stateExpiration;
         this.callbackDelayMs = callbackDelayMs;
+        this.useLegacyTypes = useLegacyTypes;
     }
 
     public String getNamespace() {
@@ -150,5 +191,9 @@ public final class PipelineConfiguration {
 
     public Duration getCallbackDelay() {
         return Duration.ofMillis(this.callbackDelayMs);
+    }
+
+    public boolean isUseLegacyTypes() {
+        return useLegacyTypes;
     }
 }
