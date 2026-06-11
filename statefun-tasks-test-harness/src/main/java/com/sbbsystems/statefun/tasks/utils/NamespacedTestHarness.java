@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,19 +38,25 @@ import static java.util.Objects.isNull;
 
 public class NamespacedTestHarness {
     private final String namespace;
+    private final boolean useLegacyTypes;
     private static final AtomicInteger counter = new AtomicInteger();
     private static final Logger LOG = LoggerFactory.getLogger(NamespacedTestHarness.class);
 
-    private NamespacedTestHarness(String namespace) {
+    private NamespacedTestHarness(String namespace, boolean useLegacyTypes) {
         this.namespace = namespace;
+        this.useLegacyTypes = useLegacyTypes;
     }
 
     public static NamespacedTestHarness newInstance() {
+        return newInstance(true);
+    }
+
+    public static NamespacedTestHarness newInstance(boolean useLegacyTypes) {
         HarnessUtils.ensureHarnessThreadIsRunning();
         var counterVal = counter.getAndIncrement();
         var namespace = String.format("test-%s-", counterVal);
-        LOG.info("Created {} instance with namespace {}", NamespacedTestHarness.class.getSimpleName(), namespace);
-        return new NamespacedTestHarness(namespace);
+        LOG.info("Created {} instance with namespace {} useLegacyTypes={}", NamespacedTestHarness.class.getSimpleName(), namespace, useLegacyTypes);
+        return new NamespacedTestHarness(namespace, useLegacyTypes);
     }
 
     public void addIngressTaskRequest(TaskRequest taskRequest) {
@@ -117,8 +124,7 @@ public class NamespacedTestHarness {
     }
 
     public TypedValue runPipeline(Pipeline pipeline, Any state) {
-        var uid = UUID.randomUUID().toString();
-        return runPipeline(pipeline, state, uid);
+        return runPipeline(pipeline, state, UUID.randomUUID().toString());
     }
 
     public TypedValue runPipeline(Pipeline pipeline, Any state, String uid) {
@@ -129,10 +135,10 @@ public class NamespacedTestHarness {
     public void startPipeline(Pipeline pipeline, Any state, String uid) {
         var taskRequest = TaskRequest.newBuilder()
                 .setId(uid)
-                .setUid(uid)
+                .setUid((useLegacyTypes ? "" : "v-") + uid)
                 .setType(MessageTypes.RUN_PIPELINE_TASK_TYPE)
-                .setReplyTopic(uid)
-                .setRequest(Any.pack(pipeline));
+                .setRequest(Any.pack(pipeline))
+                .setReplyTopic(uid);
 
         if (!isNull(state)) {
             taskRequest.setState(state);
@@ -144,7 +150,7 @@ public class NamespacedTestHarness {
     public TypedValue sendAction(TaskAction action, String uid) {
         var taskActionRequest = TaskActionRequest.newBuilder()
                 .setId(uid)
-                .setUid(uid)
+                .setUid((useLegacyTypes ? "" : "v-") + uid)
                 .setAction(action)
                 .setReplyTopic(uid);
 

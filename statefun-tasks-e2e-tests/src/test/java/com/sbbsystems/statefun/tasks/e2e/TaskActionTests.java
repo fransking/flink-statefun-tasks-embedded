@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,23 +31,25 @@ import static com.sbbsystems.statefun.tasks.e2e.MoreStrings.asString;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TaskActionTests {
-    private NamespacedTestHarness harness;
+    private NamespacedTestHarness legacyHarness;
+    private NamespacedTestHarness valueHarness;
 
     @BeforeEach
     public void setup() {
-        harness = NamespacedTestHarness.newInstance();
+        legacyHarness = NamespacedTestHarness.newInstance();
+        valueHarness = NamespacedTestHarness.newInstance(false);
     }
 
     @Test
-    public void test_getting_the_status_of_a_pipeline() throws InvalidProtocolBufferException {
+    public void test_getting_the_status_of_a_pipeline_using_legacy_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(0))
                 .build();
 
-        harness.runPipeline(pipeline, null, uid);
+        legacyHarness.runPipeline(pipeline, null, uid);
 
-        var actionResult = harness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
+        var actionResult = legacyHarness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
         assertThat(actionResult.is(TaskActionResult.class)).isTrue();
 
         var status = asString(actionResult.unpack(TaskActionResult.class).getResult());
@@ -54,9 +57,25 @@ public class TaskActionTests {
     }
 
     @Test
-    public void test_getting_the_status_of_a_pipeline_that_has_not_yet_started() throws InvalidProtocolBufferException {
+    public void test_getting_the_status_of_a_pipeline_using_value_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
-        var actionResult = harness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Int32Value.of(0))
+                .build();
+
+        valueHarness.runPipeline(pipeline, null, uid);
+
+        var actionResult = valueHarness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
+        assertThat(actionResult.is(TaskActionResult.class)).isTrue();
+
+        var status = asString(actionResult.unpack(TaskActionResult.class).getResult());
+        assertThat(status).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    public void test_getting_the_status_of_a_pipeline_that_has_not_yet_started_using_legacy_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var actionResult = legacyHarness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
         assertThat(actionResult.is(TaskActionResult.class)).isTrue();
 
         var status = asString(actionResult.unpack(TaskActionResult.class).getResult());
@@ -64,15 +83,25 @@ public class TaskActionTests {
     }
 
     @Test
-    public void test_getting_the_pipeline_request() throws InvalidProtocolBufferException {
+    public void test_getting_the_status_of_a_pipeline_that_has_not_yet_started_using_value_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var actionResult = valueHarness.sendActionAndGetResponse(TaskAction.GET_STATUS, uid);
+        assertThat(actionResult.is(TaskActionResult.class)).isTrue();
+
+        var status = asString(actionResult.unpack(TaskActionResult.class).getResult());
+        assertThat(status).isEqualTo("PENDING");
+    }
+
+    @Test
+    public void test_getting_the_pipeline_request_using_legacy_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(123))
                 .build();
 
-        harness.runPipeline(pipeline, null, uid);
+        legacyHarness.runPipeline(pipeline, null, uid);
 
-        var actionResult = harness.sendActionAndGetResponse(TaskAction.GET_REQUEST, uid);
+        var actionResult = legacyHarness.sendActionAndGetResponse(TaskAction.GET_REQUEST, uid);
         assertThat(actionResult.is(TaskActionResult.class)).isTrue();
 
         var result = asString(actionResult.unpack(TaskActionResult.class).getResult());
@@ -80,15 +109,31 @@ public class TaskActionTests {
     }
 
     @Test
-    public void test_getting_the_result_of_a_pipeline() throws InvalidProtocolBufferException {
+    public void test_getting_the_pipeline_request_using_value_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Int32Value.of(123))
+                .build();
+
+        valueHarness.runPipeline(pipeline, null, uid);
+
+        var actionResult = valueHarness.sendActionAndGetResponse(TaskAction.GET_REQUEST, uid);
+        assertThat(actionResult.is(TaskActionResult.class)).isTrue();
+
+        var result = asString(actionResult.unpack(TaskActionResult.class).getResult());
+        assertThat(result).startsWith("entries").contains("echo");
+    }
+
+    @Test
+    public void test_getting_the_result_of_a_pipeline_using_legacy_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
         var pipeline = PipelineBuilder
                 .beginWith("echo", Int32Value.of(123))
                 .build();
 
-        harness.runPipeline(pipeline, null, uid);
+        legacyHarness.runPipeline(pipeline, null, uid);
 
-        var actionResult = harness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
+        var actionResult = legacyHarness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
         assertThat(actionResult.is(TaskActionResult.class)).isTrue();
 
         var result = asString(actionResult.unpack(TaskActionResult.class).getResult());
@@ -96,9 +141,32 @@ public class TaskActionTests {
     }
 
     @Test
-    public void test_getting_the_result_of_a_pipeline_that_has_not_finished() throws InvalidProtocolBufferException {
+    public void test_getting_the_result_of_a_pipeline_using_value_types() throws InvalidProtocolBufferException {
         var uid = Id.generate();
-        var actionResult = harness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
+        var pipeline = PipelineBuilder.forE2eWorker(false)
+                .beginWith("echo", Int32Value.of(123))
+                .build();
+
+        valueHarness.runPipeline(pipeline, null, uid);
+
+        var actionResult = valueHarness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
+        assertThat(actionResult.is(TaskActionResult.class)).isTrue();
+
+        var result = asString(actionResult.unpack(TaskActionResult.class).getResult());
+        assertThat(result).isEqualTo("123");
+    }
+
+    @Test
+    public void test_getting_the_result_of_a_pipeline_that_has_not_finished_using_legacy_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var actionResult = legacyHarness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
+        assertThat(actionResult.is(TaskActionException.class)).isTrue();
+    }
+
+    @Test
+    public void test_getting_the_result_of_a_pipeline_that_has_not_finished_using_value_types() throws InvalidProtocolBufferException {
+        var uid = Id.generate();
+        var actionResult = valueHarness.sendActionAndGetResponse(TaskAction.GET_RESULT, uid);
         assertThat(actionResult.is(TaskActionException.class)).isTrue();
     }
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,15 +25,26 @@ import java.util.Map;
 
 public class Module implements StatefulFunctionModule {
     public void configure(Map<String, String> globalConfiguration, Binder binder) {
-        var configuration = PipelineConfiguration.of(
-                "example/embedded_pipeline",
+        var legacyTypesConfiguration = PipelineConfiguration.of(
+                IoIdentifiers.LEGACY_TYPES_PIPELINE_FUNCTION_TYPE.namespace() + "/" + IoIdentifiers.LEGACY_TYPES_PIPELINE_FUNCTION_TYPE.name(),
                 "example/kafka-generic-egress",
                 MessageFormat.format("{0}/{1}", IoIdentifiers.EVENTS_EGRESS.namespace(), IoIdentifiers.EVENTS_EGRESS.name()),
                 IoIdentifiers.EVENTS_TOPIC,
                 null,
-                10);
+                10,
+                true);
 
-        PipelineBinderV1.INSTANCE.bind(configuration, binder);
+        var valueTypesConfiguration = PipelineConfiguration.of(
+                IoIdentifiers.VALUE_TYPES_PIPELINE_FUNCTION_TYPE.namespace() + "/" + IoIdentifiers.VALUE_TYPES_PIPELINE_FUNCTION_TYPE.name(),
+                "example/kafka-generic-egress",
+                MessageFormat.format("{0}/{1}", IoIdentifiers.EVENTS_EGRESS.namespace(), IoIdentifiers.EVENTS_EGRESS.name()),
+                IoIdentifiers.EVENTS_TOPIC,
+                null,
+                10,
+                false);
+
+        PipelineBinderV1.INSTANCE.bind(legacyTypesConfiguration, binder);
+        PipelineBinderV1.INSTANCE.bind(valueTypesConfiguration, binder);
         binder.bindFunctionProvider(IoIdentifiers.ECHO_FUNCTION_TYPE, unused -> new EchoFunction());
         binder.bindIngressRouter(IoIdentifiers.REQUEST_INGRESS, new TestPipelineRouter());
     }

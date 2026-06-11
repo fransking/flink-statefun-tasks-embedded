@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +51,8 @@ public final class PipelineFunctionState {
     private final PersistedValue<Boolean> isFruitful;
     @Persisted
     private final PersistedValue<ArgsAndKwargs> initialArgsAndKwargs;
+    @Persisted
+    private final PersistedValue<ValueArgsAndKwargs> initialValueArgsAndKwargs;
     @Persisted
     private final PersistedValue<Any> initialState;
     @Persisted
@@ -106,6 +109,7 @@ public final class PipelineFunctionState {
         isInline = PersistedValue.of("isInline", Boolean.class, expiration);
         isFruitful = PersistedValue.of("isFruitful", Boolean.class, expiration);
         initialArgsAndKwargs = PersistedValue.of("initialArgsAndKwargs", ArgsAndKwargs.class, expiration);
+        initialValueArgsAndKwargs = PersistedValue.of("initialValueArgsAndKwargs", ValueArgsAndKwargs.class, expiration);
         initialState = PersistedValue.of("initialState", Any.class, expiration);
         currentTaskState = PersistedValue.of("currentTaskState", Any.class, expiration);
         invocationId = PersistedValue.of("invocationId", String.class, expiration);
@@ -186,6 +190,14 @@ public final class PipelineFunctionState {
 
     public void setInitialArgsAndKwargs(ArgsAndKwargs initialArgsAndKwargs) {
         this.initialArgsAndKwargs.set(initialArgsAndKwargs);
+    }
+
+    public ValueArgsAndKwargs getInitialValueArgsAndKwargs() {
+        return this.initialValueArgsAndKwargs.get();
+    }
+
+    public void setInitialValueArgsAndKwargs(ValueArgsAndKwargs initialValueArgsAndKwargs) {
+        this.initialValueArgsAndKwargs.set(initialValueArgsAndKwargs);
     }
 
     public Any getInitialState() {

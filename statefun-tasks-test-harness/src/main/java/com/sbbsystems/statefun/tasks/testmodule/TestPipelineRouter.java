@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,20 +21,22 @@ import com.sbbsystems.statefun.tasks.generated.TaskRequest;
 import com.sbbsystems.statefun.tasks.types.InvalidMessageTypeException;
 import com.sbbsystems.statefun.tasks.types.MessageTypes;
 import org.apache.flink.statefun.sdk.Address;
-import org.apache.flink.statefun.sdk.FunctionType;
 import org.apache.flink.statefun.sdk.io.Router;
 import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 
 public class TestPipelineRouter implements Router<TypedValue> {
     @Override
     public void route(TypedValue request, Downstream<TypedValue> downstream) {
+        String requestUid;
         String requestId;
         try {
             if (MessageTypes.isType(request, TaskRequest.class)) {
                 var taskRequest = MessageTypes.asType(request, TaskRequest::parseFrom);
+                requestUid = taskRequest.getUid();
                 requestId = taskRequest.getId();
             } else if (MessageTypes.isType(request, TaskActionRequest.class)) {
                 var actionRequest = MessageTypes.asType(request, TaskActionRequest::parseFrom);
+                requestUid = actionRequest.getUid();
                 requestId = actionRequest.getId();
             } else {
                 throw new RuntimeException("Unexpected message type: " + request.getTypename());
@@ -41,7 +44,9 @@ public class TestPipelineRouter implements Router<TypedValue> {
         } catch (InvalidMessageTypeException e) {
             throw new RuntimeException(e);
         }
-        var embeddedPipelineFunctionType = new FunctionType("example", "embedded_pipeline");
+        var embeddedPipelineFunctionType = requestUid.startsWith("v-")
+                ? IoIdentifiers.VALUE_TYPES_PIPELINE_FUNCTION_TYPE
+                : IoIdentifiers.LEGACY_TYPES_PIPELINE_FUNCTION_TYPE;
         downstream.forward(new Address(embeddedPipelineFunctionType, requestId), request);
     }
 }
