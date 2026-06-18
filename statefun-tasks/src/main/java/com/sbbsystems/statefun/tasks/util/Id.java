@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +16,21 @@
  */
 package com.sbbsystems.statefun.tasks.util;
 
+import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.UUID;
 
 public class Id {
     public static String generate() {
-        return String.valueOf(UUID.randomUUID());
+        UUID uuid = UUID.randomUUID();
+        ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bb.array());
+    }
+
+    public static UUID fromBase64(String base64Id) {
+        ByteBuffer bb = ByteBuffer.wrap(Base64.getUrlDecoder().decode(base64Id));
+        return new UUID(bb.getLong(), bb.getLong());
     }
 }
