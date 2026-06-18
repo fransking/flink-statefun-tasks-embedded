@@ -16,10 +16,17 @@
 
 package com.sbbsystems.statefun.tasks.graph;
 
+import com.sbbsystems.statefun.tasks.graph.v2.ListTypeInfoFactory;
+import org.apache.flink.api.common.typeinfo.TypeInfo;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 public class DeferredTaskIds {
-    private Queue<String> taskIds;
+    @TypeInfo(ListTypeInfoFactory.class)
+    private ArrayList<String> taskIds;
 
     @SuppressWarnings("unused")  // POJO serialisation
     public DeferredTaskIds() {
@@ -29,18 +36,26 @@ public class DeferredTaskIds {
         return new DeferredTaskIds();
     }
 
-    public static DeferredTaskIds of(Queue<String> taskIds) {
+    public static DeferredTaskIds of(ArrayList<String> taskIds) {
         var instance = newInstance();
         instance.setTaskIds(taskIds);
         return instance;
     }
 
-    public Queue<String> getTaskIds() {
+    public boolean hasMoreEntries(int index) {
+        return numberRemaining(index) > 0;
+    }
+
+    public int numberRemaining(int index) {
+        return Math.max(0, taskIds.size() - index);
+    }
+
+    public ArrayList<String> getTaskIds() {
         return taskIds;
     }
 
     @SuppressWarnings("unused")  // POJO serialisation
-    public void setTaskIds(Queue<String> taskIds) {
+    public void setTaskIds(ArrayList<String> taskIds) {
         this.taskIds = taskIds;
     }
 }
