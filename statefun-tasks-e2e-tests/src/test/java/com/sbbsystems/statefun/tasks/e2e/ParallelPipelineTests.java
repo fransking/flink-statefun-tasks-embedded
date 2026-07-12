@@ -26,9 +26,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import static com.sbbsystems.statefun.tasks.e2e.MoreStrings.asString;
 import static com.sbbsystems.statefun.tasks.e2e.PipelineBuilder.inParallel;
@@ -520,5 +523,33 @@ public class ParallelPipelineTests {
         var result = asString(taskResult.getResult());
 
         assertThat(result.contains("200000")).isTrue();
+    }
+
+    @Test
+    @Execution(ExecutionMode.SAME_THREAD)
+    void test_large_parallel_pipeline_protobuf_size() throws IOException {
+        var group = new LinkedList<Pipeline>();
+
+        for (var i = 1; i <= 200000; i++) {
+            var p = PipelineBuilder.forE2eWorker(false)
+                    .beginWith("echo", Value.newBuilder().setStringValue("" + i).build())
+                    .build();
+
+            group.add(p);
+        }
+
+        var pipeline = inParallel(false, group).build();
+
+        byte[] serialized = pipeline.toByteArray();
+        System.out.printf("Pipeline serialized size: %,d bytes (%.2f MB)%n",
+                serialized.length, serialized.length / (1024.0 * 1024.0));
+
+        var baos = new ByteArrayOutputStream();
+        try (var gzip = new GZIPOutputStream(baos)) {
+            gzip.write(serialized);
+        }
+        byte[] compressed = baos.toByteArray();
+        System.out.printf("Pipeline gzip-compressed size: %,d bytes (%.2f MB)%n",
+                compressed.length, compressed.length / (1024.0 * 1024.0));
     }
 }

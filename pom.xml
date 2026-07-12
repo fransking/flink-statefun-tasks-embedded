@@ -7,7 +7,7 @@
     <groupId>com.sbbsystems.flink</groupId>
     <artifactId>statefun-tasks-parent</artifactId>
     <name>statefun-tasks-parent</name>
-    <version>3.4-SNAPSHOT</version>
+    <version>3.5-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <description>Embedded pipeline function for Flink Statefun Tasks</description>
@@ -46,8 +46,8 @@
     </modules>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -55,12 +55,12 @@
         <dependency>
             <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-sdk-embedded</artifactId>
-            <version>3.4-SNAPSHOT</version>
+            <version>3.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.sbbsystems.flink</groupId>
             <artifactId>statefun-flink-core</artifactId>
-            <version>3.4-SNAPSHOT</version>
+            <version>3.5-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

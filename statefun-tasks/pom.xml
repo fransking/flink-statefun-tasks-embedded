@@ -7,15 +7,15 @@
     <parent>
         <groupId>com.sbbsystems.flink</groupId>
         <artifactId>statefun-tasks-parent</artifactId>
-        <version>3.4-SNAPSHOT</version>
+        <version>3.5-SNAPSHOT</version>
     </parent>
 
     <artifactId>statefun-tasks</artifactId>
     <name>statefun-tasks</name>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
