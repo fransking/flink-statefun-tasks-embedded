@@ -34,8 +34,8 @@
                         </goals>
                         <configuration>
                             <optimizeCodegen>true</optimizeCodegen>
-                            <includeStdTypes>true</includeStdTypes>
-                            <protocVersion>3.7.1</protocVersion>
+                            <includeMavenTypes>direct</includeMavenTypes>
+                            <protocVersion>4.28.2</protocVersion>
                             <cleanOutputFolder>true</cleanOutputFolder>
                             <outputDirectory>${basedir}/target/generated-sources/protoc-jar</outputDirectory>
                         </configuration>
