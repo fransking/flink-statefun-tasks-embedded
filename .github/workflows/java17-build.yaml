@@ -1,4 +1,4 @@
-name: Java 11 Build
+name: Java 17 Build
 
 on: [push, pull_request]
 
@@ -11,6 +11,6 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: '11'
+          java-version: '17'
       - name: Build
         run: mvn clean test

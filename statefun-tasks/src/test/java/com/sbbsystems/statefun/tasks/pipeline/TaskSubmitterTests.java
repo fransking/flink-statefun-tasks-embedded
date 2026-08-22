@@ -1,5 +1,6 @@
 /*
  * Copyright [2023] [Frans King, Luke Ashworth]
+ * Copyright [2026] [Frans King]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +31,8 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -184,14 +185,16 @@ public class TaskSubmitterTests {
         var message = TypedValue.newBuilder().setTypename("request-type").build();
         var deferredTask = DeferredTask.of("namespace", "func", "id", message);
         state.getDeferredTasks().set("task-id", deferredTask);
-        var taskIds = new LinkedList<String>();
+        var taskIds = new ArrayList<String>();
         taskIds.add("task-id");
         state.getDeferredTaskIds().set("group-id", DeferredTaskIds.of(taskIds));
+        state.getDeferredTaskIdsAccessorIndexes().set("group-id", 0);
 
         TaskSubmitter.submitNextDeferredTask(state, context, group);
 
         verify(context).send(address, message);
         assertThat(state.getDeferredTaskIds().get("group-id")).isNull();
+        assertThat(state.getDeferredTaskIdsAccessorIndexes().get("group-id")).isNull();
         assertThat(state.getDeferredTasks().get("task-id")).isNull();
     }
 
@@ -202,5 +205,82 @@ public class TaskSubmitterTests {
         TaskSubmitter.submitNextDeferredTask(state, context, group);
 
         verifyNoInteractions(context);
+    }
+
+    @Test
+    public void submits_next_deferred_task_and_increments_accessor_when_more_remain() throws StatefunTasksException {
+        var group = GraphEntry.forGroup("group-id", 1, false);
+
+        var message1 = TypedValue.newBuilder().setTypename("request-type-1").build();
+        var message2 = TypedValue.newBuilder().setTypename("request-type-2").build();
+
+        state.getDeferredTasks().set("task-1", DeferredTask.of("namespace", "func", "id", message1));
+        state.getDeferredTasks().set("task-2", DeferredTask.of("namespace", "func", "id", message2));
+
+        var taskIds = new ArrayList<String>();
+        taskIds.add("task-1");
+        taskIds.add("task-2");
+        state.getDeferredTaskIds().set("group-id", DeferredTaskIds.of(taskIds));
+        state.getDeferredTaskIdsAccessorIndexes().set("group-id", 0);
+
+        // Submit the first deferred task
+        TaskSubmitter.submitNextDeferredTask(state, context, group);
+
+        verify(context).send(address, message1);
+
+        // task-1 should be removed from deferred tasks, task-2 should remain
+        assertThat(state.getDeferredTasks().get("task-1")).isNull();
+        assertThat(state.getDeferredTasks().get("task-2")).isNotNull();
+
+        // The accessor index should have been incremented to 1, and the list should still be present
+        assertThat(state.getDeferredTaskIdsAccessorIndexes().get("group-id")).isEqualTo(1);
+        assertThat(state.getDeferredTaskIds().get("group-id")).isNotNull();
+
+        verifyNoMoreInteractions(context);
+    }
+
+    @Test
+    public void submits_all_deferred_tasks_and_cleans_up_state_after_last_one() throws StatefunTasksException {
+        var group = GraphEntry.forGroup("group-id", 1, false);
+
+        var message1 = TypedValue.newBuilder().setTypename("request-type-1").build();
+        var message2 = TypedValue.newBuilder().setTypename("request-type-2").build();
+        var message3 = TypedValue.newBuilder().setTypename("request-type-3").build();
+
+        state.getDeferredTasks().set("task-1", DeferredTask.of("namespace", "func", "id", message1));
+        state.getDeferredTasks().set("task-2", DeferredTask.of("namespace", "func", "id", message2));
+        state.getDeferredTasks().set("task-3", DeferredTask.of("namespace", "func", "id", message3));
+
+        var taskIds = new ArrayList<String>();
+        taskIds.add("task-1");
+        taskIds.add("task-2");
+        taskIds.add("task-3");
+        state.getDeferredTaskIds().set("group-id", DeferredTaskIds.of(taskIds));
+        state.getDeferredTaskIdsAccessorIndexes().set("group-id", 0);
+
+        // Submit first deferred task - accessor should become 1
+        TaskSubmitter.submitNextDeferredTask(state, context, group);
+        verify(context).send(address, message1);
+        assertThat(state.getDeferredTaskIdsAccessorIndexes().get("group-id")).isEqualTo(1);
+        assertThat(state.getDeferredTaskIds().get("group-id")).isNotNull();
+
+        // Submit second deferred task - accessor should become 2
+        TaskSubmitter.submitNextDeferredTask(state, context, group);
+        verify(context).send(address, message2);
+        assertThat(state.getDeferredTaskIdsAccessorIndexes().get("group-id")).isEqualTo(2);
+        assertThat(state.getDeferredTaskIds().get("group-id")).isNotNull();
+
+        // Submit third (last) deferred task - list and accessor should be removed from state
+        TaskSubmitter.submitNextDeferredTask(state, context, group);
+        verify(context).send(address, message3);
+        assertThat(state.getDeferredTaskIds().get("group-id")).isNull();
+        assertThat(state.getDeferredTaskIdsAccessorIndexes().get("group-id")).isNull();
+
+        // All deferred tasks should be cleaned up
+        assertThat(state.getDeferredTasks().get("task-1")).isNull();
+        assertThat(state.getDeferredTasks().get("task-2")).isNull();
+        assertThat(state.getDeferredTasks().get("task-3")).isNull();
+
+        verifyNoMoreInteractions(context);
     }
 }

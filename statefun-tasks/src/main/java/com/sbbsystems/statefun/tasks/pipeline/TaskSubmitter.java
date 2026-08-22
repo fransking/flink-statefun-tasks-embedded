@@ -31,8 +31,8 @@ import org.apache.flink.statefun.sdk.reqreply.generated.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
 
 import static java.util.Objects.isNull;
@@ -42,7 +42,7 @@ public class TaskSubmitter implements AutoCloseable {
 
     private final PipelineFunctionState state;
     private final Context context;
-    private final HashMap<String, LinkedList<String>> deferredTaskIds = new HashMap<>();
+    private final HashMap<String, ArrayList<String>> deferredTaskIds = new HashMap<>();
     private final HashMap<String, Integer> taskCounts = new HashMap<>();
     private final Map<String, GraphEntry> graphEntries;
 
@@ -54,22 +54,28 @@ public class TaskSubmitter implements AutoCloseable {
     public static void submitNextDeferredTask(PipelineFunctionState state, Context context, GraphEntry parentGroup)
             throws StatefunTasksException {
 
-        var groupDeferredTasks = state.getDeferredTaskIds().get(parentGroup.getId());
-        if (groupDeferredTasks != null && !groupDeferredTasks.getTaskIds().isEmpty()) {
+        var deferredTaskIds = state.getDeferredTaskIds().get(parentGroup.getId());
+        var deferredTaskIdsAccessorIndex = state.getDeferredTaskIdsAccessorIndexes().get(parentGroup.getId());
+
+        if (deferredTaskIds != null && deferredTaskIds.hasMoreEntries(deferredTaskIdsAccessorIndex)) {
             // deferred tasks exist for this group - submit the next one from the list
-            var nextTaskId = groupDeferredTasks.getTaskIds().remove();
+            var nextTaskId = deferredTaskIds.getTaskIds().get(deferredTaskIdsAccessorIndex);
             var nextTask = state.getDeferredTasks().get(nextTaskId);
 
-            // remove from state
+            // remove the deferred task from state
             state.getDeferredTasks().remove(nextTaskId);
-            int nRemaining = groupDeferredTasks.getTaskIds().size();
-            if (nRemaining == 0) {
+
+            // update deferred task id accessor index
+            state.getDeferredTaskIdsAccessorIndexes().set(parentGroup.getId(), ++deferredTaskIdsAccessorIndex);
+
+            // if we reached the end of the deferred task list for this group, remove the entries from state
+            if (!deferredTaskIds.hasMoreEntries(deferredTaskIdsAccessorIndex)) {
                 state.getDeferredTaskIds().remove(parentGroup.getId());
-            } else {
-                state.getDeferredTaskIds().set(parentGroup.getId(), groupDeferredTasks);
+                state.getDeferredTaskIdsAccessorIndexes().remove(parentGroup.getId());
             }
 
             // submit task
+            int nRemaining = deferredTaskIds.numberRemaining(deferredTaskIdsAccessorIndex);
             LOG.info("Submitting deferred task {} from group {} ({} remaining)", nextTaskId, parentGroup.getId(), nRemaining);
             try {
                 submitTask(context, state, nextTask.getAddress(), nextTask.getMessage());
@@ -131,7 +137,7 @@ public class TaskSubmitter implements AutoCloseable {
         }
         var parentGroupId = parentGroup.getId();
         if (!deferredTaskIds.containsKey(parentGroupId)) {
-            deferredTaskIds.put(parentGroupId, new LinkedList<>());
+            deferredTaskIds.put(parentGroupId, new ArrayList<>());
         }
         deferredTaskIds.get(parentGroupId).add(task.getId());  // written to state on close
         var deferredTask = DeferredTask.of(address.type().namespace(), address.type().name(), address.id(), message);
@@ -158,6 +164,7 @@ public class TaskSubmitter implements AutoCloseable {
         for (var deferredTaskIdEntry : deferredTaskIds.entrySet()) {
             LOG.info("Deferred {} tasks for group {}", deferredTaskIdEntry.getValue().size(), deferredTaskIdEntry.getKey());
             state.getDeferredTaskIds().set(deferredTaskIdEntry.getKey(), DeferredTaskIds.of(deferredTaskIdEntry.getValue()));
+            state.getDeferredTaskIdsAccessorIndexes().set(deferredTaskIdEntry.getKey(), 0);
         }
     }
 

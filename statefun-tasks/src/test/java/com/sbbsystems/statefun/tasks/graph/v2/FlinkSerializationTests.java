@@ -15,6 +15,7 @@
  */
 package com.sbbsystems.statefun.tasks.graph.v2;
 
+import com.sbbsystems.statefun.tasks.graph.DeferredTaskIds;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -23,9 +24,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +36,8 @@ public final class FlinkSerializationTests {
 
         for (Class<?> cls : List.of(
                 GraphEntry.class,
-                MapOfGraphEntries.class
+                MapOfGraphEntries.class,
+                DeferredTaskIds.class
         )) {
             var config = new ExecutionConfig().getSerializerConfig();
             TypeSerializer<?> serializer = TypeExtractor.getForClass(cls).createSerializer(config);
@@ -88,5 +88,20 @@ public final class FlinkSerializationTests {
 
         DataOutputSerializer serializer = new DataOutputSerializer(100);
         typeSerializer.serialize(map, serializer);
+    }
+
+    @Test
+    public void deferred_task_ids_is_pojo_serialized() throws IOException {
+        var config = new SerializerConfigImpl();
+        config.setGenericTypes(false);
+        TypeSerializer<DeferredTaskIds> typeSerializer = TypeExtractor.getForClass(DeferredTaskIds.class).createSerializer(config);
+
+        var queue = new ArrayList<String>();
+        queue.add("task-1");
+        queue.add("task-2");
+        DeferredTaskIds deferredTaskIds = DeferredTaskIds.of(queue);
+
+        DataOutputSerializer serializer = new DataOutputSerializer(100);
+        typeSerializer.serialize(deferredTaskIds, serializer);
     }
 }
