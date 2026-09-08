@@ -46,7 +46,7 @@ public final class MessageTypes {
     public static final TypeName RESULTS_BATCH_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.ResultsBatch");
     public static final TypeName CHILD_PIPELINE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.ChildPipeline");
     public static final TypeName TASK_ACTION_REQUEST_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskActionRequest");
-    public static final TypeName TASK_ACTION_RESULT_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskActionRequest");
+    public static final TypeName TASK_ACTION_RESULT_TYPE = TypeName.parseFrom("io.statefun_tasks.types/statefun_tasks.TaskActionResult");
     public static final Map<Class<? extends Message>, TypeName> TYPES = Map.of(
             TaskRequest.class, TASK_REQUEST_TYPE,
             TaskResult.class, TASK_RESULT_TYPE,
