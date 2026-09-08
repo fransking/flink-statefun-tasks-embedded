@@ -87,13 +87,13 @@ public class PipelineHandler {
 
         // request child pipelines to cancel
         for (var pipeline : state.getChildPipelines().view()) {
-            var pauseRequest = TaskActionRequest.newBuilder()
+            var cancelRequest = TaskActionRequest.newBuilder()
                     .setId(Id.generate())
                     .setUid(Id.generate())
                     .setAction(TaskAction.CANCEL_PIPELINE);
 
             var functionType = MessageTypes.toFunctionType(pipeline.getAddress());
-            context.send(functionType, pipeline.getId(), MessageTypes.wrap(pauseRequest.build()));
+            context.send(functionType, pipeline.getId(), MessageTypes.wrap(cancelRequest.build()));
         }
 
         // create cancellation exception
